@@ -1,0 +1,40 @@
+name: vet OSS Components
+
+on:
+  pull_request:
+
+permissions:
+  # Required for actions/checkout@v4
+  contents: read
+
+  # Required for writing pull request comment
+  issues: write
+  pull-requests: write
+
+  # Required for uploading findings to Github security tab
+  security-events: write
+
+jobs:
+  vet:
+    name: vet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Run vet
+        id: vet
+        uses: safedep/vet-action@v1.1.6
+        with:
+          policy: .github/policies/vet-policy.yml
+          trusted-registries: |
+            https://buf.build/gen/npm/v1
+            https://registry.npmjs.org/strip-ansi
+            https://npm.pkg.github.com/download/@nomad-bank/
+            https://registry.npmjs.org/string-width
+            https://registry.npmjs.org/wrap-ansi
+        env:
+          # Required for writing pull request comment
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

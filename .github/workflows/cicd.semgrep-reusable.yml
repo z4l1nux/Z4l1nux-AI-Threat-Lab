@@ -1,0 +1,11 @@
+name: Semgrep Code Scanning
+
+on:
+  push:
+    branches:
+      - dev
+jobs:
+  semgrep_sast:
+    uses: nomad-bank/nomad-actions/.github/workflows/infra.base.semgrep.sast.yml@main
+    with:
+      PARANOIA_LEVEL: 2
