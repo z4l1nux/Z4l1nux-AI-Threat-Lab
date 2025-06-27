@@ -64,5 +64,33 @@ O **Threat Modeling Co-Pilot** é uma plataforma inteligente para modelagem de a
 - É obrigatório configurar a chave da API Gemini para uso das funcionalidades de IA.
 - O arquivo de mapeamento STRIDE-CAPEC está em `public/data/mapeamento-stride-capec-pt.json`.
 
+## Sugestão de Descrição Completa do Sistema
+
+### Exemplo de Prompt para Modelagem de Ameaças: Sistema de Telemedicina
+
+**Nome do Sistema:** HealthConnect
+
+**Objetivo:** Plataforma de telemedicina para agendamento e realização de consultas online, com gerenciamento de prontuários eletrônicos (PEP) e prescrições digitais.
+
+**Componentes Chave:**
+- **Frontends:** Portal do Paciente (Web/Móvel) e Portal do Médico (Web).
+- **Backends:** API Central, serviços de Agendamento, Teleconsulta (WebRTC), PEP e Prescrição Digital.
+- **Dados:** Bancos de Dados de perfil de usuário (MongoDB) e Clínico confidencial (PostgreSQL).
+- **Integrações:** Gateways de pagamento, SMS/E-mail e serviços de assinatura digital.
+
+**Dados Críticos:**
+- **Dados Pessoais de Saúde (DPH):** Prontuários, histórico médico, resultados de exames e prescrições.
+- **Dados Sensíveis:** Informações de identificação do paciente (CPF, nome), credenciais e tokens de pagamento.
+
+**Tecnologias e Infraestrutura:**
+- **Tecnologias:** Vue.js, Flutter, Python, Golang, WebRTC, Kafka.
+- **Infraestrutura:** Containers (Docker), Orquestração (Kubernetes) no Azure.
+- **Segurança:** TLS 1.3, criptografia de ponta a ponta e assinaturas digitais (X.509).
+
+**Fluxos de Usuário:**
+- **Paciente:** Agenda, participa de consultas e acessa dados de saúde.
+- **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
+- **Administrador:** Gerencia usuários e monitora o sistema.
+
 ## Licença
 MIT
