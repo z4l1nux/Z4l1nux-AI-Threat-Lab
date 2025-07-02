@@ -282,16 +282,6 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdownContent}</ReactMarkdown>
           </article>
 
-          
-
-          <details className="mt-6 bg-custom-black p-4 rounded border border-custom-yellow/30">
-            <summary className="text-lg font-medium text-custom-yellow cursor-pointer">Dados Brutos das Ameaças Identificadas (JSON)</summary>
-            <pre className="mt-2 p-3 bg-custom-black text-xs text-custom-yellow rounded overflow-auto max-h-96 border border-custom-yellow/30"
- aria-label="Dados JSON das ameaças identificadas">
-              {JSON.stringify(reportData.threats, null, 2)}
-            </pre>
-          </details>
-
           {/* Tabela React pura para ameaças */}
           <section className="mt-8 mb-8">
             <h3 className="text-2xl font-semibold text-custom-yellow mb-4">Análise de Ameaças (STRIDE + CAPEC)</h3>
