@@ -29,7 +29,7 @@ const SystemInputForm: React.FC<SystemInputFormProps> = ({ initialInfo, onSubmit
       <h2 className="text-xl font-semibold text-yellow-400 border-b border-yellow-400 pb-1">Informações do Sistema</h2>
       <div>
         <label htmlFor="systemVersion" className="block text-sm font-medium text-gray-300 mb-1">
-          Versão do Sistema
+          Versão
         </label>
         <input
           id="systemVersion"
@@ -40,7 +40,7 @@ const SystemInputForm: React.FC<SystemInputFormProps> = ({ initialInfo, onSubmit
           className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-gray-100 placeholder-gray-400 mb-2"
           placeholder="Ex: 1.0.0"
           disabled={isLoading}
-          aria-label="Versão do Sistema"
+          aria-label="Versão"
         />
       </div>
       <div>
