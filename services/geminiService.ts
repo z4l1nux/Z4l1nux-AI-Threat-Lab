@@ -10,7 +10,138 @@ if (!API_KEY) {
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-const TEXT_MODEL = 'gemini-1.5-flash-latest';
+
+// Configuração inteligente de modelos
+const MODEL_CONFIG = {
+  // Modelos disponíveis ordenados por capacidade/custo
+  MODELS: {
+    LITE: 'gemini-2.5-flash-lite-preview-06-17',      // Mais barato, tarefas simples
+    FLASH: 'gemini-2.5-flash',                         // Equilibrado, uso geral
+    FLASH_LEGACY: 'gemini-1.5-flash-latest',          // Fallback confiável
+    PRO: 'gemini-2.5-pro'                             // Mais caro, tarefas complexas
+  },
+  
+  // Limites para decisão automática de modelo
+  THRESHOLDS: {
+    SIMPLE_TASK_TOKENS: 5000,        // < 5k tokens = tarefa simples
+    COMPLEX_TASK_TOKENS: 50000,      // > 50k tokens = tarefa complexa
+    MAX_RETRIES: 2                   // Máximo de tentativas com modelos alternativos
+  }
+};
+
+// Função para calcular complexidade aproximada da tarefa
+const calculateTaskComplexity = (
+  systemInfo: SystemInfo, 
+  additionalData?: string
+): 'SIMPLE' | 'MEDIUM' | 'COMPLEX' => {
+  const systemInfoStr = JSON.stringify(systemInfo);
+  const totalLength = systemInfoStr.length + (additionalData?.length || 0);
+  
+  // Fatores de complexidade
+  const componentCount = systemInfo.components?.split(',').length || 0;
+  const hasExternalIntegrations = systemInfo.externalIntegrations && 
+    systemInfo.externalIntegrations.toLowerCase() !== 'não informado';
+  const hasComplexAuth = systemInfo.authentication && 
+    systemInfo.authentication.toLowerCase().includes('oauth');
+  
+  // Cálculo de pontuação de complexidade
+  let complexityScore = 0;
+  
+  // Tamanho do conteúdo
+  if (totalLength > MODEL_CONFIG.THRESHOLDS.COMPLEX_TASK_TOKENS) complexityScore += 3;
+  else if (totalLength > MODEL_CONFIG.THRESHOLDS.SIMPLE_TASK_TOKENS) complexityScore += 1;
+  
+  // Número de componentes
+  if (componentCount > 10) complexityScore += 2;
+  else if (componentCount > 5) complexityScore += 1;
+  
+  // Integrações externas
+  if (hasExternalIntegrations) complexityScore += 1;
+  
+  // Autenticação complexa
+  if (hasComplexAuth) complexityScore += 1;
+  
+  // Classificação final
+  if (complexityScore >= 5) return 'COMPLEX';
+  if (complexityScore >= 2) return 'MEDIUM';
+  return 'SIMPLE';
+};
+
+// Função para selecionar o modelo ideal baseado na tarefa
+const selectOptimalModel = (
+  taskType: 'ANALYSIS' | 'REFINEMENT' | 'SUMMARY',
+  complexity: 'SIMPLE' | 'MEDIUM' | 'COMPLEX',
+  retryCount: number = 0
+): string => {
+  // Estratégia de seleção baseada em tipo de tarefa e complexidade
+  switch (taskType) {
+    case 'SUMMARY':
+      // Resumos são geralmente tarefas simples
+      return retryCount === 0 ? MODEL_CONFIG.MODELS.LITE : MODEL_CONFIG.MODELS.FLASH;
+      
+    case 'ANALYSIS':
+      // Análise de ameaças requer mais capacidade
+      if (complexity === 'COMPLEX') {
+        return retryCount === 0 ? MODEL_CONFIG.MODELS.PRO : MODEL_CONFIG.MODELS.FLASH;
+      } else if (complexity === 'MEDIUM') {
+        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.FLASH_LEGACY;
+      } else {
+        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.LITE;
+      }
+      
+    case 'REFINEMENT':
+      // Refinamento requer capacidade de raciocínio
+      if (complexity === 'COMPLEX') {
+        return retryCount === 0 ? MODEL_CONFIG.MODELS.PRO : MODEL_CONFIG.MODELS.FLASH;
+      } else {
+        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.FLASH_LEGACY;
+      }
+      
+    default:
+      return MODEL_CONFIG.MODELS.FLASH;
+  }
+};
+
+// Função para executar geração de conteúdo com retry inteligente
+const executeWithIntelligentRetry = async (
+  prompt: string,
+  taskType: 'ANALYSIS' | 'REFINEMENT' | 'SUMMARY',
+  complexity: 'SIMPLE' | 'MEDIUM' | 'COMPLEX',
+  maxRetries: number = MODEL_CONFIG.THRESHOLDS.MAX_RETRIES
+): Promise<GenerateContentResponse> => {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const selectedModel = selectOptimalModel(taskType, complexity, attempt);
+      
+      console.log(`[Gemini Service] Tentativa ${attempt + 1}/${maxRetries + 1} usando modelo: ${selectedModel} (Complexidade: ${complexity})`);
+      
+      const response = await ai!.models.generateContent({
+        model: selectedModel,
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
+      });
+      
+      console.log(`[Gemini Service] Sucesso com modelo: ${selectedModel}`);
+      return response;
+      
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`[Gemini Service] Erro com modelo (tentativa ${attempt + 1}):`, error);
+      
+      // Se é a última tentativa, lança o erro
+      if (attempt === maxRetries) {
+        break;
+      }
+      
+      // Aguarda um pouco antes da próxima tentativa
+      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+  }
+  
+  throw new Error(`Falha em todas as tentativas de geração de conteúdo. Último erro: ${lastError?.message}`);
+};
 
 const parseJsonFromText = (text: string | undefined): any => {
   if (!text) throw new Error("Texto da resposta da IA está indefinido.");
@@ -33,6 +164,11 @@ export const analyzeThreatsAndMitigations = async (
   strideCapecMap: StrideCapecMapType
 ): Promise<IdentifiedThreat[]> => {
   if (!ai) throw new Error("Chave da API Gemini não configurada.");
+  
+  // Calcular complexidade da tarefa
+  const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(strideCapecMap));
+  console.log(`[Gemini Service] Complexidade da análise detectada: ${complexity}`);
+  
   const prompt = `
 Informações do Sistema (em Português):
 ${JSON.stringify(systemInfo, null, 2)}
@@ -94,12 +230,8 @@ Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento 
   }
 ]
 `;
-  const response: GenerateContentResponse = await ai.models.generateContent({
-      model: TEXT_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-  });
-  
+
+  const response = await executeWithIntelligentRetry(prompt, 'ANALYSIS', complexity);
   const parsedThreatsData = parseJsonFromText(response.text);
 
   if (!Array.isArray(parsedThreatsData)) {
@@ -128,6 +260,10 @@ export const refineAnalysis = async (
   strideCapecMap: StrideCapecMapType
 ): Promise<{ threats: IdentifiedThreat[] }> => {
   if (!ai) throw new Error("Chave da API Gemini não configurada.");
+
+  // Calcular complexidade da tarefa de refinamento
+  const complexity = calculateTaskComplexity(systemInfo, currentReportMarkdown);
+  console.log(`[Gemini Service] Complexidade do refinamento detectada: ${complexity}`);
 
   const prompt = `
 Contexto: Você é um especialista sênior em segurança cibernética revisando e refinando um relatório de modelagem de ameaças existente. O usuário forneceu uma versão inicial do relatório (em Markdown) que pode ter sido editada.
@@ -199,12 +335,7 @@ Exemplo de Saída JSON:
 }
 `;
 
-  const response: GenerateContentResponse = await ai.models.generateContent({
-      model: TEXT_MODEL,
-      contents: prompt,
-      config: { responseMimeType: "application/json" }
-  });
-
+  const response = await executeWithIntelligentRetry(prompt, 'REFINEMENT', complexity);
   const parsedResponse = parseJsonFromText(response.text);
 
   if (!parsedResponse || !Array.isArray(parsedResponse.threats)) {
@@ -228,6 +359,11 @@ Exemplo de Saída JSON:
 export const summarizeSystemDescription = async (fullDescription: string): Promise<Partial<SystemInfo>> => {
   if (!ai) throw new Error("Chave da API Gemini não configurada.");
   if (!fullDescription) throw new Error("Descrição do sistema não informada.");
+  
+  // Para resumos, sempre usar complexidade simples
+  const complexity = 'SIMPLE' as const;
+  console.log(`[Gemini Service] Executando resumo do sistema com complexidade: ${complexity}`);
+  
   const prompt = `
 Você é um assistente de segurança da informação. Leia a descrição completa do sistema abaixo e extraia de forma clara e objetiva os seguintes campos, preenchendo cada um deles (mesmo que seja 'Não informado' se não houver dado):
 
@@ -263,10 +399,7 @@ Saída esperada:
   "externalIntegrations": "..."
 }
 `;
-  const response: GenerateContentResponse = await ai.models.generateContent({
-    model: TEXT_MODEL,
-    contents: prompt,
-    config: { responseMimeType: "application/json" }
-  });
+
+  const response = await executeWithIntelligentRetry(prompt, 'SUMMARY', complexity);
   return parseJsonFromText(response.text);
 };
