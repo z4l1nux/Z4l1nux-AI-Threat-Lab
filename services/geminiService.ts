@@ -230,7 +230,7 @@ Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento 
   }
 ]
 `;
-
+  
   const response = await executeWithIntelligentRetry(prompt, 'ANALYSIS', complexity);
   const parsedThreatsData = parseJsonFromText(response.text);
 
