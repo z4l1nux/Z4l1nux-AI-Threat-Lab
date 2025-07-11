@@ -52,6 +52,13 @@ Para cada ameaça identificada:
 7. Avalie o impacto potencial da ameaça, classificando como CRITICAL, HIGH, MEDIUM ou LOW, considerando o possível dano ao negócio, usuários ou dados.
 8. Relacione a ameaça ao item mais relevante do OWASP TOP 10 (ex: "A01:2021 - Broken Access Control").
 
+IMPORTANTE - IDIOMA:
+- TODOS OS TEXTOS DEVEM ESTAR EM PORTUGUÊS DO BRASIL
+- APENAS as categorias STRIDE devem permanecer em inglês (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
+- Nomes CAPEC podem permanecer em inglês, MAS suas descrições devem ser em português
+- Classificações OWASP TOP 10 podem permanecer em inglês, mas qualquer texto explicativo deve ser em português
+- Cenários de ameaça, descrições CAPEC e recomendações de mitigação DEVEM SER ESCRITOS EM PORTUGUÊS DO BRASIL
+
 Saída:
 Retorne o resultado como um array JSON de objetos. Cada objeto deve seguir esta estrutura exata (mantenha as chaves do JSON em inglês):
 {
@@ -70,6 +77,7 @@ Importante:
 - Assegure que a saída seja APENAS o array JSON. Não inclua nenhum outro texto, explicações ou formatação markdown como 'três crases' ou 'formatação markdown de código' fora do próprio array JSON.
 - Forneça pelo menos 5-10 ameaças cobrindo diferentes componentes/fluxos e categorias STRIDE.
 - TODO O CONTEÚDO DE TEXTO DENTRO DOS VALORES JSON (COMO threatScenario, capecDescription, mitigationRecommendations) DEVE ESTAR EM PORTUGUÊS DO BRASIL.
+- REPITO: ESCREVA EM PORTUGUÊS DO BRASIL - apenas categorias STRIDE em inglês!
 
 Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento fornecido):
 [
@@ -148,6 +156,14 @@ Sua tarefa é refinar o relatório de modelagem de ameaças fornecido. Analise o
 2.  **Gerar Saída Estruturada:**
     - Com base em sua análise refinada, gere um objeto JSON contendo uma chave chamada 'threats', que deve ser um array JSON de objetos de ameaças, seguindo a mesma estrutura da análise original. Este array deve ser a lista completa e refinada de ameaças.
 
+IMPORTANTE - IDIOMA:
+- TODOS OS TEXTOS DEVEM ESTAR EM PORTUGUÊS DO BRASIL
+- APENAS as categorias STRIDE devem permanecer em inglês (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
+- Nomes CAPEC podem permanecer em inglês, MAS suas descrições devem ser em português
+- Classificações OWASP TOP 10 podem permanecer em inglês, mas qualquer texto explicativo deve ser em português
+- Cenários de ameaça, descrições CAPEC e recomendações de mitigação DEVEM SER ESCRITOS EM PORTUGUÊS DO BRASIL
+- REPITO: ESCREVA EM PORTUGUÊS DO BRASIL - apenas categorias STRIDE em inglês!
+
 Estrutura do Objeto de Ameaça (mantenha as chaves em inglês):
 {
   "elementName": "string",
@@ -222,6 +238,12 @@ Você é um assistente de segurança da informação. Leia a descrição complet
 - authentication: Descreva os mecanismos de autenticação/autorização.
 - userProfiles: Liste os perfis de usuário existentes.
 - externalIntegrations: Liste as integrações externas relevantes.
+
+IMPORTANTE - IDIOMA:
+- TODOS OS TEXTOS DEVEM ESTAR EM PORTUGUÊS DO BRASIL
+- Use linguagem clara e objetiva
+- Se não houver informação disponível, use "Não informado"
+- ESCREVA TUDO EM PORTUGUÊS DO BRASIL
 
 Responda APENAS com um objeto JSON com as chaves exatamente como acima, sem explicações ou texto extra.
 
