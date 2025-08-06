@@ -55,7 +55,7 @@ const App: React.FC = () => {
           {APP_TITLE}
         </h1>
         <p className="text-custom-yellow mt-2 text-sm md:text-base">
-          Utilize IA para analisar seu sistema, gerar Diagramas de Fluxo de Dados, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
+          Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
         </p>
         {isApiKeyMissing && (
            <div role="alert" className="mt-4 p-3 bg-custom-yellow/20 border border-custom-yellow text-custom-yellow rounded-md text-xs">
