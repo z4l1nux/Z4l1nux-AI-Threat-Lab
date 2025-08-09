@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema RAG - Gemini & Ollama</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .output-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.not-ready {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .response {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .logs {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Sistema RAG</h1>
+            <p>Gemini & Ollama - Interface Web</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>📝 Entrada</h2>
+                
+                <div id="status" class="status not-ready">
+                    Verificando status do sistema...
+                </div>
+
+                <div class="form-group">
+                    <label for="modelo">Escolha o Modelo:</label>
+                    <select id="modelo">
+                        <option value="1">🤖 Gemini (Google)</option>
+                        <option value="2">🦙 Ollama (Local - Mistral)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="pergunta">Sua Pergunta:</label>
+                    <textarea id="pergunta" placeholder="Digite sua pergunta aqui..."></textarea>
+                </div>
+
+                <button id="enviar" class="btn" onclick="enviarPergunta()">
+                    🚀 Enviar Pergunta
+                </button>
+
+                <div id="loading" class="loading">
+                    <div class="spinner"></div>
+                    <p>Processando sua pergunta...</p>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <h2>📊 Resultados</h2>
+                
+                <div id="stats" class="stats" style="display: none;">
+                    <div class="stat-card">
+                        <div id="resultadosCount" class="stat-number">0</div>
+                        <div class="stat-label">Resultados Encontrados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div id="avgScore" class="stat-number">0.000</div>
+                        <div class="stat-label">Score Médio</div>
+                    </div>
+                </div>
+
+                <div id="response" class="response" style="display: none;">
+                    <strong>Resposta:</strong>
+                    <div id="responseText"></div>
+                </div>
+
+                <div id="logs" class="logs" style="display: none;">
+                    <strong>📋 Logs do Sistema:</strong>
+                    <div id="logsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar status do sistema
+        async function verificarStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                const statusDiv = document.getElementById('status');
+                if (data.status === 'ready') {
+                    statusDiv.className = 'status ready';
+                    statusDiv.innerHTML = '✅ Sistema pronto para uso!';
+                } else {
+                    statusDiv.className = 'status not-ready';
+                    let message = '❌ Sistema não está pronto:';
+                    if (!data.database) message += '<br>• Banco de dados não encontrado (execute: npm run create-db)';
+                    if (!data.apiKey) message += '<br>• API Key não configurada (configure GOOGLE_API_KEY no .env)';
+                    statusDiv.innerHTML = message;
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Erro ao verificar status do servidor';
+            }
+        }
+
+        // Enviar pergunta
+        async function enviarPergunta() {
+            const pergunta = document.getElementById('pergunta').value.trim();
+            const modelo = document.getElementById('modelo').value;
+            
+            if (!pergunta) {
+                alert('Por favor, digite uma pergunta!');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('enviar').disabled = true;
+            
+            // Limpar resultados anteriores
+            document.getElementById('response').style.display = 'none';
+            document.getElementById('logs').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/perguntar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pergunta, modelo })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Mostrar resposta
+                    document.getElementById('responseText').textContent = data.resposta;
+                    document.getElementById('response').style.display = 'block';
+
+                    // Mostrar estatísticas
+                    document.getElementById('resultadosCount').textContent = data.resultadosEncontrados;
+                    const avgScore = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
+                    document.getElementById('avgScore').textContent = avgScore.toFixed(3);
+                    document.getElementById('stats').style.display = 'grid';
+
+                    // Mostrar logs
+                    const logsContent = document.getElementById('logsContent');
+                    logsContent.innerHTML = '';
+                    data.logs.forEach(log => {
+                        const logEntry = document.createElement('div');
+                        logEntry.className = 'log-entry';
+                        logEntry.textContent = log;
+                        logsContent.appendChild(logEntry);
+                    });
+                    document.getElementById('logs').style.display = 'block';
+                } else {
+                    // Mostrar erro
+                    document.getElementById('responseText').textContent = `Erro: ${data.error}`;
+                    document.getElementById('response').style.display = 'block';
+                }
+
+            } catch (error) {
+                document.getElementById('responseText').textContent = `Erro de conexão: ${error.message}`;
+                document.getElementById('response').style.display = 'block';
+            } finally {
+                // Esconder loading
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('enviar').disabled = false;
+            }
+        }
+
+        // Permitir enviar com Enter
+        document.getElementById('pergunta').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                enviarPergunta();
+            }
+        });
+
+        // Verificar status ao carregar a página
+        window.onload = verificarStatus;
+    </script>
+</body>
+</html> 

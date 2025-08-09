@@ -1,0 +1,42 @@
+{
+  "name": "langc-rag",
+  "version": "1.0.0",
+  "description": "Sistema RAG com suporte ao Ollama em TypeScript",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "ts-node src/main.ts",
+    "web": "ts-node src/server.ts",
+    "create-db": "ts-node src/criarDb.ts",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "@chroma-core/default-embed": "^0.1.8",
+    "@langchain/community": "^0.3.49",
+    "@langchain/google-genai": "^0.0.8",
+    "@langchain/ollama": "^0.2.3",
+    "@langchain/openai": "^0.0.14",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "chromadb": "^3.0.10",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^5.1.0",
+    "langchain": "^0.1.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "keywords": [
+    "rag",
+    "ollama",
+    "langchain",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}
