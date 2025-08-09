@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<livros>
+  <livro id="1">
+    <titulo>O Senhor dos Anéis</titulo>
+    <autor>J.R.R. Tolkien</autor>
+    <ano>1954</ano>
+    <genero>Fantasia</genero>
+    <descricao>Uma épica história de fantasia sobre a jornada de Frodo Baggins para destruir o Um Anel.</descricao>
+  </livro>
+  <livro id="2">
+    <titulo>1984</titulo>
+    <autor>George Orwell</autor>
+    <ano>1949</ano>
+    <genero>Ficção Científica</genero>
+    <descricao>Uma distopia sobre vigilância governamental e controle social totalitário.</descricao>
+  </livro>
+  <livro id="3">
+    <titulo>Dom Casmurro</titulo>
+    <autor>Machado de Assis</autor>
+    <ano>1899</ano>
+    <genero>Romance</genero>
+    <descricao>Um clássico da literatura brasileira sobre ciúme e traição.</descricao>
+  </livro>
+</livros> 

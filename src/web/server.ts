@@ -1,11 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
+import { SearchFactory } from "../core/search/SearchFactory";
+import { PromptTemplates } from "../utils/PromptTemplates";
 import * as dotenv from "dotenv";
-import * as fs from "fs";
 
 dotenv.config();
 
@@ -15,15 +15,9 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, '../../public')));
 
-const promptTemplate = `
-Responda a pergunta do usuário:
-{pergunta} 
-
-com base nessas informações abaixo:
-
-{base_conhecimento}`;
+// Template será selecionado dinamicamente baseado na pergunta
 
 function criarEmbeddings() {
   if (!process.env.GOOGLE_API_KEY) {
@@ -40,39 +34,40 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
   try {
     logs.push("🔄 Iniciando processamento da pergunta...");
     
-    // Verificar se existe o arquivo de dados
-    if (!fs.existsSync("vectorstore.json")) {
-      throw new Error("Banco de dados não encontrado. Execute primeiro: npm run create-db");
+    const embeddings = criarEmbeddings();
+    const semanticSearch = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
+    
+    // Verificar se o cache existe
+    const cacheValido = await semanticSearch.verificarCache();
+    if (!cacheValido) {
+      throw new Error("Banco de dados LanceDB não encontrado. Execute primeiro: npm run create-lancedb");
     }
     
     logs.push("📁 Carregando banco de dados...");
-    
-    // Carregar dados do arquivo
-    const dbData = JSON.parse(fs.readFileSync("vectorstore.json", 'utf8'));
-    const funcaoEmbedding = criarEmbeddings();
-    const db = await MemoryVectorStore.fromDocuments(dbData.documents, funcaoEmbedding);
-
     logs.push("🔍 Buscando resultados relevantes...");
     
-    // comparar a pergunta do usuario (embedding) com o meu banco de dados
-    const resultados = await db.similaritySearchWithScore(pergunta, 8);
+    // Realizar busca semântica
+    const resultados = await semanticSearch.buscar(pergunta, 8);
     
     if (resultados.length === 0) {
       throw new Error("Não conseguiu encontrar alguma informação relevante na base");
     }
     
     logs.push(`✅ Encontrados ${resultados.length} resultados relevantes`);
-    resultados.forEach((resultado, index) => {
-      logs.push(`${index + 1}. Score: ${resultado[1].toFixed(3)}`);
+    resultados.forEach((resultado: any, index: number) => {
+      logs.push(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
     });
 
     const textosResultado: string[] = [];
     for (const resultado of resultados) {
-      const texto = resultado[0].pageContent;
+      const texto = resultado.documento.pageContent;
       textosResultado.push(texto);
     }
 
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    
+    // Selecionar template apropriado baseado na pergunta
+    const promptTemplate = PromptTemplates.getTemplateForQuestion(pergunta);
     const textoPrompt = promptTemplate
       .replace("{pergunta}", pergunta)
       .replace("{base_conhecimento}", baseConhecimento);
@@ -103,7 +98,7 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
       resposta: resposta.content,
       logs: logs,
       resultadosEncontrados: resultados.length,
-      scores: resultados.map(r => r[1])
+      scores: resultados.map(r => r.score)
     };
     
   } catch (error) {
@@ -120,7 +115,7 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
 
 // Rotas
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, '../../public/index.html'));
 });
 
 app.post('/api/perguntar', async (req, res) => {
@@ -145,19 +140,28 @@ app.post('/api/perguntar', async (req, res) => {
   }
 });
 
-app.get('/api/status', (req, res) => {
-  const hasDatabase = fs.existsSync("vectorstore.json");
-  const hasApiKey = !!process.env.GOOGLE_API_KEY;
-  
-  res.json({
-    database: hasDatabase,
-    apiKey: hasApiKey,
-    status: hasDatabase && hasApiKey ? 'ready' : 'not_ready'
-  });
+app.get('/api/status', async (req, res) => {
+  try {
+    const embeddings = criarEmbeddings();
+    const semanticSearch = SearchFactory.criarBusca(embeddings);
+    const hasDatabase = await semanticSearch.verificarCache();
+    const hasApiKey = !!process.env.GOOGLE_API_KEY;
+    
+    res.json({
+      database: hasDatabase,
+      apiKey: hasApiKey,
+      status: hasDatabase && hasApiKey ? 'ready' : 'not_ready'
+    });
+  } catch (error) {
+    res.json({
+      database: false,
+      apiKey: !!process.env.GOOGLE_API_KEY,
+      status: 'not_ready'
+    });
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-  console.log(`📊 Status: ${fs.existsSync("vectorstore.json") ? 'Banco de dados encontrado' : 'Banco de dados não encontrado'}`);
   console.log(`🔑 API Key: ${process.env.GOOGLE_API_KEY ? 'Configurada' : 'Não configurada'}`);
 }); 

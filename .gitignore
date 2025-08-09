@@ -59,6 +59,5 @@ jspm_packages/
 .DS_Store
 Thumbs.db
 
-# ChromaDB
-db/
-chroma_db/ 
+# LanceDB
+lancedb_cache/ 

@@ -1,8 +1,9 @@
-import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
+import { SearchFactory } from "../core/search/SearchFactory";
+import { PromptTemplates } from "../utils/PromptTemplates";
 import * as dotenv from "dotenv";
 import * as readline from "readline";
 
@@ -10,13 +11,7 @@ dotenv.config();
 
 const CAMINHO_DB = "db";
 
-const promptTemplate = `
-Responda a pergunta do usuário:
-{pergunta} 
-
-com base nessas informações abaixo:
-
-{base_conhecimento}`;
+// Template será selecionado dinamicamente baseado na pergunta
 
 interface Resultado {
   pageContent: string;
@@ -48,23 +43,20 @@ async function perguntarComGemini(): Promise<void> {
   });
 
   try {
-    // carregar o banco de dados
-    const funcaoEmbedding = criarEmbeddings(); // usar Gemini embeddings
+    const embeddings = criarEmbeddings();
+    const semanticSearch = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
     
-    // Verificar se existe o arquivo de dados
-    if (!require('fs').existsSync("vectorstore.json")) {
-      console.log("❌ Banco de dados não encontrado!");
-      console.log("📝 Execute primeiro: npm run create-db");
+    // Verificar se o cache existe
+    const cacheValido = await semanticSearch.verificarCache();
+    if (!cacheValido) {
+      console.log("❌ Banco de dados LanceDB não encontrado!");
+      console.log("📝 Execute primeiro: npm run create-lancedb");
       rl.close();
       return;
     }
     
-    // Carregar dados do arquivo
-    const dbData = JSON.parse(require('fs').readFileSync("vectorstore.json", 'utf8'));
-    const db = await MemoryVectorStore.fromDocuments(dbData.documents, funcaoEmbedding);
-
-    // comparar a pergunta do usuario (embedding) com o meu banco de dados
-    const resultados = await db.similaritySearchWithScore(pergunta, 8);
+    // Realizar busca semântica
+    const resultados = await semanticSearch.buscar(pergunta, 8);
     
     if (resultados.length === 0) {
       console.log("Não conseguiu encontrar alguma informação relevante na base");
@@ -73,17 +65,20 @@ async function perguntarComGemini(): Promise<void> {
     }
     
     console.log(`Encontrados ${resultados.length} resultados relevantes`);
-    resultados.forEach((resultado, index) => {
-      console.log(`${index + 1}. Score: ${resultado[1].toFixed(3)}`);
+    resultados.forEach((resultado: any, index: number) => {
+      console.log(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
     });
 
     const textosResultado: string[] = [];
     for (const resultado of resultados) {
-      const texto = resultado[0].pageContent;
+      const texto = resultado.documento.pageContent;
       textosResultado.push(texto);
     }
 
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    
+    // Selecionar template apropriado baseado na pergunta
+    const promptTemplate = PromptTemplates.getTemplateForQuestion(pergunta);
     const textoPrompt = promptTemplate
       .replace("{pergunta}", pergunta)
       .replace("{base_conhecimento}", baseConhecimento);
@@ -120,23 +115,20 @@ async function perguntarComOllama(): Promise<void> {
   });
 
   try {
-    // carregar o banco de dados usando Gemini embeddings
-    const funcaoEmbedding = criarEmbeddings(); // usar Gemini embeddings
+    const embeddings = criarEmbeddings();
+    const semanticSearch = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
     
-    // Verificar se existe o arquivo de dados
-    if (!require('fs').existsSync("vectorstore.json")) {
-      console.log("❌ Banco de dados não encontrado!");
-      console.log("📝 Execute primeiro: npm run create-db");
+    // Verificar se o cache existe
+    const cacheValido = await semanticSearch.verificarCache();
+    if (!cacheValido) {
+      console.log("❌ Banco de dados LanceDB não encontrado!");
+      console.log("📝 Execute primeiro: npm run create-lancedb");
       rl.close();
       return;
     }
     
-    // Carregar dados do arquivo
-    const dbData = JSON.parse(require('fs').readFileSync("vectorstore.json", 'utf8'));
-    const db = await MemoryVectorStore.fromDocuments(dbData.documents, funcaoEmbedding);
-
-    // comparar a pergunta do usuario (embedding) com o meu banco de dados
-    const resultados = await db.similaritySearchWithScore(pergunta, 8);
+    // Realizar busca semântica
+    const resultados = await semanticSearch.buscar(pergunta, 8);
     
     if (resultados.length === 0) {
       console.log("Não conseguiu encontrar alguma informação relevante na base");
@@ -145,17 +137,20 @@ async function perguntarComOllama(): Promise<void> {
     }
     
     console.log(`Encontrados ${resultados.length} resultados relevantes`);
-    resultados.forEach((resultado, index) => {
-      console.log(`${index + 1}. Score: ${resultado[1].toFixed(3)}`);
+    resultados.forEach((resultado: any, index: number) => {
+      console.log(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
     });
 
     const textosResultado: string[] = [];
     for (const resultado of resultados) {
-      const texto = resultado[0].pageContent;
+      const texto = resultado.documento.pageContent;
       textosResultado.push(texto);
     }
 
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    
+    // Selecionar template apropriado baseado na pergunta
+    const promptTemplate = PromptTemplates.getTemplateForQuestion(pergunta);
     const textoPrompt = promptTemplate
       .replace("{pergunta}", pergunta)
       .replace("{base_conhecimento}", baseConhecimento);
