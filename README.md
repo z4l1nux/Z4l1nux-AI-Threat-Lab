@@ -36,6 +36,23 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 - Busca otimizada com índices nativos do LanceDB
 - Performance 10-100x superior ao sistema anterior
 
+## 🧭 Arquitetura RAG
+
+![RAG Architecture Model](docs/images/rag-architecture.png)
+
+Se preferir uma visualização em texto, o diagrama abaixo representa o fluxo principal:
+
+```mermaid
+flowchart LR
+  C[Client] -- "1. Question" --> F[Framework]
+  F -- Response --> C
+  F -- "Semantic Search" --> V[(Vector Database)]
+  V -- "Contextual Data" --> F
+  F -- "3. Prompt" --> LLM((LLM))
+  LLM -- "4. Post Processing" --> F
+  V --- D[[Original | New Content]]
+```
+
 ## 🚀 Pré-requisitos
 
 - Node.js (versão 18 ou superior)
@@ -92,6 +109,7 @@ O sistema suporta os seguintes tipos de arquivo:
 - **XML**: Leitura e parsing via XMLLoader personalizado
 - **JSON**: Leitura e parsing via JSONLoader personalizado  
 - **CSV**: Leitura e parsing via CSVLoader personalizado
+- **Markdown (.md/.markdown)**: Leitura de conteúdo Markdown (texto puro) via `MarkdownLoader`
 
 #### 🔧 Como Funciona
 Cada tipo de arquivo é processado por um loader específico do LangChain:
