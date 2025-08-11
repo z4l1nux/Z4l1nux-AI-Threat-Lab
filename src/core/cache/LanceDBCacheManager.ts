@@ -13,11 +13,22 @@ import * as fs from 'fs';
 export class LanceDBCacheManager {
   private db: Connection | null = null;
   private table: Table | null = null;
+  private queryCacheTable: Table | null = null;
   private readonly pastaBase: string;
   private readonly embeddings: GoogleGenerativeAIEmbeddings;
   private readonly separador: RecursiveCharacterTextSplitter;
   private progressTracker: ProgressTracker | null = null;
   private readonly dbPath: string;
+  private readonly queryEmbeddingCache: Map<string, number[]> = new Map();
+  private static readonly MAX_QUERY_CACHE_ENTRIES: number = 500;
+  private static normalizeQuery(query: string): string {
+    const basic = query
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, ' ');
+    // Remover acentos/diacríticos
+    return basic.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 
   constructor(
     dbPath: string = "lancedb_cache",
@@ -53,6 +64,12 @@ export class LanceDBCacheManager {
       } else {
         this.table = await this.db.openTable('chunks');
       }
+      // Inicializar tabela de cache de consultas
+      if (!tabelas.includes('query_cache')) {
+        await this.criarTabelaQueryCache();
+      } else {
+        this.queryCacheTable = await this.db.openTable('query_cache');
+      }
     }
   }
 
@@ -81,6 +98,22 @@ export class LanceDBCacheManager {
   }
 
   /**
+   * Cria a tabela de cache de queries (query -> embedding) no LanceDB
+   */
+  private async criarTabelaQueryCache(): Promise<void> {
+    if (!this.db) throw new Error("DB não inicializada");
+
+    const schema = new arrow.Schema([
+      new arrow.Field('query', new arrow.Utf8()),
+      new arrow.Field('vector', new arrow.FixedSizeList(768, new arrow.Field('item', new arrow.Float32()))),
+      new arrow.Field('createdAt', new arrow.Utf8())
+    ]);
+
+    this.queryCacheTable = await this.db.createTable('query_cache', [], { schema });
+    console.log("✅ Tabela 'query_cache' criada no LanceDB");
+  }
+
+  /**
    * Carrega o cache do LanceDB
    */
   async carregarCache(): Promise<void> {
@@ -104,7 +137,11 @@ export class LanceDBCacheManager {
         id: row.id as string,
         pageContent: row.pageContent as string,
         embedding: Array.from(row.vector as Float32Array),
-        metadata: JSON.parse(row.metadata as string)
+        metadata: {
+          ...JSON.parse(row.metadata as string),
+          nomeArquivo: row.nomeArquivo,
+          hashArquivo: row.hashArquivo
+        }
       }));
     } catch (error) {
       console.error("Erro ao obter chunks:", error);
@@ -285,8 +322,8 @@ export class LanceDBCacheManager {
     }
     
     try {
-      // Gerar embedding da query
-      const queryEmbedding = await this.embeddings.embedQuery(query);
+      // Obter embedding da query com cache (memória + LanceDB)
+      const queryEmbedding = await this.obterEmbeddingConsulta(query);
       
       // Realizar busca por similaridade usando a coluna vector
       const resultados = await this.table!.vectorSearch(new Float32Array(queryEmbedding))
@@ -298,12 +335,75 @@ export class LanceDBCacheManager {
         id: row.id as string,
         pageContent: row.pageContent as string,
         embedding: Array.from(row.vector as Float32Array),
-        metadata: JSON.parse(row.metadata as string)
+        metadata: {
+          ...JSON.parse(row.metadata as string),
+          nomeArquivo: row.nomeArquivo,
+          hashArquivo: row.hashArquivo
+        }
       }));
     } catch (error) {
       console.error("Erro na busca semântica:", error);
       return [];
     }
+  }
+
+  /**
+   * Obtém o embedding de uma consulta usando cache em memória e persistente no LanceDB
+   */
+  private async obterEmbeddingConsulta(query: string): Promise<number[]> {
+    const norm = LanceDBCacheManager.normalizeQuery(query);
+    // Cache em memória
+    const existente = this.queryEmbeddingCache.get(norm);
+    if (existente) return existente;
+
+    // Cache persistente em LanceDB (best-effort)
+    try {
+      if (!this.queryCacheTable) {
+        await this.inicializarDB();
+      }
+      if (this.queryCacheTable) {
+        // Buscar até 2000 registros e filtrar em memória
+        const registros = await this.queryCacheTable.search(new Array(768).fill(0)).limit(2000).toArray();
+        const encontrado = registros.find((r: any) => (r.query as string) === norm);
+        if (encontrado) {
+          const emb = Array.from(encontrado.vector as Float32Array);
+          this.colocarNoCache(norm, emb);
+          return emb;
+        }
+      }
+    } catch {
+      // Ignorar erros de cache persistente
+    }
+
+    // Gerar via API e persistir
+    const gerado = await this.embeddings.embedQuery(norm);
+    this.colocarNoCache(norm, gerado);
+
+    try {
+      if (this.queryCacheTable) {
+        await this.queryCacheTable.add([
+          {
+            query: norm,
+            vector: new Float32Array(gerado),
+            createdAt: new Date().toISOString()
+          }
+        ]);
+      }
+    } catch {
+      // Ignorar erros de escrita no cache persistente
+    }
+
+    return gerado;
+  }
+
+  private colocarNoCache(query: string, emb: number[]): void {
+    if (this.queryEmbeddingCache.size >= LanceDBCacheManager.MAX_QUERY_CACHE_ENTRIES) {
+      const primeiro = this.queryEmbeddingCache.keys().next();
+      if (!primeiro.done) {
+        this.queryEmbeddingCache.delete(primeiro.value);
+      }
+    }
+    this.queryEmbeddingCache.set(query, emb);
   }
 
   /**

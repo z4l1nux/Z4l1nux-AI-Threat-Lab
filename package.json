@@ -9,6 +9,9 @@
     "dev": "ts-node src/cli/main.ts",
     "web": "ts-node src/web/server.ts",
     "create-lancedb": "ts-node src/cli/criarLanceDB.ts",
+    "sync-neo4j": "ts-node src/cli/managers/criarNeo4j.ts",
+    "search-hybrid": "ts-node src/cli/managers/buscaHibrida.ts",
+    "search-neo4j": "ts-node src/cli/managers/buscaNeo4j.ts",
     "reprocess-lancedb": "ts-node src/cli/reprocessNonInteractive.ts",
     "test": "ts-node src/test/testLanceDB.ts",
     "test-loaders": "ts-node src/test/testLoaders.ts",
@@ -20,6 +23,7 @@
     "install-deps": "npm install"
   },
   "dependencies": {
+    "neo4j-driver": "^5.26.0",
     "@lancedb/lancedb": "^0.12.0",
     "@langchain/community": "^0.3.49",
     "@langchain/google-genai": "^0.0.8",
@@ -27,7 +31,7 @@
     "@langchain/openai": "^0.0.14",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "apache-arrow": "^21.0.0",
+    "apache-arrow": "17.0.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",
     "dotenv": "^16.3.1",

@@ -28,15 +28,45 @@ function criarEmbeddings() {
   });
 }
 
+// Inicializações únicas (reuso entre requisições para ativar cache em memória)
+const embeddingsSingleton = criarEmbeddings();
+const SEARCH_MODE = (process.env.SEARCH_MODE || 'hibrida') as 'hibrida' | 'lancedb' | 'neo4j';
+const semanticSearch = SearchFactory.criarBusca(embeddingsSingleton, "vectorstore.json", "base", SEARCH_MODE);
+
+// Caches em memória (processo) para acelerar requisições repetidas
+type CacheEntry<T> = { ts: number; value: T };
+const RESPONSE_CACHE_TTL_MS = parseInt(process.env.RESPONSE_CACHE_TTL_MS || '300000', 10); // 5 min
+const RETRIEVAL_CACHE_TTL_MS = parseInt(process.env.RETRIEVAL_CACHE_TTL_MS || '300000', 10); // 5 min
+const responseCache = new Map<string, CacheEntry<any>>();
+const retrievalCache = new Map<string, CacheEntry<{ resultados: any[]; baseConhecimento: string }>>();
+
+function getCache<K>(map: Map<string, CacheEntry<K>>, key: string, ttlMs: number): K | null {
+  const now = Date.now();
+  const entry = map.get(key);
+  if (entry && now - entry.ts < ttlMs) return entry.value;
+  if (entry) map.delete(key);
+  return null;
+}
+
+function setCache<K>(map: Map<string, CacheEntry<K>>, key: string, value: K): void {
+  map.set(key, { ts: Date.now(), value });
+}
+
 async function processarPergunta(pergunta: string, modelo: string): Promise<any> {
   const logs: string[] = [];
   
   try {
     logs.push("🔄 Iniciando processamento da pergunta...");
-    
-    const embeddings = criarEmbeddings();
-    const semanticSearch = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
-    
+    logs.push(`🧠 Modo de busca: ${SEARCH_MODE}`);
+
+    // Cache de resposta completa (pula retrieval e LLM)
+    const responseKey = `${modelo}::${pergunta.toLowerCase().trim().replace(/\s+/g, ' ')}`;
+    const respostaCacheada = getCache(responseCache, responseKey, RESPONSE_CACHE_TTL_MS);
+    if (respostaCacheada) {
+      logs.push("⚡ Cache HIT (resposta)");
+      return { success: true, resposta: respostaCacheada, logs, resultadosEncontrados: undefined, scores: [] };
+    }
+
     // Verificar se o cache existe
     const cacheValido = await semanticSearch.verificarCache();
     if (!cacheValido) {
@@ -46,25 +76,31 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
     logs.push("📁 Carregando banco de dados...");
     logs.push("🔍 Buscando resultados relevantes...");
     
-    // Realizar busca semântica
-    const resultados = await semanticSearch.buscar(pergunta, 8);
+    // Cache de retrieval (top-k) para a mesma pergunta
+    const retrievalKey = pergunta.toLowerCase().trim().replace(/\s+/g, ' ');
+    let retrieval = getCache(retrievalCache, retrievalKey, RETRIEVAL_CACHE_TTL_MS);
+    if (!retrieval) {
+      const resultados = await semanticSearch.buscar(pergunta, 8);
+      const textosResultado: string[] = [];
+      for (const r of resultados) textosResultado.push(r.documento.pageContent);
+      const baseConhecimento = textosResultado.join("\n\n----\n\n");
+      retrieval = { resultados, baseConhecimento };
+      setCache(retrievalCache, retrievalKey, retrieval);
+      logs.push("🗄️ Cache MISS (retrieval)");
+    } else {
+      logs.push("⚡ Cache HIT (retrieval)");
+    }
     
-    if (resultados.length === 0) {
+    if (retrieval.resultados.length === 0) {
       throw new Error("Não conseguiu encontrar alguma informação relevante na base");
     }
     
-    logs.push(`✅ Encontrados ${resultados.length} resultados relevantes`);
-    resultados.forEach((resultado: any, index: number) => {
+    logs.push(`✅ Encontrados ${retrieval.resultados.length} resultados relevantes`);
+    retrieval.resultados.forEach((resultado: any, index: number) => {
       logs.push(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
     });
 
-    const textosResultado: string[] = [];
-    for (const resultado of resultados) {
-      const texto = resultado.documento.pageContent;
-      textosResultado.push(texto);
-    }
-
-    const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    const baseConhecimento = retrieval.baseConhecimento;
     
     // Selecionar template apropriado baseado na pergunta
     const promptTemplate = PromptTemplates.getTemplateForQuestion(pergunta);
@@ -80,7 +116,9 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
       const modeloAI = new ChatGoogleGenerativeAI({
         modelName: "gemini-1.5-flash"
       });
-      resposta = await modeloAI.invoke(textoPrompt);
+      resposta = (modeloAI as any).invoke
+        ? await (modeloAI as any).invoke(textoPrompt as any)
+        : await (modeloAI as any).call({ input: textoPrompt });
     } else {
       // Usar Ollama
       const modeloAI = new ChatOllama({
@@ -88,18 +126,22 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
         baseUrl: "http://127.0.0.1:11434",
         format: "json" // Adicionar formato para compatibilidade
       });
-      resposta = await modeloAI.invoke(textoPrompt);
+      resposta = (modeloAI as any).invoke
+        ? await (modeloAI as any).invoke(textoPrompt as any)
+        : await (modeloAI as any).call({ input: textoPrompt });
     }
     
     logs.push("✅ Resposta gerada com sucesso!");
     
-    return {
+    const payload = {
       success: true,
       resposta: resposta.content,
       logs: logs,
-      resultadosEncontrados: resultados.length,
-      scores: resultados.map(r => r.score)
+      resultadosEncontrados: retrieval.resultados.length,
+      scores: retrieval.resultados.map((r: any) => r.score)
     };
+    setCache(responseCache, responseKey, payload.resposta);
+    return payload;
     
   } catch (error) {
     logs.push(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -142,21 +184,21 @@ app.post('/api/perguntar', async (req, res) => {
 
 app.get('/api/status', async (req, res) => {
   try {
-    const embeddings = criarEmbeddings();
-    const semanticSearch = SearchFactory.criarBusca(embeddings);
     const hasDatabase = await semanticSearch.verificarCache();
     const hasApiKey = !!process.env.GOOGLE_API_KEY;
     
     res.json({
       database: hasDatabase,
       apiKey: hasApiKey,
-      status: hasDatabase && hasApiKey ? 'ready' : 'not_ready'
+      status: hasDatabase && hasApiKey ? 'ready' : 'not_ready',
+      searchMode: SEARCH_MODE
     });
   } catch (error) {
     res.json({
       database: false,
       apiKey: !!process.env.GOOGLE_API_KEY,
-      status: 'not_ready'
+      status: 'not_ready',
+      searchMode: SEARCH_MODE
     });
   }
 });

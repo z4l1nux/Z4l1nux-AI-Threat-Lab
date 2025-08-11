@@ -6,6 +6,7 @@ export interface Resultado {
 export interface ResultadoComScore {
   documento: Resultado;
   score: number;
+  chunk?: ChunkInfo;
 }
 
 export interface ConfiguracaoDB {

@@ -1,5 +1,7 @@
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { LanceDBSemanticSearch } from "./LanceDBSemanticSearch";
+import { HybridSemanticSearch } from "./HybridSemanticSearch";
+import { Neo4jSemanticSearch } from "./Neo4jSemanticSearch";
 
 /**
  * Factory para criar instâncias de busca semântica
@@ -13,9 +15,16 @@ export class SearchFactory {
     embeddings: GoogleGenerativeAIEmbeddings,
     arquivoCache: string = "vectorstore.json",
     pastaBase: string = "base",
-    tipo: "lancedb" = "lancedb"
-  ): LanceDBSemanticSearch {
-    
+    tipo: "lancedb" | "hibrida" | "neo4j" = "lancedb"
+  ): LanceDBSemanticSearch | HybridSemanticSearch | Neo4jSemanticSearch {
+    if (tipo === "hibrida") {
+      console.log("🚀 Usando busca semântica HÍBRIDA (LanceDB + Neo4j)");
+      return new HybridSemanticSearch(embeddings, "lancedb_cache", pastaBase);
+    }
+    if (tipo === "neo4j") {
+      console.log("🚀 Usando busca semântica apenas NEO4J (índice vetorial)");
+      return new Neo4jSemanticSearch(embeddings);
+    }
     console.log("🚀 Usando busca semântica com LanceDB");
     return new LanceDBSemanticSearch(embeddings, "lancedb_cache", pastaBase);
   }

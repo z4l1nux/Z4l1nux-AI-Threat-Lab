@@ -1,6 +1,6 @@
 import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
-import { ChatPromptTemplate } from "@langchain/core/prompts";
+// Removido ChatPromptTemplate para evitar dependência faltante
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
@@ -87,7 +87,7 @@ async function perguntarComGemini(): Promise<void> {
       modelName: "gemini-1.5-flash"
     });
     
-    const resposta = await modelo.invoke(textoPrompt);
+    const resposta = await modelo.invoke(textoPrompt as any);
     console.log("Resposta da IA (Gemini):", resposta.content);
   } catch (error) {
     if (error instanceof Error && error.message.includes("GOOGLE_API_KEY")) {
@@ -161,7 +161,10 @@ async function perguntarComOllama(): Promise<void> {
       baseUrl: "http://127.0.0.1:11434"
     });
     
-    const resposta = await modelo.invoke(textoPrompt);
+    // Algumas versões expõem .invoke, outras usam .call com {input}
+    const resposta: any = (modelo as any).invoke
+      ? await (modelo as any).invoke(textoPrompt as any)
+      : await (modelo as any).call({ input: textoPrompt });
     console.log("Resposta da IA (Ollama/Mistral):", resposta.content);
   } catch (error) {
     console.error("Erro ao processar pergunta:", error);
