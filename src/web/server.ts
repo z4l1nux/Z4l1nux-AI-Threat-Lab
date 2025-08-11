@@ -35,9 +35,16 @@ const semanticSearch = SearchFactory.criarBusca(embeddingsSingleton, "vectorstor
 
 // Caches em memória (processo) para acelerar requisições repetidas
 type CacheEntry<T> = { ts: number; value: T };
+type ResponsePayload = {
+  success: boolean;
+  resposta: any;
+  logs: string[];
+  resultadosEncontrados: number;
+  scores: number[];
+};
 const RESPONSE_CACHE_TTL_MS = parseInt(process.env.RESPONSE_CACHE_TTL_MS || '300000', 10); // 5 min
 const RETRIEVAL_CACHE_TTL_MS = parseInt(process.env.RETRIEVAL_CACHE_TTL_MS || '300000', 10); // 5 min
-const responseCache = new Map<string, CacheEntry<any>>();
+const responseCache = new Map<string, CacheEntry<ResponsePayload>>();
 const retrievalCache = new Map<string, CacheEntry<{ resultados: any[]; baseConhecimento: string }>>();
 
 function getCache<K>(map: Map<string, CacheEntry<K>>, key: string, ttlMs: number): K | null {
@@ -64,7 +71,7 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
     const respostaCacheada = getCache(responseCache, responseKey, RESPONSE_CACHE_TTL_MS);
     if (respostaCacheada) {
       logs.push("⚡ Cache HIT (resposta)");
-      return { success: true, resposta: respostaCacheada, logs, resultadosEncontrados: undefined, scores: [] };
+      return { ...respostaCacheada, logs };
     }
 
     // Verificar se o cache existe
@@ -133,14 +140,14 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
     
     logs.push("✅ Resposta gerada com sucesso!");
     
-    const payload = {
+    const payload: ResponsePayload = {
       success: true,
       resposta: resposta.content,
       logs: logs,
       resultadosEncontrados: retrieval.resultados.length,
       scores: retrieval.resultados.map((r: any) => r.score)
     };
-    setCache(responseCache, responseKey, payload.resposta);
+    setCache(responseCache, responseKey, payload);
     return payload;
     
   } catch (error) {
