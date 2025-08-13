@@ -12,7 +12,9 @@ const App: React.FC = () => {
     reportData,
     isLoading,
     error,
-    generateThreatModel
+    generateThreatModel,
+    updateReportMarkdown,
+    refineThreatModel
   } = useThreatModeler();
 
   const handleFormSubmit = (data: { fullDescription: string, systemVersion?: string }) => {
@@ -40,59 +42,43 @@ const App: React.FC = () => {
     generateThreatModel(fakeSystemInfo);
   };
 
+  const handleRefineSubmit = (markdown: string) => {
+    refineThreatModel(markdown);
+  };
+
   const isApiKeyMissing = !process.env.GEMINI_API_KEY && !process.env.API_KEY;
 
   return (
-    <div className="min-h-screen bg-custom-black text-custom-yellow">
-      <header className="bg-black border-b border-custom-yellow/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-custom-yellow mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <h1 className="text-2xl font-bold text-custom-yellow">{APP_TITLE}</h1>
-            </div>
-            <div className="text-sm text-gray-400">
-              Powered by Google Gemini AI
-            </div>
+    <div className="min-h-screen bg-custom-black text-custom-yellow flex flex-col items-center p-4 md:p-8 selection:bg-custom-yellow selection:text-custom-black">
+      <header className="w-full mb-8 text-center">
+        <h1 className="text-4xl md:text-5xl font-bold text-custom-yellow py-2">
+          {APP_TITLE}
+        </h1>
+        <p className="text-custom-yellow mt-2 text-sm md:text-base">
+          Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
+        </p>
+        {isApiKeyMissing && (
+           <div role="alert" className="mt-4 p-3 bg-custom-yellow/20 border border-custom-yellow text-custom-yellow rounded-md text-xs">
+            <strong>Aviso:</strong> {GEMINI_API_KEY_CHECK_MSG} A variável de ambiente <code>GEMINI_API_KEY</code> ou <code>API_KEY</code> não está configurada. As funcionalidades de IA podem não funcionar.
           </div>
-        </div>
+        )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <section className="space-y-8">
-          <SystemInputForm onSubmit={handleFormSubmit} isLoading={isLoading} />
+      <main className="w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4">
+        <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8">
+          <h2 id="system-input-heading" className="sr-only">Entrada de Informações do Sistema</h2>
+          <SystemInputForm
+            onSubmit={handleFormSubmit}
+            isLoading={isLoading}
+          />
+        </section>
 
+        <section aria-labelledby="report-output-heading" className="w-full space-y-8 h-full flex flex-col flex-1">
+           <h2 id="report-output-heading" className="sr-only">Saída do Relatório de Ameaças</h2>
           {error && (
-            <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg">
-              <div className="flex">
-                <svg className="h-5 w-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-red-400">Erro</h3>
-                  <div className="mt-2 text-sm text-red-300">
-                    <pre className="whitespace-pre-wrap">{error}</pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {isApiKeyMissing && (
-            <div className="p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-lg">
-              <div className="flex">
-                <svg className="h-5 w-5 text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-400">Chave da API não configurada</h3>
-                  <div className="mt-2 text-sm text-yellow-300">
-                    <p>{GEMINI_API_KEY_CHECK_MSG}</p>
-                  </div>
-                </div>
-              </div>
+            <div role="alert" className="p-4 bg-red-800 border border-red-700 text-red-200 rounded-md shadow-lg">
+              <h3 className="font-semibold text-lg mb-2">Ocorreu um Erro:</h3>
+              <pre className="text-sm whitespace-pre-wrap break-all">{error}</pre>
             </div>
           )}
 
@@ -101,6 +87,8 @@ const App: React.FC = () => {
           {reportData ? (
             <ReportDisplay 
               reportData={reportData} 
+              onEdit={updateReportMarkdown} 
+              onRefine={handleRefineSubmit}
               isLoading={isLoading}
             />
           ) : (!isLoading && !error && (
