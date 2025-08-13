@@ -51,12 +51,23 @@ O **Threat Modeling Co-Pilot** é uma plataforma inteligente para modelagem de a
 
 3. Preencha as informações do sistema, incluindo a versão, descrição completa, e clique em "Gerar Modelo de Ameaças".
 
-4. Analise o relatório web, exporte para PDF e refine com IA conforme necessário.
+4. Analise o relatório web, visualize a **Árvore de Ataque Interativa**, exporte para PDF e refine com IA conforme necessário.
+
+### 🌳 Árvore de Ataque Interativa
+
+Após gerar o relatório, você pode visualizar uma **Árvore de Ataque Interativa** que organiza as ameaças por categoria STRIDE:
+
+- **🔍 Zoom e Pan** - Navegue pelo diagrama com controles intuitivos
+- **📷 Exportação PNG/SVG** - Salve imagens de alta qualidade
+- **🎨 Cores Diferenciadas** - Elementos organizados por tipo e categoria
+- **📐 Auto-ajuste** - Diagrama se adapta automaticamente à tela
+- **💾 Download** - Exporte para uso em apresentações e documentação
 
 ## Funcionalidades
 - Entrada detalhada do sistema (componentes, dados sensíveis, tecnologias, integrações, etc.)
 - Análise automática de ameaças STRIDE + CAPEC
 - Sugestão de mitigação, impacto e mapeamento OWASP Top 10
+- **🌳 Árvore de Ataque Interativa** - Visualização Mermaid com zoom, pan e exportação
 - Exportação de relatório em PDF
 - Refinamento do relatório com IA Gemini
 

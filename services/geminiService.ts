@@ -79,7 +79,11 @@ const selectOptimalModel = (
       // Resumos são geralmente tarefas simples
       return retryCount === 0 ? MODEL_CONFIG.MODELS.LITE : MODEL_CONFIG.MODELS.FLASH;
       
-    case 'ANALYSIS':
+    case 'ANALYSIS': {
+      // Para árvore de ataque, forçar PRO
+      if (currentGenerationContext.currentTask === 'ATTACK_TREE') {
+        return MODEL_CONFIG.MODELS.PRO;
+      }
       // Análise de ameaças requer mais capacidade
       if (complexity === 'COMPLEX') {
         return retryCount === 0 ? MODEL_CONFIG.MODELS.PRO : MODEL_CONFIG.MODELS.FLASH;
@@ -88,7 +92,7 @@ const selectOptimalModel = (
       } else {
         return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.LITE;
       }
-      
+    }
     case 'REFINEMENT':
       // Refinamento requer capacidade de raciocínio
       if (complexity === 'COMPLEX') {
@@ -101,6 +105,9 @@ const selectOptimalModel = (
       return MODEL_CONFIG.MODELS.FLASH;
   }
 };
+
+// Contexto simples para sinalizar tipo de tarefa atual durante seleção de modelo
+const currentGenerationContext: { currentTask: 'DEFAULT' | 'ATTACK_TREE' } = { currentTask: 'DEFAULT' };
 
 // Função para executar geração de conteúdo com retry inteligente
 const executeWithIntelligentRetry = async (
@@ -253,6 +260,215 @@ Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento 
     owaspTop10: threat.owaspTop10 || "N/D",
   }));
 };
+
+/**
+ * Gera uma árvore de ataque em Mermaid (graph TD ou mindmap) a partir das ameaças identificadas.
+ * Retorna apenas o texto Mermaid válido.
+ */
+export const generateAttackTreeMermaid = async (
+  systemInfo: SystemInfo,
+  threats: IdentifiedThreat[]
+): Promise<string> => {
+  if (!ai) throw new Error("Chave da API Gemini não configurada.");
+
+  const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(threats));
+
+  try {
+    // Prompt melhorado baseado na abordagem Python
+    const prompt = `
+Você é um especialista em modelagem de ameaças. Analise o sistema e as ameaças fornecidas e crie uma Árvore de Ataque estruturada.
+
+Sistema:
+${JSON.stringify(systemInfo, null, 2)}
+
+Ameaças Identificadas:
+${JSON.stringify(threats, null, 2)}
+
+Tarefa: Crie uma árvore de ataque em formato Mermaid flowchart que organize as ameaças por categoria STRIDE.
+
+Regras IMPORTANTES:
+- Use APENAS "flowchart TD" como cabeçalho
+- Organize em subgraphs por categoria STRIDE
+- Para cada ameaça, crie: Elemento → CAPEC → Cenário
+- Use IDs únicos e simples (ex: S1, S2, T1, T2)
+- Evite caracteres especiais nos rótulos
+- Mantenha rótulos curtos mas descritivos
+- NÃO use mindmap ou sintaxes específicas de outros diagramas
+
+Exemplo de estrutura esperada:
+flowchart TD
+  ROOT["Ataques ao Sistema"]
+  subgraph S[Spoofing]
+    S1[Elemento A] --> S1C[CAPEC-xxx: Nome]
+    S1C --> S1S[Cenário curto]
+  end
+  subgraph T[Tampering]
+    T1[Elemento B] --> T1C[CAPEC-yyy: Nome]
+    T1C --> T1S[Cenário curto]
+  end
+  ROOT --> S
+  ROOT --> T
+
+Retorne APENAS o código Mermaid, sem explicações ou markdown.`;
+
+    const response = await executeWithIntelligentRetry(prompt, 'ANALYSIS', complexity, 0);
+    let text = (response.text || '').trim();
+    
+    // Validação e limpeza robusta
+    if (!/^(flowchart|graph)\s+(TD|LR|BT|RL)/i.test(text) || /^mindmap/i.test(text)) {
+      return buildFlowchartFromThreats(systemInfo, threats);
+    }
+
+    // Sanitização avançada baseada na abordagem Python
+    text = sanitizeMermaidText(text);
+    
+    // Validação final
+    if (isValidMermaidFlowchart(text)) {
+      return text;
+    }
+    
+    return buildFlowchartFromThreats(systemInfo, threats);
+  } catch (e) {
+    console.debug('IA retornou diagrama não padronizado, usando fallback.');
+  }
+
+  return buildFlowchartFromThreats(systemInfo, threats);
+}
+
+// Função de sanitização robusta baseada na abordagem Python
+function sanitizeMermaidText(text: string): string {
+  // Remove markdown code blocks
+  text = text.replace(/^```\w*\n?|```$/g, '').trim();
+  
+  // Normaliza aspas e colchetes
+  text = text.replace(/\[\"/g, '[').replace(/\"\]/g, ']').replace(/\"/g, "'");
+  
+  // Remove caracteres problemáticos para Mermaid
+  text = text.replace(/[\/\\|{}()<>]/g, ' ');
+  
+  // Normaliza espaços múltiplos
+  text = text.replace(/\s+/g, ' ');
+  
+  // Remove linhas vazias extras
+  text = text.replace(/\n\s*\n/g, '\n');
+  
+  return text.trim();
+}
+
+// Validação de estrutura Mermaid válida
+function isValidMermaidFlowchart(text: string): boolean {
+  const lines = text.split('\n');
+  const hasValidHeader = /^(flowchart|graph)\s+(TD|LR|BT|RL)/i.test(lines[0] || '');
+  const hasNodes = lines.some(line => /\w+\[.*\]/.test(line));
+  const hasConnections = lines.some(line => /\w+\s*-->\s*\w+/.test(line));
+  
+  return hasValidHeader && hasNodes && hasConnections;
+}
+
+// Função de fallback melhorada baseada na estrutura JSON Python
+function buildFlowchartFromThreats(systemInfo: SystemInfo, threats: IdentifiedThreat[]): string {
+  const rootTitle = `Ataques ao ${systemInfo.systemName || 'Sistema'}`;
+  
+  // Funções de sanitização
+  const normalize = (s: string) => (s || 'N/D').replace(/\s+/g, ' ').trim();
+  const safeLabel = (s: string) => normalize(s)
+    .replace(/[\/\\|{}()<>\[\]"]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Função para quebrar linhas longas
+  const wrapText = (text: string, maxWidth: number = 25): string => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if ((currentLine + ' ' + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    return lines.join('<br/>');
+  };
+  
+  const truncate = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+  // Ordem das categorias STRIDE
+  const categoryOrder = [
+    'Spoofing', 'Tampering', 'Repudiation', 
+    'Information Disclosure', 'Denial of Service', 'Elevation of Privilege'
+  ];
+
+  // Agrupa ameaças por categoria
+  const byCategory: Record<string, IdentifiedThreat[]> = {};
+  for (const th of threats) {
+    const cat = String((th.strideCategory as string) || 'Other');
+    (byCategory[cat] ||= []).push(th);
+  }
+
+  // Ordena categorias
+  const catKeys = Object.keys(byCategory).sort((a, b) => {
+    const ia = categoryOrder.indexOf(a);
+    const ib = categoryOrder.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  // Constrói o diagrama com layout mais vertical
+  const lines: string[] = [];
+  lines.push('flowchart TD');
+  lines.push(`  ROOT[${safeLabel(truncate(rootTitle, 50))}]`);
+  lines.push('  %% Configurações de layout para melhor visualização');
+  lines.push('  classDef rootClass fill:#e1f5fe,stroke:#01579b,stroke-width:3px');
+  lines.push('  classDef categoryClass fill:#fff3e0,stroke:#e65100,stroke-width:2px');
+  lines.push('  classDef elementClass fill:#f3e5f5,stroke:#4a148c,stroke-width:1px');
+  lines.push('  classDef capecClass fill:#e8f5e8,stroke:#1b5e20,stroke-width:1px');
+  lines.push('  classDef scenarioClass fill:#fff8e1,stroke:#f57f17,stroke-width:1px');
+  lines.push('  class ROOT rootClass');
+
+  // Layout em colunas para melhor visualização
+  catKeys.forEach((cat, catIdx) => {
+    const catId = `CAT${catIdx}`;
+    const catLabel = safeLabel(cat);
+    
+    lines.push(`  subgraph ${catId}[${catLabel}]`);
+    lines.push(`    class ${catId} categoryClass`);
+    
+          byCategory[cat].forEach((th, i) => {
+        const elId = `${catId}_E${i}`;
+        const cId = `${catId}_C${i}`;
+        const sId = `${catId}_S${i}`;
+        
+        const element = wrapText(safeLabel(th.elementName || 'Elemento'), 20);
+        const capec = wrapText(safeLabel(
+          th.capecId && th.capecName ? `${th.capecId}: ${th.capecName}` : (th.capecId || th.capecName || 'CAPEC')
+        ), 25);
+        const scenario = wrapText(safeLabel(th.threatScenario || 'Cenário'), 30);
+        
+        lines.push(`    ${elId}[${element}]`);
+        lines.push(`    ${cId}[${capec}]`);
+        lines.push(`    ${sId}[${scenario}]`);
+        lines.push(`    class ${elId} elementClass`);
+        lines.push(`    class ${cId} capecClass`);
+        lines.push(`    class ${sId} scenarioClass`);
+        
+        // Conexões verticais mais claras
+        lines.push(`    ${elId} --> ${cId}`);
+        lines.push(`    ${cId} --> ${sId}`);
+      });
+    
+    lines.push('  end');
+    lines.push(`  ROOT --> ${catId}`);
+  });
+
+  return lines.join('\n');
+}
 
 export const refineAnalysis = async (
   systemInfo: SystemInfo,

@@ -37,6 +37,7 @@ export interface ReportData {
   
   threats: IdentifiedThreat[];
   generatedAt: string;
+  attackTreeMermaid?: string;
 }
 
 export interface StrideCapecMappingEntry {

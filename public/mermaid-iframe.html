@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>iframable-mermaid</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.3/dist/mermaid.min.js" integrity="sha512-HvxxeyPSnbU7/x0g15v3OMxTFeADyCUnCN3iCam3BDTxgFPKxa+ujRCbFuwjE8PASDwOH5LpzFfGGNWks7tuJQ==" crossorigin="anonymous"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      font-family: sans-serif;
+    }
+
+    #inputView {
+      padding: 1rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-width: 80vw;
+      height: 300px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 16px;
+    }
+
+    #diagram {
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #diagram svg {
+      width: 100%;
+      height: 100%;
+      transition: transform 0.3s ease;
+    }
+
+    /* Controles de zoom */
+    .zoom-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .zoom-controls button {
+      margin: 0 5px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #f8f9fa;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .zoom-controls button:hover {
+      background: #e9ecef;
+    }
+
+    .zoom-controls button:active {
+      background: #dee2e6;
+    }
+
+    /* Botão de exportar */
+    .export-controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .export-controls button {
+      margin: 0 5px;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .export-controls button:hover {
+      background: #0056b3;
+    }
+
+    /* Indicador de zoom */
+    .zoom-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1000;
+    }
+
+    /* Tooltip para controles */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 120px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 5px;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -60px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 12px;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="inputView" style="display: none;">
+    <h1>iframable-mermaid</h1>
+    <textarea id="diagramInput" placeholder="Enter Mermaid diagram code here..."></textarea><br/>
+    <button onclick="generateDiagram()">Generate</button>
+  </div>
+
+  <div id="diagram"></div>
+
+  <!-- Controles de zoom -->
+  <div class="zoom-controls">
+    <div class="tooltip">
+      <button onclick="zoomIn()" title="Zoom In">🔍+</button>
+      <span class="tooltiptext">Aumentar zoom</span>
+    </div>
+    <div class="tooltip">
+      <button onclick="zoomOut()" title="Zoom Out">🔍-</button>
+      <span class="tooltiptext">Diminuir zoom</span>
+    </div>
+    <div class="tooltip">
+      <button onclick="resetZoom()" title="Reset">🔄</button>
+      <span class="tooltiptext">Resetar zoom</span>
+    </div>
+    <div class="tooltip">
+      <button onclick="fitToScreen()" title="Fit">📐</button>
+      <span class="tooltiptext">Ajustar à tela</span>
+    </div>
+  </div>
+
+  <!-- Botões de exportar -->
+  <div class="export-controls">
+    <div class="tooltip">
+      <button onclick="exportPNG()" title="Export PNG">📷 PNG</button>
+      <span class="tooltiptext">Exportar como PNG</span>
+    </div>
+    <div class="tooltip">
+      <button onclick="exportSVG()" title="Export SVG">🎨 SVG</button>
+      <span class="tooltiptext">Exportar como SVG</span>
+    </div>
+  </div>
+
+  <!-- Indicador de zoom -->
+  <div class="zoom-indicator" id="zoomIndicator">100%</div>
+
+  <script>
+    mermaid.initialize({ 
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: {
+        useMaxWidth: false,
+        htmlLabels: true,
+        curve: 'basis',
+        nodeSpacing: 60,
+        rankSpacing: 60,
+        padding: 25,
+        wrap: true
+      },
+      securityLevel: 'loose'
+    });
+
+    let currentZoom = 1;
+    let currentTransform = { x: 0, y: 0 };
+    let isDragging = false;
+    let lastMousePos = { x: 0, y: 0 };
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function generateDiagram() {
+      const text = document.getElementById("diagramInput").value;
+      const encoded = btoa(encodeURIComponent(text));
+      const newUrl = `${window.location.origin}${window.location.pathname}?diagram=${encoded}`;
+      window.location.href = newUrl;
+    }
+
+    function updateZoomIndicator() {
+      document.getElementById('zoomIndicator').textContent = `${Math.round(currentZoom * 100)}%`;
+    }
+
+    function applyTransform() {
+      const svg = document.querySelector('#diagram svg');
+      if (svg) {
+        svg.style.transform = `translate(${currentTransform.x}px, ${currentTransform.y}px) scale(${currentZoom})`;
+        updateZoomIndicator();
+      }
+    }
+
+    function zoomIn() {
+      currentZoom = Math.min(currentZoom * 1.2, 5);
+      applyTransform();
+    }
+
+    function zoomOut() {
+      currentZoom = Math.max(currentZoom / 1.2, 0.1);
+      applyTransform();
+    }
+
+    function resetZoom() {
+      currentZoom = 1;
+      currentTransform = { x: 0, y: 0 };
+      applyTransform();
+    }
+
+    function fitToScreen() {
+      const svg = document.querySelector('#diagram svg');
+      if (svg) {
+        const svgRect = svg.getBoundingClientRect();
+        const containerRect = document.getElementById('diagram').getBoundingClientRect();
+        
+        const scaleX = containerRect.width / svgRect.width;
+        const scaleY = containerRect.height / svgRect.height;
+        currentZoom = Math.min(scaleX, scaleY, 1) * 0.9; // 90% para margem
+        
+        currentTransform = { x: 0, y: 0 };
+        applyTransform();
+      }
+    }
+
+    function exportPNG() {
+      const svg = document.querySelector('#diagram svg');
+      if (svg) {
+        // Criar uma cópia do SVG para exportação
+        const svgClone = svg.cloneNode(true);
+        
+        // Remover transformações de zoom/pan do clone
+        svgClone.style.transform = 'none';
+        
+        // Obter as dimensões reais do SVG
+        const svgRect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Calcular dimensões para exportação com alta resolução
+        const scale = 2; // Aumentar resolução 2x
+        const exportWidth = Math.max(svgRect.width * scale, 2400); // Mínimo de 2400px
+        const exportHeight = Math.max(svgRect.height * scale, 1600); // Mínimo de 1600px
+        
+        // Configurar viewBox para incluir todo o conteúdo
+        if (viewBox) {
+          svgClone.setAttribute('viewBox', `0 0 ${viewBox.width} ${viewBox.height}`);
+        }
+        svgClone.setAttribute('width', exportWidth);
+        svgClone.setAttribute('height', exportHeight);
+        
+        const svgData = new XMLSerializer().serializeToString(svgClone);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = function() {
+          canvas.width = exportWidth;
+          canvas.height = exportHeight;
+          
+          // Configurar contexto para alta qualidade
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Preencher fundo branco
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Desenhar o SVG com alta qualidade
+          ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
+          
+          const link = document.createElement('a');
+          link.download = 'attack-tree.png';
+          link.href = canvas.toDataURL('image/png', 1.0);
+          link.click();
+        };
+        
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      }
+    }
+
+    function exportSVG() {
+      const svg = document.querySelector('#diagram svg');
+      if (svg) {
+        // Criar uma cópia do SVG para exportação
+        const svgClone = svg.cloneNode(true);
+        
+        // Remover transformações de zoom/pan do clone
+        svgClone.style.transform = 'none';
+        
+        // Obter as dimensões reais do SVG
+        const svgRect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Calcular dimensões para exportação
+        const exportWidth = Math.max(svgRect.width, 1200);
+        const exportHeight = Math.max(svgRect.height, 800);
+        
+        // Configurar viewBox para incluir todo o conteúdo
+        if (viewBox) {
+          svgClone.setAttribute('viewBox', `0 0 ${viewBox.width} ${viewBox.height}`);
+        }
+        svgClone.setAttribute('width', exportWidth);
+        svgClone.setAttribute('height', exportHeight);
+        
+        // Adicionar metadados
+        const metadata = document.createElement('metadata');
+        metadata.innerHTML = `
+          <title>Attack Tree - ${new Date().toLocaleDateString()}</title>
+          <description>Generated attack tree diagram</description>
+        `;
+        svgClone.insertBefore(metadata, svgClone.firstChild);
+        
+        const svgData = new XMLSerializer().serializeToString(svgClone);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement('a');
+        link.download = 'attack-tree.svg';
+        link.href = url;
+        link.click();
+        
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    // Controles de mouse para pan
+    function setupMouseControls() {
+      const diagram = document.getElementById('diagram');
+      
+      diagram.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // Botão esquerdo
+          isDragging = true;
+          lastMousePos = { x: e.clientX, y: e.clientY };
+          diagram.style.cursor = 'grabbing';
+        }
+      });
+      
+      diagram.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          const deltaX = e.clientX - lastMousePos.x;
+          const deltaY = e.clientY - lastMousePos.y;
+          
+          currentTransform.x += deltaX;
+          currentTransform.y += deltaY;
+          
+          lastMousePos = { x: e.clientX, y: e.clientY };
+          applyTransform();
+        }
+      });
+      
+      diagram.addEventListener('mouseup', () => {
+        isDragging = false;
+        diagram.style.cursor = 'grab';
+      });
+      
+      diagram.addEventListener('mouseleave', () => {
+        isDragging = false;
+        diagram.style.cursor = 'grab';
+      });
+      
+      // Zoom com scroll
+      diagram.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        currentZoom = Math.max(0.1, Math.min(5, currentZoom * delta));
+        applyTransform();
+      });
+    }
+
+    async function renderDiagram(text) {
+      const diagramDiv = document.getElementById("diagram");
+      try {
+        const { svg } = await mermaid.render('theGraph', text);
+        diagramDiv.innerHTML = svg;
+        
+        // Ajustar viewBox para incluir todo o conteúdo
+        setTimeout(() => {
+          const svgElement = document.querySelector('#diagram svg');
+          if (svgElement) {
+            adjustSVGViewBox(svgElement);
+          }
+        }, 50);
+        
+        // Configurar controles de mouse após renderizar
+        setupMouseControls();
+        
+        // Ajustar automaticamente ao tamanho da tela
+        setTimeout(fitToScreen, 100);
+      } catch (e) {
+        diagramDiv.innerHTML = `<pre>Error rendering diagram: ${e.message}</pre>`;
+      }
+    }
+
+    function adjustSVGViewBox(svgElement) {
+      // Obter todos os elementos dentro do SVG
+      const elements = svgElement.querySelectorAll('*');
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      elements.forEach(element => {
+        const bbox = element.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+          minX = Math.min(minX, bbox.x);
+          minY = Math.min(minY, bbox.y);
+          maxX = Math.max(maxX, bbox.x + bbox.width);
+          maxY = Math.max(maxY, bbox.y + bbox.height);
+        }
+      });
+      
+      // Adicionar margem de 20px
+      const margin = 20;
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+      
+      // Definir viewBox se valores são válidos
+      if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+        const width = maxX - minX;
+        const height = maxY - minY;
+        svgElement.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
+      }
+    }
+
+    const diagramInput = document.getElementById("diagramInput");
+    const inputView = document.getElementById("inputView");
+    const diagramDiv = document.getElementById("diagram");
+
+    function onDiagramInputChange() {
+      const text = diagramInput.value.trim();
+      renderDiagram(text);
+    }
+
+    if (diagramInput) {
+      diagramInput.addEventListener("input", onDiagramInputChange);
+    }
+
+    const base64Diagram = getQueryParam("diagram");
+    const editMode = getQueryParam("edit") === "true";
+
+    if (base64Diagram) {
+      try {
+        const decoded = decodeURIComponent(atob(base64Diagram));
+        if (editMode) {
+          diagramInput.value = decoded;
+          inputView.style.display = "block";
+          diagramDiv.style.display = "block";
+          renderDiagram(decoded);
+        } else {
+          renderDiagram(decoded);
+          inputView.style.display = "none";
+        }
+      } catch (err) {
+        console.error(err);
+        document.body.innerHTML = "<pre>Error decoding diagram</pre>";
+      }
+    } else {
+      inputView.style.display = "block";
+      diagramDiv.style.display = "block";
+    }
+  </script>
+</body>
+</html>
