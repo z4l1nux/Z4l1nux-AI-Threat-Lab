@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '../types';
-import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/geminiService';
-
+import { analyzeThreatsAndMitigations, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/geminiService';
 
 export const useThreatModeler = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
@@ -30,94 +29,52 @@ export const useThreatModeler = () => {
     fetchMapping();
   }, []);
 
-  const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo) => {
+  const generateThreatModel = useCallback(async (systemInfo: SystemInfo) => {
     if (!strideCapecMap) {
-      setError("Mapeamento STRIDE-CAPEC não carregado. Não é possível gerar o modelo.");
-      setIsLoading(false); // Ensure loading is stopped
+      setError("Mapeamento STRIDE-CAPEC ainda não foi carregado. Aguarde um momento e tente novamente.");
       return;
     }
-    if (strideCapecMap.length === 0 && !error) { // If map is empty but no fetch error, it might be an issue with the file content
-        setError("Mapeamento STRIDE-CAPEC está vazio. Verifique o arquivo 'mapeamento-stride-capec-pt.json'.");
-        setIsLoading(false);
-        return;
-    }
+
     setIsLoading(true);
     setError(null);
+    setSystemInfo(systemInfo);
 
     try {
-      // 1. Modelagem de ameaças com a descrição COMPLETA
-      setSystemInfo(currentSystemInfo);
-      const identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap);
-      setThreats(identifiedThreats);
-      // 2. Resumir a descrição geral via IA APENAS para exibição
-      const summarizedDescription = await summarizeSystemDescription(currentSystemInfo.generalDescription || "");
-      const systemInfoWithSummary = {
-        ...currentSystemInfo,
-        generalDescription: summarizedDescription
-      };
+      // 1. Resumir e estruturar a descrição do sistema
+      const summarizedSystemInfo = await summarizeSystemDescription(systemInfo.generalDescription);
+      
+      // 2. Analisar ameaças e mitigações
+      const { threats: identifiedThreats } = await analyzeThreatsAndMitigations(
+        summarizedSystemInfo,
+        strideCapecMap
+      );
+
+      // 3. Gerar árvore de ataque em Mermaid
+      let mermaidDiagram = '';
+      try {
+        mermaidDiagram = await generateAttackTreeMermaid(summarizedSystemInfo, identifiedThreats);
+      } catch (err) {
+        console.warn('Falha ao gerar diagrama Mermaid:', err);
+        // Continue sem o diagrama
+      }
+
+      // 4. Criar relatório final
       const newReportData: ReportData = {
-        systemInfo: systemInfoWithSummary,
+        systemInfo: summarizedSystemInfo,
         threats: identifiedThreats,
         generatedAt: new Date().toISOString(),
+        attackTreeMermaid: mermaidDiagram
       };
-      try {
-        const mermaid = await generateAttackTreeMermaid(systemInfoWithSummary as SystemInfo, identifiedThreats);
-        setReportData({ ...newReportData, attackTreeMermaid: mermaid });
-      } catch (err) {
-        console.warn('Falha ao gerar Mermaid de árvore de ataque:', err);
-        setReportData(newReportData);
-      }
+
+      setReportData(newReportData);
+      setThreats(identifiedThreats);
     } catch (e: any) {
       console.error("Erro ao gerar modelo de ameaças:", e);
       setError(e.message || "Ocorreu um erro desconhecido durante a geração do modelo de ameaças.");
     } finally {
       setIsLoading(false);
     }
-  }, [strideCapecMap, error]);
-  
-  const updateReportMarkdown = useCallback((markdown: string) => {
-      console.log("Markdown do relatório atualizado (no hook, se necessário):", markdown.substring(0,100) + "...");
-       if (reportData) {
-       }
-  }, [reportData]);
-
-  const refineThreatModel = useCallback(async (currentMarkdown: string) => {
-    if (!systemInfo || !strideCapecMap) {
-      setError("Informações do sistema ou mapeamento STRIDE-CAPEC não estão disponíveis para refinamento.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { threats: refinedThreats } = await refineAnalysis(
-        systemInfo,
-        currentMarkdown,
-        strideCapecMap
-      );
-
-      const newReportData: ReportData = {
-        systemInfo: systemInfo, // Keep original system info
-        threats: refinedThreats,
-        generatedAt: new Date().toISOString(), // Update timestamp
-      };
-      try {
-        const mermaid = await generateAttackTreeMermaid(systemInfo, refinedThreats);
-        setReportData({ ...newReportData, attackTreeMermaid: mermaid });
-      } catch (err) {
-        console.warn('Falha ao gerar Mermaid após refinamento:', err);
-        setReportData(newReportData);
-      }
-
-    } catch (e: any) {
-      console.error("Erro ao refinar análise:", e);
-      setError(e.message || "Ocorreu um erro desconhecido durante o refinamento da análise.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [systemInfo, strideCapecMap]);
-
+  }, [strideCapecMap]);
 
   return {
     systemInfo,
@@ -126,8 +83,6 @@ export const useThreatModeler = () => {
     isLoading,
     error,
     generateThreatModel,
-    updateReportMarkdown,
-    refineThreatModel,
     setSystemInfo 
   };
 };

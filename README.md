@@ -1,142 +1,182 @@
 # Threat Modeling Co-Pilot
 
-## Objetivo do Sistema
+Uma ferramenta avançada de modelagem de ameaças que utiliza IA (Google Gemini) para analisar sistemas, identificar ameaças STRIDE, mapear para CAPEC e gerar visualizações interativas de árvores de ataque.
 
-O **Threat Modeling Co-Pilot** é uma plataforma inteligente para modelagem de ameaças, que utiliza IA (Google Gemini) para analisar sistemas, gerar relatórios de ameaças STRIDE, mapear para CAPEC, sugerir mitigações e exportar relatórios completos em PDF. O objetivo é facilitar e acelerar o processo de modelagem de ameaças para desenvolvedores, arquitetos e equipes de segurança.
+## 🚀 Funcionalidades Principais
 
-## Pré-requisitos
+### 📊 Análise de Ameaças com IA
+- **Análise STRIDE completa**: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege
+- **Mapeamento CAPEC**: Integração com Common Attack Pattern Enumeration and Classification
+- **Recomendações de mitigação**: Sugestões específicas para cada ameaça identificada
+- **Classificação OWASP Top 10**: Mapeamento automático para as principais vulnerabilidades web
 
-- Node.js 18+
-- npm ou yarn
-- Conta e chave de API do Google Gemini (https://aistudio.google.com/app/apikey)
+### 🌳 Árvore de Ataque Interativa
+- **Visualização Mermaid**: Diagramas de fluxo interativos e responsivos
+- **Organização por categoria STRIDE**: Estrutura clara e organizada
+- **Quebra automática de linhas**: Texto bem formatado sem cortes
+- **Cores diferenciadas**: Elementos visuais distintos para cada tipo de ameaça
 
-## Instalação
+### 🎛️ Controles de Visualização
+- **Zoom interativo**: Controles de zoom in/out com mouse e botões
+- **Navegação por arrasto**: Pan pelo diagrama com mouse
+- **Ajuste automático**: Botão para ajustar à tela
+- **Indicador de zoom**: Mostra porcentagem atual
+- **Tooltips informativos**: Dicas nos controles
 
-1. Clone o repositório:
-   ```bash
-   git clone <url-do-repo>
-   cd threat-modeling-co-pilot-with-ai-3
-   ```
+### 📤 Exportação de Imagens
+- **PNG em alta qualidade**: Resolução 2x, anti-aliasing de alta qualidade
+- **SVG vetorial**: Formato escalável com metadados
+- **Download automático**: Salva com nome descritivo
+- **Fundo limpo**: Ideal para impressão e apresentações
 
-2. Instale as dependências:
-   ```bash
-   npm install
-   # ou
-   yarn install
-   ```
+### 📄 Relatórios em PDF
+- **Exportação completa**: Todo o relatório em formato PDF
+- **Formatação profissional**: Layout limpo e organizado
+- **Quebra automática de páginas**: Conteúdo bem distribuído
 
-3. Configure a chave da API Gemini:
-   - Renomeie o arquivo `.env.local.example` para `.env.local`:
-     ```bash
-     mv .env.local.example .env.local
-     ```
-   - Edite o arquivo `.env.local` e adicione sua chave:
-     ```env
-     GEMINI_API_KEY=coloque_sua_chave_aqui
-     ```
+## 🛠️ Tecnologias Utilizadas
 
-## Uso
+- **Frontend**: React + TypeScript + Tailwind CSS
+- **IA**: Google Gemini API (gemini-2.5-pro, gemini-2.5-flash)
+- **Diagramas**: Mermaid.js 10.9.3
+- **PDF**: jsPDF + autoTable
+- **Markdown**: ReactMarkdown + remarkGfm
 
-1. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   # ou
-   yarn dev
-   ```
+## 📋 Pré-requisitos
 
-2. Acesse no navegador:
-   ```
-   http://localhost:5173
-   ```
+- Node.js 18+ 
+- Chave da API Google Gemini
 
-3. Preencha as informações do sistema, incluindo a versão, descrição completa, e clique em "Gerar Modelo de Ameaças".
+## ⚙️ Configuração
 
-4. Analise o relatório web, exporte para PDF e refine com IA conforme necessário.
+1. **Clone o repositório**:
+```bash
+git clone <repository-url>
+cd threat-modeling-co-pilot-with-ai-3
+```
 
-## Funcionalidades
-- Entrada detalhada do sistema (componentes, dados sensíveis, tecnologias, integrações, etc.)
-- Análise automática de ameaças STRIDE + CAPEC
-- Sugestão de mitigação, impacto e mapeamento OWASP Top 10
-- Exportação de relatório em PDF
-- Refinamento do relatório com IA Gemini
+2. **Instale as dependências**:
+```bash
+npm install
+```
 
-## Observações
-- É obrigatório configurar a chave da API Gemini para uso das funcionalidades de IA.
-- O arquivo de mapeamento STRIDE-CAPEC está em `public/data/mapeamento-stride-capec-pt.json`.
+3. **Configure a chave da API**:
+```bash
+# Crie um arquivo .env na raiz do projeto
+echo "GEMINI_API_KEY=sua_chave_aqui" > .env
+```
 
-## Criando um Gem no Gemini para Facilitar a Modelagem
+4. **Execute o projeto**:
+```bash
+npm run dev
+```
 
-Para facilitar a geração do prompt correto que será usado no Threat Modeling Copilot, você pode criar um Gem personalizado no [Gemini](https://gemini.google.com). Siga os passos:
+## 🎯 Como Usar
 
-1. Acesse [gemini.google.com](https://gemini.google.com)
-2. Clique no ícone de "Gem Manager" ou "Criar Gem"
-3. Crie um novo Gem com o nome: **"Threat Modeling Copilot - System Overview"**
-4. Cole o template abaixo nas instruções do Gem:
+### 1. Descreva seu Sistema
+- Preencha a descrição completa do sistema
+- Inclua informações sobre componentes, tecnologias, autenticação
+- Adicione detalhes sobre dados sensíveis e integrações
 
-### **Sugestão de Prompt para Modelagem de Ameaças: [Nome do Sistema]**
+### 2. Gere o Modelo de Ameaças
+- Clique em "Gerar Modelo de Ameaças"
+- A IA analisará automaticamente seu sistema
+- Aguarde a geração do relatório completo
 
-**Nome do Sistema:** [Nome do seu sistema. Ex: FinDataFlow Engine, EduConnect Hub]
+### 3. Visualize a Árvore de Ataque
+- Clique em "🌳 Ver Árvore de Ataque" para visualização embarcada
+- Use "🔗 Abrir em Nova Aba" para visualização completa
+- Navegue com zoom e pan para explorar detalhes
 
-**Objetivo:** [Descrição concisa do propósito principal do sistema. O que ele faz? Qual problema ele resolve?]
+### 4. Exporte os Resultados
+- Use "📄 Baixar PDF" para o relatório completo
+- Use "📷 PNG" ou "🎨 SVG" para a árvore de ataque
+- Copie o link da árvore com "📋 Copiar Link"
 
-**Componentes Chave:**
-* [Liste os principais módulos, microsserviços, aplicações (frontends/backends), gateways, etc. Ex: Portal do Aluno, Serviço de Gerenciamento de Cursos, Cluster de Processamento EC2, Dispositivos IoT.]
-* [Adicione mais pontos conforme necessário, detalhando a arquitetura.]
+## 🔧 Funcionalidades Avançadas
 
-**Dados Críticos:**
-* [Liste os tipos de dados mais sensíveis que o sistema armazena, processa ou transmite. Ex: Dados Pessoais Identificáveis (PII), Dados de Transações Financeiras, Histórico Médico, Propriedade Intelectual, Credenciais de Acesso.]
-* [Especifique a sensibilidade: Confidencialidade, Integridade, Disponibilidade.]
+### Controles de Zoom
+- **🔍+ / 🔍-**: Zoom in/out
+- **🔄**: Reset do zoom
+- **📐**: Ajustar à tela
+- **Scroll do mouse**: Zoom com roda do mouse
+- **Arrastar**: Pan pelo diagrama
 
-**Tecnologias e Infraestrutura:**
-* [Liste as principais tecnologias usadas (linguagens, frameworks, bancos de dados, message brokers). Ex: Python, Java, Spring Boot, PostgreSQL, MongoDB, Kafka.]
-* [Descreva a infraestrutura de deployment (cloud provider, orquestração, serviços específicos). Ex: AWS EC2, S3, Kubernetes, Azure IoT Hub.]
-* [Mencione aspectos de segurança da tecnologia. Ex: TLS, OAuth, Criptografia em repouso/trânsito.]
+### Qualidade de Exportação
+- **PNG**: Resolução 2400x1600px mínimo, anti-aliasing de alta qualidade
+- **SVG**: Formato vetorial escalável, metadados incluídos
+- **Fundo branco**: Ideal para impressão e apresentações
 
-**Fluxos de Usuário/Processo:**
-* [Descreva os principais atores (usuários, sistemas externos) e como eles interagem com o sistema. Ex: Aluno acessa aulas, Engenheiro de Dados gerencia pipeline, Dispositivo IoT envia telemetria.]
-* [Liste os fluxos de dados mais importantes e as interações críticas.]
+### Quebra de Linhas Inteligente
+- **Elementos**: Máximo 20 caracteres por linha
+- **CAPEC**: Máximo 25 caracteres por linha
+- **Cenários**: Máximo 30 caracteres por linha
+- **Quebra por palavras**: Não corta palavras no meio
 
-**[OPCIONAL] Cenário de Ameaça Específico (se aplicável, para prompts baseados em CVE/Incidentes):**
-* [Descreva um cenário hipotético ou real onde uma vulnerabilidade específica é explorada, levando a um incidente. Se não houver uma CVE específica, esta seção pode ser omitida ou generalizada como um "Cenário de Risco" principal.]
-* [Ex: "Um atacante explora a CVE-XXXX-YYYY no componente Z para obter acesso W, resultando em X."]
+## 🎨 Interface
 
-**Pergunta para a Modelagem de Ameaças:**
+### Design Responsivo
+- **Desktop**: Layout otimizado para telas grandes
+- **Tablet**: Adaptação para telas médias
+- **Mobile**: Interface mobile-friendly
 
-Com base no objetivo do sistema, seus componentes, dados críticos e fluxos de usuário [e no cenário de ameaça descrito, se aplicável]:
+### Tema Escuro
+- **Cores**: Preto e amarelo para melhor contraste
+- **Acessibilidade**: Alto contraste para leitura
+- **Profissional**: Visual clean e moderno
 
-* Quais são os principais **ativos** a serem protegidos (incluindo dados, funcionalidades, reputação, infraestrutura)?
-* Quais **ameaças** (utilizando o modelo **STRIDE**) poderiam explorar vulnerabilidades no sistema? (Ex: Spoofing de identidade, Tampering de dados, Information Disclosure de informações sensíveis, Denial of Service, Elevação de Privilégio, Repudiação).
-* Quais **controles** de segurança (mitigações) você sugere para prevenir essas ameaças, com foco em [especifique áreas-chave como: segurança na nuvem, autenticação/autorização, proteção de dados, hardening de endpoints, moderação de conteúdo, etc.] e como esses controles se alinham com os princípios de segurança?
+## 🔒 Segurança
 
-Após criar o Gem, você pode usá-lo para gerar automaticamente prompts estruturados que serão mais eficazes quando colados no Threat Modeling Copilot.
+- **Validação de entrada**: Sanitização de dados do usuário
+- **SRI (Subresource Integrity)**: Verificação de integridade de scripts externos
+- **HTTPS**: Recomendado para produção
+- **Variáveis de ambiente**: Chaves de API seguras
 
-## Sugestão de Descrição Completa do Sistema
+## 📈 Melhorias Recentes
 
-### Exemplo de Prompt para Modelagem de Ameaças: Sistema de Telemedicina
+### v3.0 - Árvore de Ataque Interativa
+- ✅ Visualização Mermaid completa
+- ✅ Controles de zoom e navegação
+- ✅ Exportação PNG/SVG em alta qualidade
+- ✅ Quebra automática de linhas
+- ✅ Cores diferenciadas por categoria
+- ✅ Interface responsiva e moderna
 
-**Nome do Sistema:** HealthConnect
+### v2.0 - Análise STRIDE/CAPEC
+- ✅ Mapeamento completo STRIDE → CAPEC
+- ✅ Recomendações de mitigação
+- ✅ Classificação OWASP Top 10
+- ✅ Relatórios em PDF
+- ✅ Interface em português
 
-**Objetivo:** Plataforma de telemedicina para agendamento e realização de consultas online, com gerenciamento de prontuários eletrônicos (PEP) e prescrições digitais.
+### v1.0 - Base IA
+- ✅ Integração Google Gemini
+- ✅ Análise automática de sistemas
+- ✅ Identificação de ameaças
+- ✅ Interface web moderna
 
-**Componentes Chave:**
-- **Frontends:** Portal do Paciente (Web/Móvel) e Portal do Médico (Web).
-- **Backends:** API Central, serviços de Agendamento, Teleconsulta (WebRTC), PEP e Prescrição Digital.
-- **Dados:** Bancos de Dados de perfil de usuário (MongoDB) e Clínico confidencial (PostgreSQL).
-- **Integrações:** Gateways de pagamento, SMS/E-mail e serviços de assinatura digital.
+## 🤝 Contribuição
 
-**Dados Críticos:**
-- **Dados Pessoais de Saúde (DPH):** Prontuários, histórico médico, resultados de exames e prescrições.
-- **Dados Sensíveis:** Informações de identificação do paciente (CPF, nome), credenciais e tokens de pagamento.
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
 
-**Tecnologias e Infraestrutura:**
-- **Tecnologias:** Vue.js, Flutter, Python, Golang, WebRTC, Kafka.
-- **Infraestrutura:** Containers (Docker), Orquestração (Kubernetes) no Azure.
-- **Segurança:** TLS 1.3, criptografia de ponta a ponta e assinaturas digitais (X.509).
+## 📝 Licença
 
-**Fluxos de Usuário:**
-- **Paciente:** Agenda, participa de consultas e acessa dados de saúde.
-- **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
-- **Administrador:** Gerencia usuários e monitora o sistema.
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
-## Licença
-MIT
+## ⚠️ Aviso Legal
+
+Esta é uma ferramenta conceitual para fins educacionais e de desenvolvimento. **Sempre valide o conteúdo gerado por IA com especialistas em segurança** antes de usar em ambientes de produção.
+
+## 🆘 Suporte
+
+- **Issues**: Reporte bugs e solicite features no GitHub
+- **Documentação**: Consulte este README e os comentários no código
+- **Comunidade**: Participe das discussões no repositório
+
+---
+
+**Desenvolvido com ❤️ e IA para a comunidade de segurança**
