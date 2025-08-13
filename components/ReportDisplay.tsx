@@ -86,6 +86,7 @@ _A tabela de ameaças é renderizada como um componente React separado para melh
 const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRefine, isLoading }) => {
   const [markdownContent, setMarkdownContent] = useState<string>("");
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [showAttackTree, setShowAttackTree] = useState<boolean>(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,6 +96,23 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
       setMarkdownContent("");
     }
   }, [reportData]);
+
+  const openAttackTree = () => {
+    if (!reportData?.attackTreeMermaid) return;
+    const encoded = btoa(encodeURIComponent(reportData.attackTreeMermaid));
+    const url = `/mermaid-iframe.html?diagram=${encoded}`;
+    window.open(url, '_blank');
+  };
+
+  const iframeSrc = (() => {
+    if (!reportData?.attackTreeMermaid) return '';
+    try {
+      const encoded = btoa(encodeURIComponent(reportData.attackTreeMermaid));
+      return `/mermaid-iframe.html?diagram=${encoded}`;
+    } catch {
+      return '';
+    }
+  })();
 
   const handleDownloadPdf = () => {
     if (!reportData) return;
@@ -242,6 +260,13 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
             {isEditing ? 'Cancelar Edição' : 'Editar/Refinar'}
           </button>
           <button
+            onClick={() => reportData?.attackTreeMermaid ? setShowAttackTree(!showAttackTree) : undefined}
+            disabled={!reportData?.attackTreeMermaid}
+            className="px-3 py-2 text-xs sm:text-sm font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom-yellow focus:ring-offset-custom-black transition disabled:bg-gray-500 disabled:cursor-not-allowed"
+          >
+            {showAttackTree ? 'Ocultar Árvore de Ataque' : 'Ver Árvore de Ataque'}
+          </button>
+          <button
             onClick={handleDownloadPdf}
             className="px-3 py-2 text-xs sm:text-sm font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom-yellow focus:ring-offset-custom-black transition"
           >
@@ -249,6 +274,33 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
           </button>
         </div>
       </div>
+
+      {showAttackTree && reportData?.attackTreeMermaid && (
+        <div className="w-full border border-custom-yellow/30 rounded-md overflow-hidden">
+          <div className="flex justify-between items-center px-3 py-2 bg-black border-b border-custom-yellow/30">
+            <span className="text-custom-yellow text-sm">Árvore de Ataque (Mermaid)</span>
+            <div className="space-x-2">
+              <button
+                onClick={openAttackTree}
+                className="px-2 py-1 text-xs font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded"
+              >
+                Abrir em Nova Aba
+              </button>
+              <button
+                onClick={() => iframeSrc && navigator.clipboard.writeText(window.location.origin + iframeSrc)}
+                className="px-2 py-1 text-xs font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded"
+              >
+                Copiar Link
+              </button>
+            </div>
+          </div>
+          <iframe
+            title="Attack Tree"
+            src={iframeSrc}
+            style={{ width: '100%', height: '70vh', border: '0' }}
+          />
+        </div>
+      )}
 
       {isEditing ? (
         <div className="space-y-4">

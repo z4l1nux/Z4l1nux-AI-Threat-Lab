@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '../types';
-import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription } from '../services/geminiService';
+import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/geminiService';
 
 
 export const useThreatModeler = () => {
@@ -60,7 +60,13 @@ export const useThreatModeler = () => {
         threats: identifiedThreats,
         generatedAt: new Date().toISOString(),
       };
-      setReportData(newReportData);
+      try {
+        const mermaid = await generateAttackTreeMermaid(systemInfoWithSummary as SystemInfo, identifiedThreats);
+        setReportData({ ...newReportData, attackTreeMermaid: mermaid });
+      } catch (err) {
+        console.warn('Falha ao gerar Mermaid de árvore de ataque:', err);
+        setReportData(newReportData);
+      }
     } catch (e: any) {
       console.error("Erro ao gerar modelo de ameaças:", e);
       setError(e.message || "Ocorreu um erro desconhecido durante a geração do modelo de ameaças.");
@@ -96,7 +102,13 @@ export const useThreatModeler = () => {
         threats: refinedThreats,
         generatedAt: new Date().toISOString(), // Update timestamp
       };
-      setReportData(newReportData);
+      try {
+        const mermaid = await generateAttackTreeMermaid(systemInfo, refinedThreats);
+        setReportData({ ...newReportData, attackTreeMermaid: mermaid });
+      } catch (err) {
+        console.warn('Falha ao gerar Mermaid após refinamento:', err);
+        setReportData(newReportData);
+      }
 
     } catch (e: any) {
       console.error("Erro ao refinar análise:", e);
