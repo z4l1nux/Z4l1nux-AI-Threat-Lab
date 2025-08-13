@@ -375,6 +375,26 @@ function buildFlowchartFromThreats(systemInfo: SystemInfo, threats: IdentifiedTh
     .replace(/[\/\\|{}()<>\[\]"]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  
+  // Função para quebrar linhas longas
+  const wrapText = (text: string, maxWidth: number = 25): string => {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if ((currentLine + ' ' + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    return lines.join('<br/>');
+  };
+  
   const truncate = (s: string, n = 60) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
   // Ordem das categorias STRIDE
@@ -420,29 +440,28 @@ function buildFlowchartFromThreats(systemInfo: SystemInfo, threats: IdentifiedTh
     lines.push(`  subgraph ${catId}[${catLabel}]`);
     lines.push(`    class ${catId} categoryClass`);
     
-    byCategory[cat].forEach((th, i) => {
-      const elId = `${catId}_E${i}`;
-      const cId = `${catId}_C${i}`;
-      const sId = `${catId}_S${i}`;
-      
-      const element = safeLabel(truncate(th.elementName || 'Elemento', 40));
-      const capec = safeLabel(truncate(
-        th.capecId && th.capecName ? `${th.capecId}: ${th.capecName}` : (th.capecId || th.capecName || 'CAPEC'), 
-        45
-      ));
-      const scenario = safeLabel(truncate(th.threatScenario || 'Cenário', 50));
-      
-      lines.push(`    ${elId}[${element}]`);
-      lines.push(`    ${cId}[${capec}]`);
-      lines.push(`    ${sId}[${scenario}]`);
-      lines.push(`    class ${elId} elementClass`);
-      lines.push(`    class ${cId} capecClass`);
-      lines.push(`    class ${sId} scenarioClass`);
-      
-      // Conexões verticais mais claras
-      lines.push(`    ${elId} --> ${cId}`);
-      lines.push(`    ${cId} --> ${sId}`);
-    });
+          byCategory[cat].forEach((th, i) => {
+        const elId = `${catId}_E${i}`;
+        const cId = `${catId}_C${i}`;
+        const sId = `${catId}_S${i}`;
+        
+        const element = wrapText(safeLabel(th.elementName || 'Elemento'), 20);
+        const capec = wrapText(safeLabel(
+          th.capecId && th.capecName ? `${th.capecId}: ${th.capecName}` : (th.capecId || th.capecName || 'CAPEC')
+        ), 25);
+        const scenario = wrapText(safeLabel(th.threatScenario || 'Cenário'), 30);
+        
+        lines.push(`    ${elId}[${element}]`);
+        lines.push(`    ${cId}[${capec}]`);
+        lines.push(`    ${sId}[${scenario}]`);
+        lines.push(`    class ${elId} elementClass`);
+        lines.push(`    class ${cId} capecClass`);
+        lines.push(`    class ${sId} scenarioClass`);
+        
+        // Conexões verticais mais claras
+        lines.push(`    ${elId} --> ${cId}`);
+        lines.push(`    ${cId} --> ${sId}`);
+      });
     
     lines.push('  end');
     lines.push(`  ROOT --> ${catId}`);

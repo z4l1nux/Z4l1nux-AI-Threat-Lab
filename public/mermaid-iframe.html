@@ -200,8 +200,13 @@
       flowchart: {
         useMaxWidth: false,
         htmlLabels: true,
-        curve: 'basis'
-      }
+        curve: 'basis',
+        nodeSpacing: 60,
+        rankSpacing: 60,
+        padding: 25,
+        wrap: true
+      },
+      securityLevel: 'loose'
     });
 
     let currentZoom = 1;
@@ -267,19 +272,51 @@
     function exportPNG() {
       const svg = document.querySelector('#diagram svg');
       if (svg) {
-        const svgData = new XMLSerializer().serializeToString(svg);
+        // Criar uma cópia do SVG para exportação
+        const svgClone = svg.cloneNode(true);
+        
+        // Remover transformações de zoom/pan do clone
+        svgClone.style.transform = 'none';
+        
+        // Obter as dimensões reais do SVG
+        const svgRect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Calcular dimensões para exportação com alta resolução
+        const scale = 2; // Aumentar resolução 2x
+        const exportWidth = Math.max(svgRect.width * scale, 2400); // Mínimo de 2400px
+        const exportHeight = Math.max(svgRect.height * scale, 1600); // Mínimo de 1600px
+        
+        // Configurar viewBox para incluir todo o conteúdo
+        if (viewBox) {
+          svgClone.setAttribute('viewBox', `0 0 ${viewBox.width} ${viewBox.height}`);
+        }
+        svgClone.setAttribute('width', exportWidth);
+        svgClone.setAttribute('height', exportHeight);
+        
+        const svgData = new XMLSerializer().serializeToString(svgClone);
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const img = new Image();
         
         img.onload = function() {
-          canvas.width = svg.width.baseVal.value * currentZoom;
-          canvas.height = svg.height.baseVal.value * currentZoom;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.width = exportWidth;
+          canvas.height = exportHeight;
+          
+          // Configurar contexto para alta qualidade
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          
+          // Preencher fundo branco
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Desenhar o SVG com alta qualidade
+          ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
           
           const link = document.createElement('a');
           link.download = 'attack-tree.png';
-          link.href = canvas.toDataURL();
+          link.href = canvas.toDataURL('image/png', 1.0);
           link.click();
         };
         
@@ -290,7 +327,36 @@
     function exportSVG() {
       const svg = document.querySelector('#diagram svg');
       if (svg) {
-        const svgData = new XMLSerializer().serializeToString(svg);
+        // Criar uma cópia do SVG para exportação
+        const svgClone = svg.cloneNode(true);
+        
+        // Remover transformações de zoom/pan do clone
+        svgClone.style.transform = 'none';
+        
+        // Obter as dimensões reais do SVG
+        const svgRect = svg.getBoundingClientRect();
+        const viewBox = svg.viewBox.baseVal;
+        
+        // Calcular dimensões para exportação
+        const exportWidth = Math.max(svgRect.width, 1200);
+        const exportHeight = Math.max(svgRect.height, 800);
+        
+        // Configurar viewBox para incluir todo o conteúdo
+        if (viewBox) {
+          svgClone.setAttribute('viewBox', `0 0 ${viewBox.width} ${viewBox.height}`);
+        }
+        svgClone.setAttribute('width', exportWidth);
+        svgClone.setAttribute('height', exportHeight);
+        
+        // Adicionar metadados
+        const metadata = document.createElement('metadata');
+        metadata.innerHTML = `
+          <title>Attack Tree - ${new Date().toLocaleDateString()}</title>
+          <description>Generated attack tree diagram</description>
+        `;
+        svgClone.insertBefore(metadata, svgClone.firstChild);
+        
+        const svgData = new XMLSerializer().serializeToString(svgClone);
         const blob = new Blob([svgData], { type: 'image/svg+xml' });
         const url = URL.createObjectURL(blob);
         
@@ -353,6 +419,14 @@
         const { svg } = await mermaid.render('theGraph', text);
         diagramDiv.innerHTML = svg;
         
+        // Ajustar viewBox para incluir todo o conteúdo
+        setTimeout(() => {
+          const svgElement = document.querySelector('#diagram svg');
+          if (svgElement) {
+            adjustSVGViewBox(svgElement);
+          }
+        }, 50);
+        
         // Configurar controles de mouse após renderizar
         setupMouseControls();
         
@@ -360,6 +434,36 @@
         setTimeout(fitToScreen, 100);
       } catch (e) {
         diagramDiv.innerHTML = `<pre>Error rendering diagram: ${e.message}</pre>`;
+      }
+    }
+
+    function adjustSVGViewBox(svgElement) {
+      // Obter todos os elementos dentro do SVG
+      const elements = svgElement.querySelectorAll('*');
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      
+      elements.forEach(element => {
+        const bbox = element.getBBox();
+        if (bbox.width > 0 && bbox.height > 0) {
+          minX = Math.min(minX, bbox.x);
+          minY = Math.min(minY, bbox.y);
+          maxX = Math.max(maxX, bbox.x + bbox.width);
+          maxY = Math.max(maxY, bbox.y + bbox.height);
+        }
+      });
+      
+      // Adicionar margem de 20px
+      const margin = 20;
+      minX -= margin;
+      minY -= margin;
+      maxX += margin;
+      maxY += margin;
+      
+      // Definir viewBox se valores são válidos
+      if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+        const width = maxX - minX;
+        const height = maxY - minY;
+        svgElement.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
       }
     }
 
