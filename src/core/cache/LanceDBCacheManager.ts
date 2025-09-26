@@ -15,7 +15,7 @@ export class LanceDBCacheManager {
   private table: Table | null = null;
   private queryCacheTable: Table | null = null;
   private readonly pastaBase: string;
-  private readonly embeddings: GoogleGenerativeAIEmbeddings;
+  private readonly embeddings: any;
   private readonly separador: RecursiveCharacterTextSplitter;
   private progressTracker: ProgressTracker | null = null;
   private readonly dbPath: string;
@@ -33,7 +33,7 @@ export class LanceDBCacheManager {
   constructor(
     dbPath: string = "lancedb_cache",
     pastaBase: string = "base",
-    embeddings: GoogleGenerativeAIEmbeddings,
+    embeddings: any,
     configuracaoVerbosidade?: Partial<ConfiguracaoVerbosidade>
   ) {
     this.dbPath = dbPath;
@@ -280,7 +280,7 @@ export class LanceDBCacheManager {
   private async removerChunksDocumento(nomeArquivo: string): Promise<void> {
     if (!this.table) return;
     
-    await this.table.delete(`nomeArquivo = '${nomeArquivo}'`);
+    await this.table.delete(`"nomeArquivo" = '${nomeArquivo}'`);
   }
 
   /**

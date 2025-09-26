@@ -1,4 +1,5 @@
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { LanceDBSemanticSearch } from "./LanceDBSemanticSearch";
 import { HybridSemanticSearch } from "./HybridSemanticSearch";
 import { Neo4jSemanticSearch } from "./Neo4jSemanticSearch";
@@ -12,7 +13,7 @@ export class SearchFactory {
    * Cria uma instância de busca semântica (LanceDB por padrão)
    */
   static criarBusca(
-    embeddings: GoogleGenerativeAIEmbeddings,
+    embeddings: any,
     arquivoCache: string = "vectorstore.json",
     pastaBase: string = "base",
     tipo: "lancedb" | "hibrida" | "neo4j" = "lancedb"
@@ -33,7 +34,7 @@ export class SearchFactory {
    * Cria busca com LanceDB (padrão)
    */
   static criarBuscaLanceDB(
-    embeddings: GoogleGenerativeAIEmbeddings,
+    embeddings: any,
     dbPath: string = "lancedb_cache",
     pastaBase: string = "base"
   ): LanceDBSemanticSearch {

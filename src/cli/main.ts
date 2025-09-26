@@ -1,5 +1,6 @@
 import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OpenAIEmbeddings } from "@langchain/openai";
 // Removido ChatPromptTemplate para evitar dependência faltante
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
@@ -24,12 +25,14 @@ interface ResultadoComScore {
 }
 
 function criarEmbeddings() {
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error("GOOGLE_API_KEY é obrigatória. Configure no arquivo .env");
+  // Usar Google Embeddings para compatibilidade
+  if (process.env.GOOGLE_API_KEY) {
+    return new GoogleGenerativeAIEmbeddings({
+      modelName: "embedding-001"
+    });
   }
-  return new GoogleGenerativeAIEmbeddings({
-    modelName: "embedding-001"
-  });
+  
+  throw new Error("Configure GOOGLE_API_KEY no arquivo .env (necessário para embeddings)");
 }
 
 async function perguntarComGemini(): Promise<void> {

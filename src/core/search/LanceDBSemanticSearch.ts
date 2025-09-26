@@ -8,10 +8,10 @@ import { ChunkInfo, ResultadoComScore } from "../types";
  */
 export class LanceDBSemanticSearch {
   private cacheManager: LanceDBCacheManager;
-  private embeddings: GoogleGenerativeAIEmbeddings;
+  private embeddings: any;
 
   constructor(
-    embeddings: GoogleGenerativeAIEmbeddings,
+    embeddings: any,
     dbPath: string = "lancedb_cache",
     pastaBase: string = "base"
   ) {

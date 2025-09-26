@@ -1,5 +1,8 @@
 import { Document } from "langchain/document";
 import { BaseDocumentLoader } from "langchain/document_loaders/base";
+import { PDFLoader } from "langchain/document_loaders/fs/pdf";
+import { TextLoader } from "langchain/document_loaders/fs/text";
+import { DocxLoader } from "langchain/document_loaders/fs/docx";
 import * as fs from "fs";
 import * as path from "path";
 import * as xml2js from "xml2js";
@@ -165,18 +168,47 @@ export class DocumentLoaderFactory {
   static createLoader(filePath: string): BaseDocumentLoader {
     const extensao = path.extname(filePath).toLowerCase();
     
+    console.log(`🔍 Criando loader para arquivo: ${filePath} (extensão: ${extensao})`);
+    
     switch (extensao) {
+      case '.pdf':
+        console.log('📄 Usando PDFLoader');
+        return new PDFLoader(filePath);
+      
+      case '.docx':
+        console.log('📝 Usando DocxLoader');
+        return new DocxLoader(filePath);
+      
+      case '.doc':
+        // Para arquivos .doc antigos, tentamos como texto
+        console.log('📄 Usando TextLoader para .doc (limitações)');
+        return new TextLoader(filePath);
+      
+      case '.txt':
+        console.log('📝 Usando TextLoader');
+        return new TextLoader(filePath);
+      
       case '.xml':
+        console.log('🗂️ Usando XMLLoader');
         return new XMLLoader(filePath);
+      
       case '.json':
+        console.log('📋 Usando JSONLoader');
         return new JSONLoader(filePath);
+      
       case '.csv':
+        console.log('📊 Usando CSVLoader');
         return new CSVLoader(filePath);
+      
       case '.md':
       case '.markdown':
+        console.log('📚 Usando MarkdownLoader');
         return new MarkdownLoader(filePath);
+      
       default:
-        throw new Error(`Extensão não suportada: ${extensao}`);
+        console.error(`❌ Extensão não suportada: ${extensao}`);
+        console.log('📋 Extensões suportadas: .pdf, .docx, .doc, .txt, .md, .xml, .json, .csv');
+        throw new Error(`Extensão não suportada: ${extensao}. Suportadas: .pdf, .docx, .doc, .txt, .md, .xml, .json, .csv`);
     }
   }
 } 

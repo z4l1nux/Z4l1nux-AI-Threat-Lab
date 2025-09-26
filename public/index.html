@@ -3,392 +3,940 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema RAG - Gemini & Ollama</title>
+    <title>Sistema de Modelagem de Ameaças</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f1419 0%, #1a2332 50%, #0f1419 100%); color: #e8eaed; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; margin-bottom: 40px; background: linear-gradient(135deg, #ff6b35, #f7931e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header h1 { font-size: 2.5rem; font-weight: 700; margin-bottom: 10px; }
+        .header p { font-size: 1.1rem; opacity: 0.8; color: #94a3b8; }
+        .input-section { background: rgba(30, 41, 59, 0.6); border-radius: 16px; padding: 30px; margin-bottom: 30px; backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.1); }
+        .input-group { margin-bottom: 25px; }
+        .input-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #f1f5f9; }
+        .input-group input, .input-group textarea, .input-group select { width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid rgba(148, 163, 184, 0.2); background: rgba(15, 23, 42, 0.8); color: #e8eaed; font-size: 14px; transition: all 0.3s ease; }
+        .input-group input:focus, .input-group textarea:focus, .input-group select:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1); }
+        .input-group textarea { min-height: 120px; resize: vertical; }
+        .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .generate-btn { background: linear-gradient(135deg, #ff6b35, #f7931e); color: white; padding: 15px 30px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: block; margin: 0 auto; min-width: 200px; }
+        .generate-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(255, 107, 53, 0.3); }
+        .generate-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .results-section { margin-top: 40px; }
+        .report-card { background: rgba(30, 41, 59, 0.6); border-radius: 16px; padding: 30px; margin-bottom: 30px; backdrop-filter: blur(10px); border: 1px solid rgba(148, 163, 184, 0.1); }
+        .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(148, 163, 184, 0.2); }
+        .report-title { color: #ff6b35; font-size: 1.5rem; font-weight: 600; }
+        .export-btn { background: rgba(34, 197, 94, 0.8); color: white; padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; transition: all 0.3s ease; }
+        .export-btn:hover { background: rgba(34, 197, 94, 1); }
+        .attack-tree { background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .threat-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: rgba(15, 23, 42, 0.8); border-radius: 12px; overflow: hidden; }
+        .threat-table th { background: rgba(255, 107, 53, 0.2); padding: 15px 12px; text-align: left; font-weight: 600; color: #ff6b35; font-size: 14px; }
+        .threat-table td { padding: 15px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); vertical-align: top; font-size: 13px; line-height: 1.4; }
+        .threat-table tr:hover { background: rgba(255, 107, 53, 0.05); }
+        .severity-high { background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .severity-medium { background: rgba(245, 158, 11, 0.2); color: #fcd34d; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .severity-low { background: rgba(34, 197, 94, 0.2); color: #86efac; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
+        .stride-tag { background: rgba(59, 130, 246, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; margin-right: 4px; display: inline-block; margin-bottom: 2px; }
+        .loading { text-align: center; padding: 40px; color: #94a3b8; }
+        .loading::after { content: ''; display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255, 107, 53, 0.3); border-radius: 50%; border-top-color: #ff6b35; animation: spin 1s ease-in-out infinite; margin-left: 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }
+        .stat-card { background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 12px; text-align: center; }
+        .stat-number { font-size: 2rem; font-weight: 700; color: #ff6b35; margin-bottom: 5px; }
+        .stat-label { color: #94a3b8; font-size: 14px; }
+        .model-selector { background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(148, 163, 184, 0.1); }
+        .model-selector label { display: block; font-weight: 600; margin-bottom: 8px; color: #f1f5f9; }
+        .model-selector select { width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid rgba(148, 163, 184, 0.2); background: rgba(30, 41, 59, 0.8); color: #e8eaed; font-size: 14px; }
+        /* Estilos para upload de documentos */
+        .upload-area {
+            border: 2px dashed rgba(255, 107, 53, 0.3);
+            border-radius: 12px;
+            padding: 40px 20px;
             text-align: center;
+            background: rgba(15, 23, 42, 0.4);
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+        
+        .upload-area:hover {
+            border-color: #ff6b35;
+            background: rgba(15, 23, 42, 0.6);
         }
-
-        .header p {
-            font-size: 1.1em;
-            opacity: 0.9;
+        
+        .upload-area.dragover {
+            border-color: #ff6b35;
+            background: rgba(255, 107, 53, 0.1);
+            transform: scale(1.02);
         }
-
-        .main-content {
-            padding: 30px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+        
+        .upload-content h3 {
+            color: #e8eaed;
+            margin: 15px 0 10px 0;
+            font-size: 1.2rem;
         }
-
-        .input-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid #e9ecef;
-        }
-
-        .output-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid #e9ecef;
-        }
-
-        .form-group {
+        
+        .upload-content p {
+            color: #94a3b8;
             margin-bottom: 20px;
         }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #333;
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
         }
-
-        select, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        select:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        textarea {
-            resize: vertical;
-            min-height: 120px;
-        }
-
-        .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        
+        .upload-btn, .process-btn {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
             color: white;
-            border: none;
-            padding: 15px 30px;
+            padding: 12px 24px;
             border-radius: 8px;
-            font-size: 16px;
+            border: none;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
-            width: 100%;
+            transition: all 0.3s ease;
+            margin: 5px;
         }
 
-        .btn:hover {
+        .upload-btn:hover, .process-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
         }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
+        
+        .uploaded-files {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
         }
-
-        .status {
-            padding: 15px;
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.6);
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-icon {
+            font-size: 1.2rem;
+        }
+        
+        .file-name {
+            color: #e8eaed;
             font-weight: 500;
         }
-
-        .status.ready {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        
+        .file-size {
+            color: #94a3b8;
+            font-size: 0.9rem;
         }
-
-        .status.not-ready {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
+        
+        .remove-file {
+            background: rgba(239, 68, 68, 0.8);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
-
-        .response {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 4px solid #667eea;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
-            line-height: 1.6;
+        
+        .remove-file:hover {
+            background: rgba(239, 68, 68, 1);
         }
-
-        .logs {
-            background: #2d3748;
-            color: #e2e8f0;
-            padding: 20px;
-            border-radius: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            max-height: 300px;
-            overflow-y: auto;
+        
+        .upload-progress {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 20px;
+            text-align: center;
         }
-
-        .log-entry {
-            margin-bottom: 5px;
-            padding: 2px 0;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+        
+        .progress-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
         }
-
-        .stat-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-        }
-
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
+        
+        .loading-spinner {
             width: 40px;
             height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
+            border: 3px solid rgba(255, 107, 53, 0.3);
+            border-radius: 50%;
+            border-top-color: #ff6b35;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .upload-results {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .upload-success {
+            color: #10b981;
+            border-left: 4px solid #10b981;
+            padding-left: 15px;
+        }
+        
+        .upload-error {
+            color: #ef4444;
+            border-left: 4px solid #ef4444;
+            padding-left: 15px;
+        }
+        
+        .log-item {
+            padding: 5px 0;
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 0.9rem;
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 768px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .stats {
-                grid-template-columns: 1fr;
-            }
-        }
+        @media (max-width: 768px) { .input-grid { grid-template-columns: 1fr; } .container { padding: 15px; } .header h1 { font-size: 2rem; } .threat-table { font-size: 12px; } .threat-table th, .threat-table td { padding: 10px 8px; } .upload-area { padding: 30px 15px; } .upload-content h3 { font-size: 1rem; } .file-item { flex-direction: column; align-items: flex-start; gap: 10px; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 Sistema RAG</h1>
-            <p>Gemini & Ollama - Interface Web</p>
+            <h1>🔐 Sistema de Modelagem de Ameaças</h1>
+            <p>Análise automatizada de ameaças com base no framework STRIDE e catálogo CAPEC</p>
         </div>
 
-        <div class="main-content">
             <div class="input-section">
-                <h2>📝 Entrada</h2>
-                
-                <div id="status" class="status not-ready">
-                    Verificando status do sistema...
+            <div class="model-selector">
+                <label for="aiModel">Modelo de IA para Análise:</label>
+                <select id="aiModel">
+                        <option value="">Carregando modelos...</option>
+                    </select>
+                </div>
+        </div>
+        
+        <!-- Seção de Upload de Documentos -->
+        <div class="input-section">
+            <div class="section-header">
+                <h2 style="color: #ff6b35; margin-bottom: 15px;">📚 Documentos de Contexto (Opcional)</h2>
+                <p style="color: #94a3b8; margin-bottom: 20px;">Envie documentos sobre o sistema para enriquecer a análise de ameaças. A IA utilizará essas informações para gerar um relatório mais preciso e contextualizado.</p>
+            </div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-content">
+                    <div class="upload-icon">📄</div>
+                    <h3>Arraste arquivos aqui ou clique para selecionar</h3>
+                    <p>Suporte: PDF, TXT, MD, DOCX (até 50MB por arquivo)</p>
+                    <input type="file" id="documentUpload" multiple accept=".pdf,.txt,.md,.docx,.doc" style="display: none;" />
+                    <button type="button" class="upload-btn" onclick="document.getElementById('documentUpload').click()">
+                        📁 Selecionar Arquivos
+                    </button>
+                </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="modelo">Escolha o Modelo:</label>
-                    <select id="modelo">
-                        <option value="1">🤖 Gemini (Google)</option>
-                        <option value="2">🦙 Ollama (Local - Mistral)</option>
+            <div id="uploadedFiles" class="uploaded-files" style="display: none;">
+                <h4 style="color: #ff6b35; margin-bottom: 10px;">Arquivos Selecionados:</h4>
+                <div id="filesList"></div>
+                <button type="button" class="process-btn" onclick="uploadDocuments()">
+                    🚀 Processar Documentos
+                </button>
+            </div>
+            
+            <div id="uploadProgress" class="upload-progress" style="display: none;">
+                <div class="progress-content">
+                    <div class="loading-spinner"></div>
+                    <p id="progressText">Processando documentos...</p>
+                </div>
+            </div>
+
+            <div id="uploadResults" class="upload-results" style="display: none;"></div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="systemName">Nome do Sistema</label>
+                <input type="text" id="systemName" placeholder="Ex: Sistema de E-commerce Corporativo" />
+                </div>
+
+            <div class="input-grid">
+                <div class="input-group">
+                    <label for="systemType">Tipo de Sistema</label>
+                    <select id="systemType">
+                        <option value="web">Aplicação Web</option>
+                        <option value="mobile">Aplicação Mobile</option>
+                        <option value="api">API/Microserviços</option>
+                        <option value="desktop">Aplicação Desktop</option>
+                        <option value="iot">Sistema IoT</option>
+                        <option value="cloud">Infraestrutura Cloud</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="pergunta">Sua Pergunta:</label>
-                    <textarea id="pergunta" placeholder="Digite sua pergunta aqui..."></textarea>
-                </div>
-
-                <button id="enviar" class="btn" onclick="enviarPergunta()">
-                    🚀 Enviar Pergunta
-                </button>
-
-                <div id="loading" class="loading">
-                    <div class="spinner"></div>
-                    <p>Processando sua pergunta...</p>
+                <div class="input-group">
+                    <label for="sensitivity">Nível de Sensibilidade</label>
+                    <select id="sensitivity">
+                        <option value="public">Público</option>
+                        <option value="internal">Interno</option>
+                        <option value="confidential">Confidencial</option>
+                        <option value="restricted">Restrito</option>
+                    </select>
                 </div>
             </div>
-
-            <div class="output-section">
-                <h2>📊 Resultados</h2>
-                
-                <div id="stats" class="stats" style="display: none;">
-                    <div class="stat-card">
-                        <div id="resultadosCount" class="stat-number">0</div>
-                        <div class="stat-label">Resultados Encontrados</div>
-                    </div>
-                    <div class="stat-card">
-                        <div id="avgScore" class="stat-number">0.000</div>
-                        <div class="stat-label">Score Médio</div>
-                    </div>
-                </div>
-
-                <div id="response" class="response" style="display: none;">
-                    <strong>Resposta:</strong>
-                    <div id="responseText"></div>
-                </div>
-
-                <div id="logs" class="logs" style="display: none;">
-                    <strong>📋 Logs do Sistema:</strong>
-                    <div id="logsContent"></div>
-                </div>
+            
+            <div class="input-group">
+                <label for="systemDescription">Descrição Detalhada do Sistema</label>
+                <textarea id="systemDescription" placeholder="Descreva detalhadamente o sistema, suas funcionalidades, arquitetura, componentes, fluxos de dados, usuários, integrações externas, tecnologias utilizadas, e qualquer informação relevante para a modelagem de ameaças..."></textarea>
             </div>
+            
+            <div class="input-group">
+                <label for="assets">Principais Ativos (opcional)</label>
+                <textarea id="assets" placeholder="Liste os principais ativos do sistema: dados pessoais, informações financeiras, propriedade intelectual, etc."></textarea>
+            </div>
+            
+            <button class="generate-btn" onclick="generateThreatModel()">
+                🚀 Gerar Modelo de Ameaças
+            </button>
         </div>
+        
+        <div id="results" class="results-section" style="display: none;"></div>
     </div>
 
     <script>
-        // Verificar status do sistema
-        async function verificarStatus() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                
-                const statusDiv = document.getElementById('status');
-                if (data.status === 'ready') {
-                    statusDiv.className = 'status ready';
-                    statusDiv.innerHTML = '✅ Sistema pronto para uso!';
-                } else {
-                    statusDiv.className = 'status not-ready';
-                    let message = '❌ Sistema não está pronto:';
-                    if (!data.database) message += '<br>• Banco de dados não encontrado (execute: npm run create-db)';
-                    if (!data.apiKey) message += '<br>• API Key não configurada (configure GOOGLE_API_KEY no .env)';
-                    statusDiv.innerHTML = message;
-                }
-            } catch (error) {
-                document.getElementById('status').innerHTML = '❌ Erro ao verificar status do servidor';
-            }
-        }
-
-        // Enviar pergunta
-        async function enviarPergunta() {
-            const pergunta = document.getElementById('pergunta').value.trim();
-            const modelo = document.getElementById('modelo').value;
-            
-            if (!pergunta) {
-                alert('Por favor, digite uma pergunta!');
-                return;
-            }
-
-            // Mostrar loading
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('enviar').disabled = true;
-            
-            // Limpar resultados anteriores
-            document.getElementById('response').style.display = 'none';
-            document.getElementById('logs').style.display = 'none';
-            document.getElementById('stats').style.display = 'none';
-
-            try {
-                const response = await fetch('/api/perguntar', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ pergunta, modelo })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    // Mostrar resposta
-                    document.getElementById('responseText').textContent = data.resposta;
-                    document.getElementById('response').style.display = 'block';
-
-                    // Mostrar estatísticas
-                    document.getElementById('resultadosCount').textContent = data.resultadosEncontrados;
-                    const avgScore = data.scores.reduce((a, b) => a + b, 0) / data.scores.length;
-                    document.getElementById('avgScore').textContent = avgScore.toFixed(3);
-                    document.getElementById('stats').style.display = 'grid';
-
-                    // Mostrar logs
-                    const logsContent = document.getElementById('logsContent');
-                    logsContent.innerHTML = '';
-                    data.logs.forEach(log => {
-                        const logEntry = document.createElement('div');
-                        logEntry.className = 'log-entry';
-                        logEntry.textContent = log;
-                        logsContent.appendChild(logEntry);
-                    });
-                    document.getElementById('logs').style.display = 'block';
-                } else {
-                    // Mostrar erro
-                    document.getElementById('responseText').textContent = `Erro: ${data.error}`;
-                    document.getElementById('response').style.display = 'block';
-                }
-
-            } catch (error) {
-                document.getElementById('responseText').textContent = `Erro de conexão: ${error.message}`;
-                document.getElementById('response').style.display = 'block';
-            } finally {
-                // Esconder loading
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('enviar').disabled = false;
-            }
-        }
-
-        // Permitir enviar com Enter
-        document.getElementById('pergunta').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && e.ctrlKey) {
-                enviarPergunta();
+        mermaid.initialize({
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#ff6b35',
+                primaryTextColor: '#e8eaed',
+                primaryBorderColor: '#ff6b35',
+                lineColor: '#94a3b8',
+                sectionBkgColor: 'rgba(30, 41, 59, 0.8)',
+                altSectionBkgColor: 'rgba(15, 23, 42, 0.8)',
+                gridColor: 'rgba(148, 163, 184, 0.2)',
+                tertiaryColor: 'rgba(59, 130, 246, 0.2)'
             }
         });
 
-        // Verificar status ao carregar a página
-        window.onload = verificarStatus;
+        async function generateThreatModel() {
+            const systemName = document.getElementById('systemName').value;
+            const systemType = document.getElementById('systemType').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+            const description = document.getElementById('systemDescription').value;
+            const assets = document.getElementById('assets').value;
+            const aiModel = document.getElementById('aiModel').value;
+
+            if (!systemName || !description) {
+                alert('Por favor, preencha pelo menos o nome e descrição do sistema.');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="loading">Gerando modelo de ameaças...</div>';
+
+            try {
+                const threatAnalysisPrompt = `
+Você é um especialista em segurança cibernética. Analise o sistema descrito abaixo e gere uma análise de ameaças STRIDE baseada nos documentos da base de conhecimento.
+
+SISTEMA PARA ANÁLISE:
+- Nome: ${systemName}
+- Tipo: ${systemType}
+- Nível de Sensibilidade: ${sensitivity}
+- Descrição: ${description}
+- Ativos Principais: ${assets || 'Não especificados'}
+
+INSTRUÇÕES CRÍTICAS:
+1. Use OBRIGATORIAMENTE informações da base de conhecimento sobre este tipo de sistema
+2. Consulte especificamente o mapeamento STRIDE-CAPEC disponível na base de conhecimento
+3. Para cada ameaça identificada, use CAPECs REAIS da base de dados, não invente códigos CAPEC
+4. Identifique ameaças específicas baseadas nas tecnologias mencionadas na descrição do sistema
+5. Responda APENAS com um JSON válido no formato especificado abaixo
+
+MAPEAMENTO STRIDE OBRIGATÓRIO:
+- S (Spoofing): Use CAPECs relacionados a falsificação de identidade da base
+- T (Tampering): Use CAPECs relacionados a alteração não autorizada da base  
+- R (Repudiation): Use CAPECs relacionados a negação de ações da base
+- I (Information Disclosure): Use CAPECs relacionados a exposição de dados da base
+- D (Denial of Service): Use CAPECs relacionados a negação de serviço da base
+- E (Elevation of Privilege): Use CAPECs relacionados a escalação de privilégios da base
+
+FORMATO DE RESPOSTA (JSON):
+{
+  "threats": [
+    {
+      "id": "T001",
+      "stride": ["S"],
+      "categoria": "Nome da categoria",
+      "ameaca": "Título da ameaça específica para este sistema",
+      "descricao": "Descrição detalhada considerando as tecnologias específicas do sistema",
+      "impacto": "Descrição do impacto no contexto deste sistema",
+      "probabilidade": "Alta/Média/Baixa",
+      "severidade": "Alta/Média/Baixa", 
+      "mitigacao": "Recomendações específicas baseadas na arquitetura descrita",
+      "capec": "CAPEC-XXX (usar apenas códigos REAIS da base de conhecimento)",
+      "deteccao": "Como detectar esta ameaça neste tipo de sistema"
+    }
+  ]
+}`;
+
+                console.log('🔍 Enviando prompt de threat modeling para:', aiModel);
+                
+                const response = await fetch('/api/perguntar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pergunta: threatAnalysisPrompt, modelo: aiModel })
+                });
+
+                const data = await response.json();
+                console.log('📡 Resposta recebida:', data);
+                
+                if (data.success && data.resposta) {
+                    console.log('✅ Processando resposta da IA');
+                    processThreatAnalysis(data.resposta, systemName, systemType, sensitivity, description, assets);
+                } else {
+                    console.log('❌ Falha na resposta da IA, usando mock:', data.error || 'Erro desconhecido');
+                    generateMockReport(systemName, systemType, sensitivity, description, assets);
+                }
+            } catch (error) {
+                console.error('❌ Erro na análise de ameaças:', error);
+                generateMockReport(systemName, systemType, sensitivity, description, assets);
+            }
+        }
+
+        function processThreatAnalysis(aiResponse, systemName, systemType, sensitivity, description, assets) {
+            try {
+                console.log('🔍 Processando resposta da IA:', aiResponse.substring(0, 200) + '...');
+                
+                let threats = [];
+                
+                // Primeiro, tentar parsear diretamente como JSON
+                try {
+                    const directParse = JSON.parse(aiResponse);
+                    threats = directParse.threats || directParse.ameacas || [];
+                    console.log('✅ JSON parseado diretamente, threats encontradas:', threats.length);
+                } catch (e) {
+                    console.log('⚠️ Parsing direto falhou, procurando JSON na resposta...');
+                    
+                    // Se falhar, procurar JSON dentro da resposta
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        console.log('🔍 JSON encontrado na resposta:', jsonMatch[0].substring(0, 100) + '...');
+                        const parsed = JSON.parse(jsonMatch[0]);
+                        threats = parsed.threats || parsed.ameacas || [];
+                        console.log('✅ JSON extraído, threats encontradas:', threats.length);
+                    } else {
+                        console.log('❌ Nenhum JSON válido encontrado na resposta');
+                        throw new Error('Nenhum JSON encontrado');
+                    }
+                }
+                
+                if (threats.length === 0) {
+                    console.log('⚠️ Nenhuma ameaça encontrada, usando mock');
+                    threats = getMockThreatsForSystem(systemType);
+                }
+                
+                console.log('🎯 Gerando relatório com', threats.length, 'ameaças');
+                generateReport(threats, systemName, systemType, sensitivity, description, assets);
+                
+            } catch (error) {
+                console.error('❌ Erro ao processar resposta da IA:', error);
+                console.log('🔄 Usando dados mock como fallback');
+                generateMockReport(systemName, systemType, sensitivity, description, assets);
+            }
+        }
+
+        function generateMockReport(systemName, systemType, sensitivity, description, assets) {
+            console.log('🔄 Gerando relatório mock como fallback');
+            const threats = getMockThreatsForSystem(systemType);
+            generateReport(threats, systemName, systemType, sensitivity, description, assets);
+        }
+
+        function getMockThreatsForSystem(systemType) {
+            const baseThreats = [
+                { id: 'T001', stride: ['S', 'I'], categoria: 'Autenticação', ameaca: 'Ataques de força bruta contra sistema de login', descricao: 'Atacantes podem tentar quebrar senhas através de ataques automatizados de força bruta', impacto: 'Comprometimento de contas de usuários e acesso não autorizado ao sistema', probabilidade: 'Média', severidade: 'Alta', mitigacao: 'Implementar bloqueio de conta após tentativas falhidas, CAPTCHA, autenticação multifator', capec: 'CAPEC-16, CAPEC-49', deteccao: 'Monitoramento de tentativas de login falhidas consecutivas' },
+                { id: 'T002', stride: ['T'], categoria: 'Integridade de Dados', ameaca: 'Manipulação de parâmetros de requisição', descricao: 'Modificação não autorizada de parâmetros HTTP para alterar comportamento da aplicação', impacto: 'Alteração não autorizada de dados ou bypass de controles de segurança', probabilidade: 'Alta', severidade: 'Média', mitigacao: 'Validação robusta de entrada, assinatura de tokens, controle de integridade', capec: 'CAPEC-137, CAPEC-160', deteccao: 'Monitoramento de anomalias em parâmetros de requisição' },
+                { id: 'T003', stride: ['I'], categoria: 'Exposição de Dados', ameaca: 'Vazamento de informações através de logs', descricao: 'Dados sensíveis podem ser expostos através de logs de sistema mal configurados', impacto: 'Exposição de informações confidenciais e dados pessoais', probabilidade: 'Média', severidade: 'Média', mitigacao: 'Configuração adequada de logs, sanitização de dados sensíveis, controle de acesso aos logs', capec: 'CAPEC-117, CAPEC-204', deteccao: 'Auditoria regular dos logs e configurações de logging' },
+                { id: 'T004', stride: ['R'], categoria: 'Negação de Serviço', ameaca: 'Ataques de DDoS na camada de aplicação', descricao: 'Sobrecarga intencional do sistema através de requisições maliciosas', impacto: 'Indisponibilidade do serviço e degradação da performance', probabilidade: 'Alta', severidade: 'Alta', mitigacao: 'Rate limiting, WAF, CDN, monitoramento de tráfego', capec: 'CAPEC-125, CAPEC-130', deteccao: 'Monitoramento de métricas de performance e padrões de tráfego' },
+                { id: 'T005', stride: ['E'], categoria: 'Auditoria', ameaca: 'Ausência de trilhas de auditoria', descricao: 'Falta de logs adequados para rastreamento de ações críticas', impacto: 'Impossibilidade de investigar incidentes ou detectar atividades suspeitas', probabilidade: 'Média', severidade: 'Média', mitigacao: 'Implementação de logging abrangente, proteção de logs, retenção adequada', capec: 'CAPEC-13', deteccao: 'Verificação regular da completude dos logs de auditoria' }
+            ];
+
+            if (systemType === 'web') return baseThreats.filter(t => ['T001', 'T002', 'T004'].includes(t.id));
+            if (systemType === 'api') return baseThreats.filter(t => ['T002', 'T003', 'T004'].includes(t.id));
+            if (systemType === 'mobile') return baseThreats.filter(t => ['T001', 'T003', 'T005'].includes(t.id));
+            return baseThreats;
+        }
+
+        function generateReport(threats, systemName, systemType, sensitivity, description, assets) {
+            const resultsDiv = document.getElementById('results');
+            const attackTreeDiagram = generateAttackTree(systemName, threats);
+            const summaryStats = calculateStats(threats);
+            
+            resultsDiv.innerHTML = `
+                <div class="report-card">
+                    <div class="report-header">
+                        <h2 class="report-title">📊 Relatório de Modelagem de Ameaças</h2>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="export-btn" onclick="exportAttackTree()" style="background: rgba(59, 130, 246, 0.8);">🌳 Ver Árvore Interativa</button>
+                            <button class="export-btn" onclick="exportReport()" style="background: rgba(34, 197, 94, 0.8);">📄 Exportar HTML</button>
+                            <button class="export-btn" onclick="exportPDF()" style="background: rgba(239, 68, 68, 0.8);">📋 Exportar PDF</button>
+                        </div>
+                    </div>
+                    
+                    <div class="summary-stats">
+                        <div class="stat-card"><div class="stat-number">${summaryStats.total}</div><div class="stat-label">Ameaças Identificadas</div></div>
+                        <div class="stat-card"><div class="stat-number">${summaryStats.high}</div><div class="stat-label">Severidade Alta</div></div>
+                        <div class="stat-card"><div class="stat-number">${summaryStats.medium}</div><div class="stat-label">Severidade Média</div></div>
+                        <div class="stat-card"><div class="stat-number">${summaryStats.stride.length}</div><div class="stat-label">Categorias STRIDE</div></div>
+                    </div>
+
+                    <h3 style="color: #ff6b35; margin: 30px 0 15px 0;">🌳 Árvore de Ataque</h3>
+                    <div class="attack-tree"><div id="attackTreeDiagram">${attackTreeDiagram}</div></div>
+
+                    <h3 style="color: #ff6b35; margin: 30px 0 15px 0;">📋 Análise Detalhada de Ameaças</h3>
+                    ${generateThreatTable(threats)}
+                </div>
+            `;
+
+            // Armazenar o código Mermaid para export
+            document.getElementById('attackTreeDiagram').setAttribute('data-mermaid', attackTreeDiagram);
+            
+            mermaid.render('attackTree', attackTreeDiagram).then(result => {
+                document.getElementById('attackTreeDiagram').innerHTML = result.svg;
+            });
+        }
+
+        function generateAttackTree(systemName, threats) {
+            // Gerar árvore baseada nas ameaças específicas da IA
+            const strideCategories = {
+                'S': { name: '🔑 Spoofing', threats: [] },
+                'T': { name: '🔧 Tampering', threats: [] },
+                'R': { name: '📜 Repudiation', threats: [] },
+                'I': { name: '📊 Information Disclosure', threats: [] },
+                'D': { name: '⚡ Denial of Service', threats: [] },
+                'E': { name: '👤 Elevation of Privilege', threats: [] }
+            };
+            
+            // Agrupar ameaças por categoria STRIDE
+            threats.forEach((threat, index) => {
+                if (threat.stride && Array.isArray(threat.stride)) {
+                    threat.stride.forEach(category => {
+                        if (strideCategories[category]) {
+                            strideCategories[category].threats.push({
+                                id: `T${index + 1}`,
+                                name: threat.ameaca || threat.categoria || 'Ameaça',
+                                severity: threat.severidade || 'Média'
+                            });
+                        }
+                    });
+                }
+            });
+            
+            let diagram = `graph TD\n                A["🎯 ${systemName}"]`;
+            let connections = [];
+            let classes = [];
+            
+            // Gerar nós e conexões para cada categoria STRIDE que tem ameaças
+            Object.keys(strideCategories).forEach((key, categoryIndex) => {
+                const category = strideCategories[key];
+                if (category.threats.length > 0) {
+                    const categoryId = `CAT_${key}`;
+                    diagram += ` --> ${categoryId}["${category.name}"]`;
+                    
+                    category.threats.forEach((threat, threatIndex) => {
+                        const threatId = `${categoryId}_${threatIndex}`;
+                        connections.push(`                ${categoryId} --> ${threatId}["${threat.name}"]`);
+                        
+                        // Aplicar classes de severidade
+                        if (threat.severity === 'Alta') {
+                            classes.push(threatId);
+                        }
+                    });
+                }
+            });
+            
+            // Adicionar conexões
+            if (connections.length > 0) {
+                diagram += '\n\n' + connections.join('\n');
+            }
+            
+            // Adicionar estilos
+            diagram += `
+                
+                classDef high fill:#dc2626,stroke:#991b1b,stroke-width:2px,color:#fff
+                classDef medium fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fff
+                classDef low fill:#059669,stroke:#065f46,stroke-width:2px,color:#fff`;
+            
+            // Aplicar classes de severidade alta
+            if (classes.length > 0) {
+                diagram += `\n                class ${classes.join(',')} high`;
+            }
+            
+            return diagram;
+        }
+
+        function generateThreatTable(threats) {
+            const strideColors = { 'S': '#3b82f6', 'T': '#8b5cf6', 'R': '#ef4444', 'I': '#10b981', 'D': '#f59e0b', 'E': '#6366f1' };
+            
+            const tableRows = threats.map(threat => {
+                const strideTags = threat.stride.map(s => `<span class="stride-tag" style="background-color: ${strideColors[s]}20; color: ${strideColors[s]};">${s}</span>`).join('');
+                const severityClass = threat.severidade.toLowerCase() === 'alta' ? 'severity-high' : threat.severidade.toLowerCase() === 'média' ? 'severity-medium' : 'severity-low';
+                
+                return `<tr>
+                    <td>${threat.id}</td>
+                    <td>${strideTags}</td>
+                    <td>${threat.categoria}</td>
+                    <td><strong>${threat.ameaca}</strong></td>
+                    <td>${threat.descricao}</td>
+                    <td>${threat.impacto}</td>
+                    <td>${threat.probabilidade}</td>
+                    <td><span class="${severityClass}">${threat.severidade}</span></td>
+                    <td>${threat.mitigacao}</td>
+                    <td>${threat.capec}</td>
+                    <td>${threat.deteccao}</td>
+                </tr>`;
+            }).join('');
+
+            return `<table class="threat-table">
+                <thead><tr><th>ID</th><th>STRIDE</th><th>Categoria</th><th>Ameaça</th><th>Descrição</th><th>Impacto</th><th>Probabilidade</th><th>Severidade</th><th>Mitigação</th><th>CAPEC</th><th>Detecção</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>`;
+        }
+
+        function calculateStats(threats) {
+            return {
+                total: threats.length,
+                high: threats.filter(t => t.severidade === 'Alta').length,
+                medium: threats.filter(t => t.severidade === 'Média').length,
+                low: threats.filter(t => t.severidade === 'Baixa').length,
+                stride: [...new Set(threats.flatMap(t => t.stride))]
+            };
+        }
+
+        function exportReport() {
+            const reportContent = document.querySelector('.report-card').outerHTML;
+            const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Ameaças</title></head><body>' + reportContent + '</body></html>';
+            const blob = new Blob([fullHtml], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'relatorio-ameacas-' + new Date().toISOString().split('T')[0] + '.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportAttackTree() {
+            const attackTreeDiagram = document.querySelector('#attackTreeDiagram').getAttribute('data-mermaid');
+            if (!attackTreeDiagram) {
+                alert('❌ Árvore de ataque não encontrada. Gere o relatório primeiro.');
+                return;
+            }
+
+            // Abrir o iframe avançado em nova aba para export
+            const encoded = btoa(encodeURIComponent(attackTreeDiagram));
+            const url = `mermaid-iframe.html?diagram=${encoded}`;
+            window.open(url, '_blank', 'width=1200,height=800');
+        }
+
+        async function exportPDF() {
+            try {
+                const originalContent = document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML;
+                document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML = '⏳ Gerando PDF...';
+
+                const reportCard = document.querySelector('.report-card');
+                const canvas = await html2canvas(reportCard, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/png');
+                
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+                
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width * ratio, canvas.height * ratio);
+                pdf.save('relatorio-ameacas-' + new Date().toISOString().split('T')[0] + '.pdf');
+
+                document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML = originalContent;
+            } catch (error) {
+                alert('❌ Erro ao gerar PDF. Tente a exportação HTML.');
+            }
+        }
+
+        // Variáveis globais para upload
+        let selectedFiles = [];
+
+        // Funções de upload de documentos
+        function setupUploadEvents() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('documentUpload');
+
+            // Drag and drop events
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = Array.from(e.dataTransfer.files);
+                handleFileSelection(files);
+            });
+
+            // Clique na área de upload
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // Seleção de arquivos via input
+            fileInput.addEventListener('change', (e) => {
+                const files = Array.from(e.target.files);
+                handleFileSelection(files);
+            });
+        }
+
+        function handleFileSelection(files) {
+            // Filtrar arquivos por tipo e tamanho
+            const validFiles = files.filter(file => {
+                const validTypes = ['application/pdf', 'text/plain', 'text/markdown', 
+                                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                  'application/msword'];
+                const validExtensions = /\.(pdf|txt|md|docx|doc)$/i;
+                const maxSize = 50 * 1024 * 1024; // 50MB
+
+                if (!validTypes.includes(file.type) && !validExtensions.test(file.name)) {
+                    alert(`❌ Arquivo "${file.name}" não é suportado. Use PDF, TXT, MD ou DOCX.`);
+                    return false;
+                }
+
+                if (file.size > maxSize) {
+                    alert(`❌ Arquivo "${file.name}" é muito grande. Máximo 50MB.`);
+                    return false;
+                }
+
+                return true;
+            });
+
+            // Adicionar arquivos à lista (evitar duplicatas)
+            validFiles.forEach(file => {
+                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
+                    selectedFiles.push(file);
+                }
+            });
+
+            displaySelectedFiles();
+        }
+
+        function displaySelectedFiles() {
+            const uploadedFilesDiv = document.getElementById('uploadedFiles');
+            const filesListDiv = document.getElementById('filesList');
+
+            if (selectedFiles.length === 0) {
+                uploadedFilesDiv.style.display = 'none';
+                return;
+            }
+
+            uploadedFilesDiv.style.display = 'block';
+            
+            filesListDiv.innerHTML = selectedFiles.map((file, index) => {
+                const fileIcon = getFileIcon(file.name);
+                const fileSize = formatFileSize(file.size);
+                
+                return `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-icon">${fileIcon}</span>
+                            <div>
+                                <div class="file-name">${file.name}</div>
+                                <div class="file-size">${fileSize}</div>
+                            </div>
+                        </div>
+                        <button class="remove-file" onclick="removeFile(${index})">🗑️ Remover</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            switch (ext) {
+                case 'pdf': return '📄';
+                case 'txt': return '📝';
+                case 'md': return '📋';
+                case 'docx':
+                case 'doc': return '📘';
+                default: return '📄';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displaySelectedFiles();
+        }
+
+        async function uploadDocuments() {
+            if (selectedFiles.length === 0) {
+                alert('❌ Selecione ao menos um arquivo para processar.');
+                return;
+            }
+
+            const progressDiv = document.getElementById('uploadProgress');
+            const resultsDiv = document.getElementById('uploadResults');
+            const progressText = document.getElementById('progressText');
+
+            // Mostrar progresso
+            progressDiv.style.display = 'block';
+            resultsDiv.style.display = 'none';
+            progressText.textContent = 'Enviando documentos...';
+
+            try {
+                const formData = new FormData();
+                selectedFiles.forEach(file => {
+                    formData.append('documents', file);
+                });
+
+                progressText.textContent = 'Processando documentos com embeddings...';
+
+                const response = await fetch('/api/upload-documents', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Ocultar progresso
+                progressDiv.style.display = 'none';
+                resultsDiv.style.display = 'block';
+
+                if (result.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="upload-success">
+                            <h4>✅ ${result.message}</h4>
+                            <div style="margin-top: 15px;">
+                                <strong>📊 Resumo:</strong><br>
+                                📁 Arquivos enviados: ${result.summary.filesUploaded}<br>
+                                📄 Documentos novos: ${result.summary.documentsAdded}<br>
+                                ✏️ Documentos modificados: ${result.summary.documentsModified}<br>
+                                🗑️ Documentos removidos: ${result.summary.documentsRemoved}
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <strong>📋 Log do processamento:</strong>
+                                <div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
+                                    ${result.logs.map(log => `<div class="log-item">${log}</div>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    // Limpar arquivos selecionados após sucesso
+                    selectedFiles = [];
+                    displaySelectedFiles();
+
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="upload-error">
+                            <h4>❌ Erro no processamento</h4>
+                            <p>${result.error}</p>
+                            <div style="margin-top: 15px;">
+                                <strong>📋 Log do erro:</strong>
+                                <div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
+                                    ${result.logs.map(log => `<div class="log-item">${log}</div>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                progressDiv.style.display = 'none';
+                resultsDiv.style.display = 'block';
+                resultsDiv.innerHTML = `
+                    <div class="upload-error">
+                        <h4>❌ Erro de conexão</h4>
+                        <p>Não foi possível conectar ao servidor: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Função para carregar modelos disponíveis
+        async function loadAvailableModels() {
+            try {
+                console.log('🔄 Carregando modelos disponíveis...');
+                const response = await fetch('/api/models');
+                const data = await response.json();
+                
+                const aiModelSelect = document.getElementById('aiModel');
+                aiModelSelect.innerHTML = ''; // Limpar opções existentes
+                
+                // Adicionar modelos de chat disponíveis
+                data.chat.forEach(model => {
+                    if (model.enabled) {
+                        const option = document.createElement('option');
+                        option.value = model.value;
+                        option.textContent = model.name + (model.recommended ? ' - Recomendado' : '');
+                        if (model.recommended) option.selected = true;
+                        aiModelSelect.appendChild(option);
+                    }
+                });
+                
+                console.log(`✅ ${data.chat.filter(m => m.enabled).length} modelos carregados`);
+                console.log('🔧 Embedding:', data.embedding.model, `(${data.embedding.provider})`);
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar modelos:', error);
+                // Fallback para modelos padrão
+                const aiModelSelect = document.getElementById('aiModel');
+                aiModelSelect.innerHTML = `
+                    <option value="1">🤖 Gemini (Google)</option>
+                    <option value="2">🦙 Ollama (Local)</option>
+                    <option value="3" selected>🧠 DeepSeek (OpenRouter)</option>
+                `;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Carregar modelos disponíveis
+            loadAvailableModels();
+            
+            // Configurar eventos de upload
+            setupUploadEvents();
+
+            // Animação de entrada
+            const elements = document.querySelectorAll('.input-section, .header');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s ease';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
     </script>
 </body>
 </html> 

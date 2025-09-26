@@ -6,11 +6,11 @@ import { Session } from "neo4j-driver";
 
 export class HybridSemanticSearch {
   private readonly cacheManager: LanceDBCacheManager;
-  private readonly embeddings: GoogleGenerativeAIEmbeddings;
+  private readonly embeddings: any;
   private readonly database?: string;
 
   constructor(
-    embeddings: GoogleGenerativeAIEmbeddings,
+    embeddings: any,
     dbPath: string = "lancedb_cache",
     pastaBase: string = "base",
     neo4jDatabase?: string

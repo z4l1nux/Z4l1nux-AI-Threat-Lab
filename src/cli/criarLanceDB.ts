@@ -1,4 +1,5 @@
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OpenAIEmbeddings } from "@langchain/openai";
 import { LanceDBCacheManager } from "../core/cache/LanceDBCacheManager";
 import * as dotenv from "dotenv";
 import * as readline from "readline";
@@ -9,12 +10,14 @@ const PASTA_BASE = "base";
 const DB_PATH = "lancedb_cache";
 
 function criarEmbeddings() {
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error("GOOGLE_API_KEY é obrigatória. Configure no arquivo .env");
+  // Usar Google Embeddings para compatibilidade
+  if (process.env.GOOGLE_API_KEY) {
+    return new GoogleGenerativeAIEmbeddings({
+      modelName: "embedding-001"
+    });
   }
-  return new GoogleGenerativeAIEmbeddings({
-    modelName: "embedding-001"
-  });
+  
+  throw new Error("Configure GOOGLE_API_KEY no arquivo .env (necessário para embeddings)");
 }
 
 async function mostrarMenu(): Promise<string> {
