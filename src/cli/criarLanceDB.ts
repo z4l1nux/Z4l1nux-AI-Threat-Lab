@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { LanceDBCacheManager } from "../core/cache/LanceDBCacheManager";
 import * as dotenv from "dotenv";

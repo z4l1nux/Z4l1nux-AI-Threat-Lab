@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 // Removido ChatPromptTemplate para evitar dependência faltante
 import { ChatOllama } from "@langchain/community/chat_models/ollama";

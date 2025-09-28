@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { SemanticSearch } from "../core/search/SemanticSearch";
 import { OptimizedSemanticSearch } from "../core/search/OptimizedSemanticSearch";
 import * as dotenv from "dotenv";

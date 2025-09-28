@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
 import * as dotenv from "dotenv";
 

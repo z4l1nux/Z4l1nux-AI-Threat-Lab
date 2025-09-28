@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { LanceDBCacheManager } from "../cache/LanceDBCacheManager";
 import { ChunkInfo, ResultadoComScore } from "../types";
 

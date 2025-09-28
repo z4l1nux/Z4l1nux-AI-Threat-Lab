@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
+import { OllamaEmbeddings } from '@langchain/ollama';
 import { LanceDBCacheManager } from '../core/cache/LanceDBCacheManager';
 
 dotenv.config();

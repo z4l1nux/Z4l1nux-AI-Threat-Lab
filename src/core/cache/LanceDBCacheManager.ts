@@ -3,7 +3,7 @@ import { CacheDB, DocumentoInfo, ChunkInfo, ProcessamentoResultado, Configuracao
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { DocumentLoaderFactory } from '../../utils/documentLoaders';
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { ProgressTracker } from '../../utils/ProgressTracker';
 import { connect, Connection, Table } from '@lancedb/lancedb';
 import * as arrow from 'apache-arrow';
@@ -32,12 +32,12 @@ export class LanceDBCacheManager {
 
   constructor(
     dbPath: string = "lancedb_cache",
-    pastaBase: string = "base",
+    pastaBase: string | null = "base",
     embeddings: any,
     configuracaoVerbosidade?: Partial<ConfiguracaoVerbosidade>
   ) {
     this.dbPath = dbPath;
-    this.pastaBase = pastaBase;
+    this.pastaBase = pastaBase || "";
     this.embeddings = embeddings;
     this.separador = new RecursiveCharacterTextSplitter({
       chunkSize: 2000,
@@ -445,5 +445,64 @@ export class LanceDBCacheManager {
       this.table = null;
     }
     console.log("🗑️ Cache LanceDB limpo");
+  }
+
+  /**
+   * Processa documento diretamente da memória sem salvar arquivo
+   * Para uso com SecureDocumentProcessor
+   */
+  async processDocumentFromMemory(document: {
+    name: string;
+    content: string;
+    metadata: any;
+  }): Promise<void> {
+    try {
+      if (!this.table) {
+        await this.carregarCache();
+      }
+
+      // Dividir conteúdo em chunks
+      const chunks = await this.separador.createDocuments([document.content]);
+      
+      if (chunks.length === 0) {
+        throw new Error(`Nenhum chunk gerado para documento: ${document.name}`);
+      }
+
+      // Gerar embeddings para cada chunk
+      const embeddings: number[][] = [];
+      for (const chunk of chunks) {
+        const embedding = await this.embeddings.embedQuery(chunk.pageContent);
+        embeddings.push(embedding);
+      }
+
+      // Preparar dados para inserção (usar exato schema da tabela)
+      const agora = new Date().toISOString();
+      const dadosParaInserir = chunks.map((chunk, index) => ({
+        id: `${document.name}_chunk_${index}_${Date.now()}`,
+        pageContent: chunk.pageContent,
+        vector: embeddings[index],
+        metadata: JSON.stringify({
+          ...document.metadata,
+          processedSecurely: true,
+          source: 'memory_upload',
+          tamanhoChunk: chunk.pageContent.length,
+          tamanhoDocumento: document.content.length
+        }),
+        documentoId: document.metadata.hash || `doc_${Date.now()}`,
+        nomeArquivo: document.name,
+        hashArquivo: document.metadata.hash,
+        dataProcessamento: agora,
+        chunkIndex: index
+      }));
+
+      // Inserir no LanceDB
+      await this.table!.add(dadosParaInserir);
+      
+      console.log(`✅ Documento processado da memória: ${document.name} (${chunks.length} chunks)`);
+      
+    } catch (error: any) {
+      console.error(`❌ Erro ao processar documento da memória: ${document.name}`, error);
+      throw error;
+    }
   }
 }

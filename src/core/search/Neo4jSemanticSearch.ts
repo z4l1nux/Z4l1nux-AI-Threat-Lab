@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { ResultadoComScore, ChunkInfo } from "../types";
 import { Neo4jClient } from "../graph/Neo4jClient";
 

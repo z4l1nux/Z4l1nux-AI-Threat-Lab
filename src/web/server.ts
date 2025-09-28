@@ -4,12 +4,13 @@ import path from 'path';
 import multer from 'multer';
 import * as fs from 'fs';
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { SearchFactory } from "../core/search/SearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import { LanceDBCacheManager } from "../core/cache/LanceDBCacheManager";
+import { SecureDocumentProcessor, SecureUploadFile } from '../utils/SecureDocumentProcessor';
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -22,35 +23,21 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../../public')));
 
-// Configuração do multer para upload de arquivos
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Criar diretório 'uploads' se não existir
-    const uploadDir = path.join(__dirname, '../../uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    // Manter nome original com timestamp para evitar conflitos
-    const timestamp = Date.now();
-    const cleanName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
-    cb(null, `${timestamp}_${cleanName}`);
-  }
-});
-
+// Configuração segura do multer - usa memória em vez de disco
 const upload = multer({ 
-  storage: storage,
+  storage: multer.memoryStorage(), // Armazenar em memória para processamento seguro
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limite
+    files: 10 // máximo 10 arquivos
   },
   fileFilter: function (req, file, cb) {
-    // Aceitar apenas PDFs, TXT, MD, DOCX
+    // Aceitar tipos permitidos ou application/octet-stream para detectar por extensão
     const allowedTypes = [
       'application/pdf',
       'text/plain', 
       'text/markdown',
+      'text/x-markdown',
+      'application/octet-stream', // Permitir para detectar por extensão
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword'
     ];
@@ -408,7 +395,7 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
-// Endpoint para upload de documentos para enriquecer o contexto
+// Endpoint seguro para upload de documentos para enriquecer o contexto
 app.post('/api/upload-documents', upload.array('documents', 10), async (req, res) => {
   const logs: string[] = [];
   
@@ -423,68 +410,52 @@ app.post('/api/upload-documents', upload.array('documents', 10), async (req, res
       });
     }
 
-    logs.push(`📁 ${files.length} arquivo(s) recebido(s) para processamento`);
+    logs.push(`🔒 Processamento seguro iniciado para ${files.length} arquivo(s)`);
     
-    // Mover arquivos para a pasta base do projeto
-    const baseDir = path.join(__dirname, '../../base');
-    if (!fs.existsSync(baseDir)) {
-      fs.mkdirSync(baseDir, { recursive: true });
+    // Converter arquivos para formato seguro
+    const secureFiles: SecureUploadFile[] = files.map(file => ({
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      buffer: file.buffer,
+      size: file.size
+    }));
+
+    // Criar embeddings
+    const embeddings = await criarEmbeddings();
+    
+    // Processar com verificações de segurança
+    const processor = new SecureDocumentProcessor();
+    const resultado = await processor.processDocumentsSecurely(secureFiles, embeddings);
+    
+    // Combinar logs
+    logs.push(...resultado.logs);
+    
+    if (!resultado.success) {
+      return res.status(400).json({
+        success: false,
+        error: 'Nenhum arquivo foi processado com sucesso',
+        logs: logs,
+        securityResults: resultado.results,
+        summary: resultado.summary
+      });
     }
-
-    const movedFiles: string[] = [];
-    
-    for (const file of files) {
-      const sourcePath = file.path;
-      const destPath = path.join(baseDir, file.filename);
-      
-      // Mover arquivo para pasta base
-      fs.renameSync(sourcePath, destPath);
-      movedFiles.push(file.filename);
-      logs.push(`📄 Arquivo movido: ${file.originalname} → ${file.filename}`);
-    }
-
-    logs.push('🔄 Iniciando atualização incremental do LanceDB...');
-
-    // Criar embeddings e processar documentos
-    const embeddings = criarEmbeddings();
-    const cacheManager = new LanceDBCacheManager(
-      "lancedb_cache", 
-      "base", 
-      embeddings,
-      {
-        mostrarProgresso: false,
-        mostrarTokens: false,
-        mostrarTempoEstimado: false,
-        mostrarDetalhesChunks: false,
-        mostrarRespostasAPI: false,
-        intervaloAtualizacao: 5000
-      }
-    );
-
-    const resultado = await cacheManager.atualizarCacheIncremental();
-    
-    logs.push('✅ Atualização incremental concluída!');
-    logs.push(`📊 Resumo do processamento:`);
-    logs.push(`   📄 Documentos novos: ${resultado.documentosNovos.length}`);
-    logs.push(`   ✏️ Documentos modificados: ${resultado.documentosModificados.length}`);
-    logs.push(`   🗑️ Documentos removidos: ${resultado.documentosRemovidos.length}`);
 
     res.json({
       success: true,
-      message: `${files.length} documento(s) processado(s) com sucesso`,
+      message: `${resultado.processed} documento(s) processado(s) com segurança`,
       logs: logs,
+      securityResults: resultado.results,
       summary: {
         filesUploaded: files.length,
-        filesProcessed: movedFiles,
-        documentsAdded: resultado.documentosNovos.length,
-        documentsModified: resultado.documentosModificados.length,
-        documentsRemoved: resultado.documentosRemovidos.length
+        filesProcessed: resultado.processed,
+        filesRejected: resultado.rejected,
+        securityChecks: resultado.results.length
       }
     });
 
   } catch (error: any) {
-    console.error('Erro no upload de documentos:', error);
-    logs.push(`❌ Erro: ${error.message}`);
+    console.error('Erro no processamento seguro de documentos:', error);
+    logs.push(`❌ Erro crítico: ${error.message}`);
     
     res.status(500).json({
       success: false,

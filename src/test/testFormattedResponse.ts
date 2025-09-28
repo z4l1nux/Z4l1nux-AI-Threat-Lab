@@ -1,4 +1,4 @@
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";

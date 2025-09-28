@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { OllamaEmbeddings } from "@langchain/ollama";
 import { LanceDBCacheManager } from "../../core/cache/LanceDBCacheManager";
 import { Neo4jSyncService } from "../../core/graph/Neo4jSyncService";
 
@@ -11,7 +11,7 @@ async function main() {
       model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
       baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
     });
-    const cache = new LanceDBCacheManager("lancedb_cache", "base", embeddings);
+    const cache = new LanceDBCacheManager("lancedb_cache", null, embeddings); // Não usar pasta base
     await cache.carregarCache();
 
     const sync = new Neo4jSyncService();
