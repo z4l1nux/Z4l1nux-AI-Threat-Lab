@@ -1,4 +1,4 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { LanceDBCacheManager } from "../cache/LanceDBCacheManager";
 import { Neo4jClient } from "../graph/Neo4jClient";
 import { ResultadoComScore, ChunkInfo } from "../types";

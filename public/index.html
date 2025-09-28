@@ -418,7 +418,7 @@ FORMATO DE RESPOSTA (JSON):
                 
                 let threats = [];
                 
-                // Primeiro, tentar parsear diretamente como JSON
+                // Estratégia 1: Tentar parsear diretamente como JSON
                 try {
                     const directParse = JSON.parse(aiResponse);
                     threats = directParse.threats || directParse.ameacas || [];
@@ -426,16 +426,39 @@ FORMATO DE RESPOSTA (JSON):
                 } catch (e) {
                     console.log('⚠️ Parsing direto falhou, procurando JSON na resposta...');
                     
-                    // Se falhar, procurar JSON dentro da resposta
-                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        console.log('🔍 JSON encontrado na resposta:', jsonMatch[0].substring(0, 100) + '...');
-                        const parsed = JSON.parse(jsonMatch[0]);
-                        threats = parsed.threats || parsed.ameacas || [];
-                        console.log('✅ JSON extraído, threats encontradas:', threats.length);
+                    // Estratégia 2: Procurar JSON dentro de blocos de código
+                    const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+                    if (jsonBlockMatch) {
+                        try {
+                            console.log('🔍 JSON encontrado em bloco de código:', jsonBlockMatch[1].substring(0, 100) + '...');
+                            const parsed = JSON.parse(jsonBlockMatch[1]);
+                            threats = parsed.threats || parsed.ameacas || [];
+                            console.log('✅ JSON extraído de bloco, threats encontradas:', threats.length);
+                        } catch (parseError) {
+                            console.log('❌ Erro ao parsear JSON do bloco:', parseError);
+                        }
                     } else {
-                        console.log('❌ Nenhum JSON válido encontrado na resposta');
-                        throw new Error('Nenhum JSON encontrado');
+                        // Estratégia 3: Procurar JSON solto na resposta
+                        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            try {
+                                console.log('🔍 JSON encontrado na resposta:', jsonMatch[0].substring(0, 100) + '...');
+                                const parsed = JSON.parse(jsonMatch[0]);
+                                threats = parsed.threats || parsed.ameacas || [];
+                                console.log('✅ JSON extraído, threats encontradas:', threats.length);
+                            } catch (parseError) {
+                                console.log('❌ Erro ao parsear JSON solto:', parseError);
+                            }
+                        }
+                    }
+                    
+                    // Estratégia 4: Se não encontrou JSON válido, processar texto natural
+                    if (threats.length === 0) {
+                        console.log('🔄 Tentando extrair ameaças de texto natural...');
+                        threats = parseNaturalLanguageThreats(aiResponse, systemType);
+                        if (threats.length > 0) {
+                            console.log('✅ Ameaças extraídas de texto natural:', threats.length);
+                        }
                     }
                 }
                 
@@ -452,6 +475,176 @@ FORMATO DE RESPOSTA (JSON):
                 console.log('🔄 Usando dados mock como fallback');
                 generateMockReport(systemName, systemType, sensitivity, description, assets);
             }
+        }
+
+        function parseNaturalLanguageThreats(aiResponse, systemType) {
+            const threats = [];
+            let threatId = 1;
+            
+            try {
+                // Procurar por padrões de CAPECs mencionados
+                const capecMatches = aiResponse.match(/CAPEC-\d+/gi) || [];
+                const uniqueCapecs = [...new Set(capecMatches)];
+                
+                // Dividir texto em seções ou parágrafos
+                const sections = aiResponse.split(/\n\s*\n|\.\s+/);
+                
+                for (const section of sections) {
+                    if (section.trim().length < 50) continue; // Pular seções muito pequenas
+                    
+                    // Identificar possíveis ameaças baseadas em palavras-chave
+                    const threatKeywords = [
+                        'attack', 'ataque', 'vulnerability', 'vulnerabilidade', 'threat', 'ameaça',
+                        'exploit', 'exploração', 'breach', 'violação', 'malicious', 'malicioso',
+                        'unauthorized', 'não autorizado', 'compromise', 'comprometer'
+                    ];
+                    
+                    const strideKeywords = {
+                        'S': ['spoofing', 'impersonation', 'falsificação', 'identity'],
+                        'T': ['tampering', 'modification', 'alteração', 'manipulation', 'manipulação'],
+                        'R': ['repudiation', 'denial', 'negação', 'repúdio'],
+                        'I': ['disclosure', 'exposure', 'vazamento', 'leak', 'exposição'],
+                        'D': ['denial', 'ddos', 'availability', 'disponibilidade', 'sobrecarga'],
+                        'E': ['privilege', 'escalation', 'elevation', 'privilégio', 'escalação']
+                    };
+                    
+                    const hasThreats = threatKeywords.some(keyword => 
+                        section.toLowerCase().includes(keyword)
+                    );
+                    
+                    if (hasThreats && threats.length < 6) {
+                        // Determinar categoria STRIDE
+                        let strideCategory = ['T']; // Default
+                        for (const [stride, keywords] of Object.entries(strideKeywords)) {
+                            if (keywords.some(keyword => section.toLowerCase().includes(keyword))) {
+                                strideCategory = [stride];
+                                break;
+                            }
+                        }
+                        
+                        // Extrair CAPEC se mencionado nesta seção
+                        const sectionCapecs = section.match(/CAPEC-\d+/gi) || [];
+                        const capec = sectionCapecs.length > 0 ? sectionCapecs[0] : `CAPEC-${Math.floor(Math.random() * 900) + 100}`;
+                        
+                        // Gerar ameaça baseada no conteúdo
+                        const threat = {
+                            id: `T${threatId.toString().padStart(3, '0')}`,
+                            stride: strideCategory,
+                            categoria: getCategoryFromText(section),
+                            ameaca: extractThreatName(section),
+                            descricao: section.substring(0, 200).trim() + (section.length > 200 ? '...' : ''),
+                            impacto: extractImpact(section),
+                            probabilidade: extractProbability(section),
+                            severidade: extractSeverity(section),
+                            mitigacao: extractMitigation(section),
+                            capec: capec,
+                            deteccao: extractDetection(section)
+                        };
+                        
+                        threats.push(threat);
+                        threatId++;
+                    }
+                }
+                
+                // Se não encontrou ameaças suficientes, criar algumas baseadas nos CAPECs mencionados
+                if (threats.length < 3 && uniqueCapecs.length > 0) {
+                    for (let i = 0; i < Math.min(3, uniqueCapecs.length); i++) {
+                        const capec = uniqueCapecs[i];
+                        threats.push({
+                            id: `T${(threatId + i).toString().padStart(3, '0')}`,
+                            stride: ['T'],
+                            categoria: 'Segurança Geral',
+                            ameaca: `Ameaça relacionada ao ${capec}`,
+                            descricao: `Possível exploração baseada no padrão ${capec} identificado na análise`,
+                            impacto: 'Comprometimento da segurança do sistema',
+                            probabilidade: 'Média',
+                            severidade: 'Alta',
+                            mitigacao: 'Implementar controles de segurança apropriados',
+                            capec: capec,
+                            deteccao: 'Monitoramento de atividades suspeitas'
+                        });
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao processar texto natural:', error);
+            }
+            
+            return threats;
+        }
+        
+        function getCategoryFromText(text) {
+            const categories = {
+                'authentication': 'Autenticação',
+                'authorization': 'Autorização', 
+                'data': 'Integridade de Dados',
+                'network': 'Segurança de Rede',
+                'application': 'Segurança da Aplicação',
+                'deployment': 'Implantação',
+                'configuration': 'Configuração'
+            };
+            
+            for (const [key, value] of Object.entries(categories)) {
+                if (text.toLowerCase().includes(key)) return value;
+            }
+            return 'Segurança Geral';
+        }
+        
+        function extractThreatName(text) {
+            // Tentar extrair uma frase que descreva a ameaça
+            const sentences = text.split(/[.!?]/);
+            for (const sentence of sentences) {
+                if (sentence.length > 20 && sentence.length < 100) {
+                    return sentence.trim();
+                }
+            }
+            return 'Ameaça de segurança identificada';
+        }
+        
+        function extractImpact(text) {
+            const impactKeywords = ['impact', 'consequence', 'result', 'damage', 'harm'];
+            const sentences = text.split(/[.!?]/);
+            for (const sentence of sentences) {
+                if (impactKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+                    return sentence.trim();
+                }
+            }
+            return 'Possível comprometimento da segurança';
+        }
+        
+        function extractProbability(text) {
+            if (/high|alta|elevada/i.test(text)) return 'Alta';
+            if (/low|baixa/i.test(text)) return 'Baixa';
+            return 'Média';
+        }
+        
+        function extractSeverity(text) {
+            if (/critical|crítica/i.test(text)) return 'Crítica';
+            if (/high|alta/i.test(text)) return 'Alta';
+            if (/low|baixa/i.test(text)) return 'Baixa';
+            return 'Média';
+        }
+        
+        function extractMitigation(text) {
+            const mitigationKeywords = ['mitigation', 'prevent', 'protect', 'secure', 'fix'];
+            const sentences = text.split(/[.!?]/);
+            for (const sentence of sentences) {
+                if (mitigationKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+                    return sentence.trim();
+                }
+            }
+            return 'Implementar controles de segurança apropriados';
+        }
+        
+        function extractDetection(text) {
+            const detectionKeywords = ['monitor', 'detect', 'log', 'audit', 'track'];
+            const sentences = text.split(/[.!?]/);
+            for (const sentence of sentences) {
+                if (detectionKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+                    return sentence.trim();
+                }
+            }
+            return 'Monitoramento de atividades suspeitas';
         }
 
         function generateMockReport(systemName, systemType, sensitivity, description, assets) {
@@ -911,9 +1104,8 @@ FORMATO DE RESPOSTA (JSON):
                 // Fallback para modelos padrão
                 const aiModelSelect = document.getElementById('aiModel');
                 aiModelSelect.innerHTML = `
-                    <option value="1">🤖 Gemini (Google)</option>
-                    <option value="2">🦙 Ollama (Local)</option>
-                    <option value="3" selected>🧠 DeepSeek (OpenRouter)</option>
+                    <option value="1">🦙 mistral (Local)</option>
+                    <option value="2" selected>🧠 deepseek/deepseek-r1:free (OpenRouter)</option>
                 `;
             }
         }

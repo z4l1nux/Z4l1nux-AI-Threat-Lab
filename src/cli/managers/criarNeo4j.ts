@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { LanceDBCacheManager } from "../../core/cache/LanceDBCacheManager";
 import { Neo4jSyncService } from "../../core/graph/Neo4jSyncService";
 
@@ -7,7 +7,10 @@ dotenv.config();
 
 async function main() {
   try {
-    const embeddings = new GoogleGenerativeAIEmbeddings({ modelName: "embedding-001" });
+    const embeddings = new OllamaEmbeddings({
+      model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
+      baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
+    });
     const cache = new LanceDBCacheManager("lancedb_cache", "base", embeddings);
     await cache.carregarCache();
 

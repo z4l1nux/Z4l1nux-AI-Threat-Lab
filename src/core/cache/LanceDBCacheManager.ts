@@ -3,7 +3,7 @@ import { CacheDB, DocumentoInfo, ChunkInfo, ProcessamentoResultado, Configuracao
 import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { DocumentLoaderFactory } from '../../utils/documentLoaders';
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { ProgressTracker } from '../../utils/ProgressTracker';
 import { connect, Connection, Table } from '@lancedb/lancedb';
 import * as arrow from 'apache-arrow';

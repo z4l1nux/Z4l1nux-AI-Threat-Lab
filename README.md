@@ -1,6 +1,6 @@
 # Sistema RAG Avançado com Controle de Versão e Cache Inteligente
 
-Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em TypeScript com recursos avançados de controle de versão, cache inteligente e processamento incremental. Suporta tanto a API do Google Gemini quanto o Ollama local.
+Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em TypeScript com recursos avançados de controle de versão, cache inteligente e processamento incremental. Suporta modelos locais via Ollama e modelos remotos via OpenRouter (DeepSeek).
 
 ## ✨ Novas Funcionalidades Implementadas
 
@@ -40,7 +40,7 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 
 ![RAG Architecture Model](docs/images/rag-architecture.png)
 
-Se preferir uma visualização em texto, o diagrama abaixo representa o fluxo principal:
+### Fluxo Principal do Sistema
 
 ```mermaid
 flowchart LR
@@ -53,11 +53,51 @@ flowchart LR
   V --- D[[Original | New Content]]
 ```
 
+### Sistema de Cache Inteligente
+
+O sistema implementa um cache inteligente que resolve os seguintes problemas:
+
+**Problemas Resolvidos:**
+- ❌ Sistema consulta base JSON diretamente a cada relatório
+- ❌ Sem cache, sempre gasta tokens para embeddings
+- ❌ Processamento lento e custoso
+- ❌ Sem otimização de performance
+
+**Soluções Implementadas:**
+- ✅ Cache inteligente com LanceDB
+- ✅ Processamento incremental de documentos
+- ✅ Busca semântica otimizada
+- ✅ Redução significativa de tokens e tempo
+
+### Componentes Principais
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Documentos    │───▶│  LanceDB Cache   │───▶│  Busca Semântica│
+│   (JSON/PDF)    │    │   (Embeddings)   │    │   (Similarity)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │   Query Cache    │
+                       │  (Embeddings)    │
+                       └──────────────────┘
+```
+
+### Fluxo de Processamento
+
+1. **Ingestão**: Documentos são processados e divididos em chunks
+2. **Embedding**: Cada chunk gera embedding vetorial
+3. **Cache**: Embeddings são armazenados no LanceDB
+4. **Busca**: Consultas são convertidas em embeddings e buscadas por similaridade
+5. **Cache de Query**: Embeddings de consultas são cacheados
+
 ## 🚀 Pré-requisitos
 
 - Node.js (versão 18 ou superior)
 - npm ou yarn
 - Ollama (para uso local)
+- Docker (para Neo4j - opcional)
 
 ## 📦 Instalação
 
@@ -66,28 +106,82 @@ flowchart LR
 npm install
 ```
 
-2. Configure as variáveis de ambiente (crie um arquivo `.env`):
+2. Configure as variáveis de ambiente:
 ```bash
-# Chave da API Google (OBRIGATÓRIA - necessária para embeddings)
-GOOGLE_API_KEY=sua_chave_api_google_aqui
+# Copie o arquivo de exemplo
+cp .env.example .env
 
-# Configurações do Ollama (opcional)
+# Edite o arquivo .env com suas configurações
+nano .env
+```
+
+**Exemplo de configuração (.env):**
+```bash
+# Configurações do Ollama (para modelos locais)
 OLLAMA_BASE_URL=http://127.0.0.1:11434
+MODEL_OLLAMA=mistral
+EMBEDDING_MODEL=nomic-embed-text:latest
+
+# Configurações do OpenRouter (para modelos remotos)
+OPENROUTER_API_KEY=sua_chave_openrouter_aqui
+MODEL_OPENROUTER=deepseek/deepseek-r1:free
+
+# Configurações do Neo4j (para busca híbrida)
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=password
+
+# Configurações do servidor web
+PORT=3000
+
+# Configurações de cache
+RESPONSE_CACHE_TTL_MS=300000
+RETRIEVAL_CACHE_TTL_MS=300000
+
+# Modo de busca (hibrida, lancedb, neo4j)
+SEARCH_MODE=hibrida
 ```
 
 ## ⚙️ Configuração do Ollama
 
 1. Instale o Ollama seguindo as instruções em: https://ollama.ai/
 
-2. Baixe o modelo necessário:
+2. Baixe os modelos necessários:
 ```bash
+# Modelo de chat
 ollama pull mistral
+
+# Modelo de embeddings
+ollama pull nomic-embed-text
 ```
 
 3. Inicie o servidor Ollama:
 ```bash
 ollama serve
 ```
+
+## 🗄️ Configuração do Neo4j (Opcional)
+
+Para usar busca híbrida (vetorial + grafos), configure o Neo4j:
+
+### Docker Compose (Recomendado)
+
+O projeto já inclui um arquivo `docker-compose.yml` configurado. Execute:
+
+```bash
+docker-compose up -d
+```
+
+**Versões disponíveis:**
+- **Estável**: `neo4j:5.14.0-community` (padrão)
+- **Mais recente**: `neo4j:5.26.12-community-ubi9` (altere no docker-compose.yml)
+
+### Acessar Neo4j Browser
+
+Após iniciar o container, acesse:
+- **Neo4j Browser**: http://localhost:7474
+- **Usuário**: neo4j
+- **Senha**: password
 
 ## 📚 Preparando a Base de Conhecimento
 
@@ -178,7 +272,7 @@ http://localhost:3000
 ```
 
 3. **Usar a interface web:**
-   - Escolha entre Gemini ou Ollama
+   - Escolha entre Ollama (local) ou DeepSeek (OpenRouter)
    - Digite sua pergunta
    - Veja a resposta e logs em tempo real
    - Visualize estatísticas dos resultados
@@ -191,8 +285,8 @@ npm run dev
 ```
 
 2. **Escolher o modelo:**
-   - **1 - Gemini**: Usa a API do Google Gemini
-   - **2 - Ollama (Mistral)**: Usa o modelo Mistral local via Ollama
+   - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama
+   - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter
 
 **Nota**: O sistema agora usa LanceDB por padrão para busca semântica, oferecendo performance muito superior.
 
@@ -225,18 +319,30 @@ npm run dev
 
 ## 🏗️ Arquitetura do Sistema
 
+### Estrutura de Diretórios
+
 ```
 src/
 ├── core/                    # 🧠 Lógica principal do sistema
-│   ├── cache/              # 💾 Gerenciador LanceDB
+│   ├── cache/              # 💾 Gerenciadores de cache
 │   │   └── LanceDBCacheManager.ts    # Cache LanceDB
-│   ├── search/             # 🔍 Busca semântica
-│   │   ├── SearchFactory.ts          # Factory LanceDB
+│   ├── search/             # 🔍 Implementações de busca
+│   │   ├── SearchFactory.ts          # Factory para múltiplos backends
+│   │   ├── SemanticSearch.ts         # Busca tradicional
+│   │   ├── OptimizedSemanticSearch.ts # Busca otimizada
 │   │   └── LanceDBSemanticSearch.ts  # Busca LanceDB
+│   ├── graph/              # 🕸️ Integração com Neo4j
+│   │   ├── Neo4jClient.ts            # Cliente Neo4j
+│   │   └── Neo4jSyncService.ts       # Sincronização com grafos
 │   └── types.ts            # 📝 Tipos principais do sistema
 ├── cli/                    # 💻 Interfaces de linha de comando
 │   ├── main.ts             # Interface principal CLI
-│   └── criarLanceDB.ts     # Gerenciador LanceDB
+│   ├── criarLanceDB.ts     # Gerenciador LanceDB
+│   ├── reprocessNonInteractive.ts   # Reprocessamento automático
+│   └── managers/           # 🛠️ Gerenciadores específicos
+│       ├── criarNeo4j.ts   # Gerenciador Neo4j
+│       ├── buscaHibrida.ts # Busca híbrida
+│       └── buscaNeo4j.ts   # Busca apenas Neo4j
 ├── web/                    # 🌐 Interface web
 │   └── server.ts           # Servidor web Express
 ├── utils/                  # 🔧 Utilitários gerais
@@ -253,7 +359,12 @@ src/
     └── testFormattedResponse.ts # Testes de resposta formatada
 ```
 
-**📋 Para mais detalhes sobre a estrutura, consulte [ESTRUTURA_PROJETO.md](./ESTRUTURA_PROJETO.md)**
+### Princípios de Organização
+
+- **Separação de Responsabilidades**: Cada diretório tem uma função específica
+- **Padrão de Nomenclatura**: PascalCase para classes, camelCase para funções
+- **Organização por Funcionalidade**: Arquivos relacionados ficam próximos
+- **Imports Organizados**: Relativos claros e intuitivos
 
 ## 🔧 Configurações Avançadas
 
@@ -262,7 +373,7 @@ src/
 {
   chunkSize: 2000,        // Tamanho do chunk em caracteres
   chunkOverlap: 500,      // Sobreposição entre chunks
-  modelEmbedding: "embedding-001"  // Modelo de embedding
+  modelEmbedding: "nomic-embed-text:latest"  // Modelo de embedding
 }
 ```
 
@@ -275,39 +386,82 @@ scoreThreshold: 0.1
 maxResults: 8
 ```
 
-## 🔄 Migração para LanceDB
+### Modelos Disponíveis
 
-O sistema foi migrado para usar LanceDB como backend padrão. Para mais detalhes sobre a migração, consulte o arquivo [MIGRACAO_LANCEDB.md](./MIGRACAO_LANCEDB.md).
+#### Ollama (Local)
+- **Chat**: mistral, llama2, codellama, etc.
+- **Embeddings**: nomic-embed-text:latest
 
-### Comandos Disponíveis:
+#### OpenRouter (Remoto)
+- **Chat**: deepseek/deepseek-r1:free, anthropic/claude-3-haiku, etc.
+- **Embeddings**: Não suportado (use Ollama)
 
+### Modos de Busca
+- **`hibrida`**: Combina LanceDB + Neo4j (recomendado)
+- **`lancedb`**: Apenas busca vetorial
+- **`neo4j`**: Apenas busca em grafos
+
+## 🚀 Comandos Disponíveis
+
+### Desenvolvimento
 ```bash
-# Criar cache LanceDB
-npm run create-lancedb
-
-# Testar funcionalidade LanceDB
-npm run test-lancedb
-
 # Interface CLI
 npm run dev
 
 # Interface Web
 npm run web
+
+# Build
+npm run build
 ```
 
-### Vantagens da Migração:
+### Gerenciamento de Cache
+```bash
+# Cache LanceDB (recomendado)
+npm run create-lancedb
+
+# Reprocessamento automático
+npm run reprocess-lancedb
+
+# Sincronização com Neo4j
+npm run sync-neo4j
+```
+
+### Busca Especializada
+```bash
+# Busca híbrida (LanceDB + Neo4j)
+npm run search-hybrid
+
+# Busca apenas Neo4j
+npm run search-neo4j
+```
+
+### Testes
+```bash
+# Testes específicos
+npm run test-lancedb
+npm run test-rag
+npm run test-loaders
+npm run test-performance
+npm run test-capec
+npm run test-formatted
+```
+
+### Vantagens do Sistema:
 
 - **Performance**: 10-100x mais rápido na busca
 - **Escalabilidade**: Suporte a milhões de documentos
 - **Confiabilidade**: Backup automático e recuperação
 - **Flexibilidade**: Metadados mais ricos e consultas avançadas
+- **Busca Híbrida**: Combina busca vetorial com grafos de conhecimento
 
 ## 🐛 Solução de Problemas
 
-### Erro: "GOOGLE_API_KEY não configurada"
+### Erro: "OPENROUTER_API_KEY é obrigatória"
 ```bash
-# Crie um arquivo .env na raiz do projeto
-echo "GOOGLE_API_KEY=sua_chave_aqui" > .env
+# Copie o arquivo de exemplo e configure
+cp .env.example .env
+# Edite o arquivo .env e adicione sua chave OpenRouter
 ```
 
 ### Erro: "Banco de dados LanceDB não encontrado"
@@ -321,8 +475,12 @@ npm run create-lancedb
 # Inicie o servidor Ollama
 ollama serve
 
-# Verifique se o modelo está instalado
+# Verifique se os modelos estão instalados
 ollama list
+
+# Se necessário, baixe os modelos
+ollama pull mistral
+ollama pull nomic-embed-text
 ```
 
 ## 📝 Logs e Debugging
@@ -350,6 +508,7 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 
 - LangChain para o framework RAG
 - LanceDB para a base de dados vetorial moderna
-- Google Gemini para embeddings e chat
+- Neo4j para busca híbrida com grafos
 - Ollama para modelos locais
+- OpenRouter para modelos remotos
 - Comunidade open source 

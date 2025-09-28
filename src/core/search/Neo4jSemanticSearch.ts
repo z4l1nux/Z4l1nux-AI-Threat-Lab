@@ -1,12 +1,12 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { ResultadoComScore, ChunkInfo } from "../types";
 import { Neo4jClient } from "../graph/Neo4jClient";
 
 export class Neo4jSemanticSearch {
-  private readonly embeddings: GoogleGenerativeAIEmbeddings;
+  private readonly embeddings: OllamaEmbeddings;
   private readonly database?: string;
 
-  constructor(embeddings: GoogleGenerativeAIEmbeddings, neo4jDatabase?: string) {
+  constructor(embeddings: OllamaEmbeddings, neo4jDatabase?: string) {
     this.embeddings = embeddings;
     this.database = neo4jDatabase;
   }

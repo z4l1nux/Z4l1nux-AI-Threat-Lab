@@ -1,4 +1,4 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
 import * as dotenv from "dotenv";
 
@@ -7,14 +7,9 @@ dotenv.config();
 async function testarLanceDB() {
   console.log('🧪 Testando Sistema RAG com LanceDB...\n');
 
-  if (!process.env.GOOGLE_API_KEY) {
-    console.error("❌ GOOGLE_API_KEY não configurada!");
-    console.log("📝 Configure no arquivo .env: GOOGLE_API_KEY=sua_chave_aqui");
-    return;
-  }
-
-  const embeddings = new GoogleGenerativeAIEmbeddings({
-    apiKey: process.env.GOOGLE_API_KEY,
+  const embeddings = new OllamaEmbeddings({
+    model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
   const search = SearchFactory.criarBuscaLanceDB(embeddings);

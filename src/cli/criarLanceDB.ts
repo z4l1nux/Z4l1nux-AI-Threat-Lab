@@ -1,4 +1,4 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { LanceDBCacheManager } from "../core/cache/LanceDBCacheManager";
 import * as dotenv from "dotenv";
@@ -10,14 +10,11 @@ const PASTA_BASE = "base";
 const DB_PATH = "lancedb_cache";
 
 function criarEmbeddings() {
-  // Usar Google Embeddings para compatibilidade
-  if (process.env.GOOGLE_API_KEY) {
-    return new GoogleGenerativeAIEmbeddings({
-      modelName: "embedding-001"
-    });
-  }
-  
-  throw new Error("Configure GOOGLE_API_KEY no arquivo .env (necessário para embeddings)");
+  // Usar Ollama Embeddings
+  return new OllamaEmbeddings({
+    model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
+  });
 }
 
 async function mostrarMenu(): Promise<string> {
@@ -90,11 +87,12 @@ async function executarAtualizacaoIncremental(): Promise<void> {
     
   } catch (error) {
     console.error("❌ Erro durante atualização incremental:", error);
-    if (error instanceof Error && error.message.includes("GOOGLE_API_KEY")) {
-      console.log("\n📝 Para usar Gemini embeddings, você precisa:");
-      console.log("   1. Criar um arquivo .env na raiz do projeto");
-      console.log("   2. Adicionar: GOOGLE_API_KEY=sua_chave_aqui");
-      console.log("   3. Executar novamente: npm run create-lancedb");
+    if (error instanceof Error && error.message.includes("Ollama")) {
+      console.log("\n📝 Para usar Ollama embeddings, você precisa:");
+      console.log("   1. Instalar o Ollama: https://ollama.ai/");
+      console.log("   2. Baixar o modelo: ollama pull nomic-embed-text");
+      console.log("   3. Iniciar o servidor: ollama serve");
+      console.log("   4. Executar novamente: npm run create-lancedb");
     }
   }
 }

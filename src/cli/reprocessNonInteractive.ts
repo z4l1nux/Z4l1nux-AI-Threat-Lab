@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+import { OllamaEmbeddings } from '@langchain/community/embeddings/ollama';
 import { LanceDBCacheManager } from '../core/cache/LanceDBCacheManager';
 
 dotenv.config();
@@ -8,11 +8,10 @@ const PASTA_BASE = 'base';
 const DB_PATH = 'lancedb_cache';
 
 async function main(): Promise<void> {
-  if (!process.env.GOOGLE_API_KEY) {
-    throw new Error('GOOGLE_API_KEY é obrigatória. Configure no arquivo .env');
-  }
-
-  const embeddings = new GoogleGenerativeAIEmbeddings({ modelName: 'embedding-001' });
+  const embeddings = new OllamaEmbeddings({
+    model: process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+    baseUrl: process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'
+  });
   const cache = new LanceDBCacheManager(DB_PATH, PASTA_BASE, embeddings, {
     mostrarProgresso: true,
     mostrarTokens: true,

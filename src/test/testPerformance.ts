@@ -1,4 +1,4 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { SemanticSearch } from "../core/search/SemanticSearch";
 import { OptimizedSemanticSearch } from "../core/search/OptimizedSemanticSearch";
 import * as dotenv from "dotenv";
@@ -8,8 +8,9 @@ dotenv.config();
 async function testarPerformance() {
   console.log('🏃‍♂️ Teste de Performance: Busca Tradicional vs Otimizada\n');
 
-  const embeddings = new GoogleGenerativeAIEmbeddings({
-    apiKey: process.env.GOOGLE_API_KEY,
+  const embeddings = new OllamaEmbeddings({
+    model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
   // Criar instâncias das duas implementações

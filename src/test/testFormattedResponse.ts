@@ -1,4 +1,5 @@
-import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
+import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { SearchFactory } from "../core/search/SearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import * as dotenv from "dotenv";
@@ -8,18 +9,15 @@ dotenv.config();
 async function testarRespostaFormatada() {
   console.log('🎨 Teste de Resposta Formatada com IA\n');
 
-  if (!process.env.GOOGLE_API_KEY) {
-    console.log("❌ GOOGLE_API_KEY é obrigatória. Configure no arquivo .env");
-    return;
-  }
-
-  const embeddings = new GoogleGenerativeAIEmbeddings({
-    apiKey: process.env.GOOGLE_API_KEY,
+  const embeddings = new OllamaEmbeddings({
+    model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
-  const search = SearchFactory.criarBuscaOtimizada(embeddings, "vectorstore.json");
-  const modelo = new ChatGoogleGenerativeAI({
-    modelName: "gemini-1.5-flash"
+  const search = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
+  const modelo = new ChatOllama({
+    model: process.env.MODEL_OLLAMA || "mistral",
+    baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
   const perguntasTeste = [

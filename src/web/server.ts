@@ -3,7 +3,6 @@ import cors from 'cors';
 import path from 'path';
 import multer from 'multer';
 import * as fs from 'fs';
-import { GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { ChatOpenAI } from "@langchain/openai";
@@ -69,47 +68,63 @@ const upload = multer({
 app.get('/api/models', (req, res) => {
   try {
     const models = {
-      chat: [
-        { 
-          id: 'gemini', 
-          name: '🤖 Gemini (Google)', 
-          value: '1',
-          model: process.env.MODEL_GEMINI || 'gemini-1.5-flash',
-          enabled: !!process.env.GOOGLE_API_KEY
-        },
-        { 
-          id: 'ollama', 
-          name: '🦙 Ollama (Local)', 
-          value: '2',
-          model: process.env.MODEL_OLLAMA || 'mistral',
-          enabled: true // Ollama sempre disponível se estiver rodando
-        },
-        { 
-          id: 'deepseek', 
-          name: '🧠 DeepSeek (OpenRouter)', 
-          value: '3',
-          model: process.env.MODEL_DEEPSEEK || 'deepseek/deepseek-r1:free',
-          enabled: !!process.env.OPENROUTER_API_KEY,
-          recommended: true
-        }
-      ],
+      chat: [] as Array<{
+        id: string;
+        name: string;
+        value: string;
+        model: string;
+        enabled: boolean;
+        recommended?: boolean;
+      }>,
       embedding: {
-        model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
-        provider: 'openrouter' // ou 'ollama', 'google' baseado na configuração
+        model: process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+        provider: 'ollama'
       }
     };
 
-    // Adicionar modelos dinâmicos do .env se existirem
-    console.log('🔍 CUSTOM_MODELS env raw:', JSON.stringify(process.env.CUSTOM_MODELS));
-    
-    // Modelos hardcoded como exemplo até resolver o problema do .env
-    const customModels = [
-      {"id":"llama2","name":"🦙 Llama2 (Local)","value":"4","model":"llama2","enabled":true},
-      {"id":"claude","name":"🤖 Claude (OpenRouter)","value":"5","model":"anthropic/claude-3-haiku","enabled":true}
-    ];
-    
-    console.log('🔍 Using hardcoded custom models:', customModels);
-    models.chat.push(...customModels);
+    // Adicionar Ollama se configurado
+    if (process.env.MODEL_OLLAMA) {
+      models.chat.push({
+        id: 'ollama',
+        name: `🦙 ${process.env.MODEL_OLLAMA} (Local)`,
+        value: '1',
+        model: process.env.MODEL_OLLAMA,
+        enabled: true
+      });
+    }
+
+    // Adicionar OpenRouter se configurado
+    if (process.env.MODEL_OPENROUTER && process.env.OPENROUTER_API_KEY) {
+      models.chat.push({
+        id: 'openrouter',
+        name: `🧠 ${process.env.MODEL_OPENROUTER} (OpenRouter)`,
+        value: '2',
+        model: process.env.MODEL_OPENROUTER,
+        enabled: true,
+        recommended: true
+      });
+    }
+
+    // Se nenhum modelo estiver configurado, usar padrões
+    if (models.chat.length === 0) {
+      models.chat.push(
+        {
+          id: 'ollama',
+          name: '🦙 mistral (Local)',
+          value: '1',
+          model: 'mistral',
+          enabled: true
+        },
+        {
+          id: 'openrouter',
+          name: '🧠 deepseek/deepseek-r1:free (OpenRouter)',
+          value: '2',
+          model: 'deepseek/deepseek-r1:free',
+          enabled: false,
+          recommended: true
+        }
+      );
+    }
 
     res.json(models);
   } catch (error) {
@@ -151,62 +166,52 @@ class MockEmbeddings {
   }
 }
 
-function criarEmbeddings() {
+async function criarEmbeddings() {
   console.log("🔧 Configurando embeddings...");
-  
-  // Temporariamente desabilitado devido a quota excedida
-  // if (process.env.GOOGLE_API_KEY) {
-  //   console.log("🔧 Tentando Google Embeddings (embedding-001)");
-  //   try {
-  //     return new GoogleGenerativeAIEmbeddings({
-  //       modelName: "embedding-001"
-  //     });
-  //   } catch (error) {
-  //     console.warn("⚠️ Google API com problemas:", (error as Error).message);
-  //   }
-  // }
+  console.log(`🔧 OLLAMA_BASE_URL: ${process.env.OLLAMA_BASE_URL}`);
+  console.log(`🔧 EMBEDDING_MODEL: ${process.env.EMBEDDING_MODEL}`);
   
   // Prioridade 1: Ollama (local e sem limites de quota)
   try {
-    console.log("🦙 Usando Ollama para embeddings (nomic-embed-text)");
-    return new OllamaEmbeddings({
-      model: "nomic-embed-text",
+    console.log("🦙 Tentando conectar ao Ollama...");
+    const embeddings = new OllamaEmbeddings({
+      model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
       baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
     });
+    
+    // Testar se o Ollama está funcionando
+    console.log("🧪 Testando conexão com Ollama...");
+    await embeddings.embedQuery("teste de conexão");
+    console.log("✅ Ollama funcionando corretamente!");
+    return embeddings;
   } catch (error) {
     console.warn("⚠️ Ollama não disponível:", error);
   }
   
-  // Prioridade 3: OpenRouter (experimental)
-  if (process.env.OPENROUTER_API_KEY) {
-    console.log("⚠️ Tentando OpenRouter para embeddings (experimental)");
-    try {
-      return new OpenAIEmbeddings({
-        openAIApiKey: process.env.OPENROUTER_API_KEY,
-        configuration: {
-          baseURL: "https://openrouter.ai/api/v1",
-        },
-        modelName: "text-embedding-ada-002",
-      });
-    } catch (error) {
-      console.warn("❌ OpenRouter não suporta embeddings");
-    }
-  }
-  
   // Fallback: Embeddings mock para desenvolvimento
   console.warn("⚠️ Usando embeddings simulados (apenas para desenvolvimento)");
-  console.warn("📝 Para produção, configure uma das opções:");
-  console.warn("   1. GOOGLE_API_KEY com quota disponível");
-  console.warn("   2. Ollama rodando localmente");
-  console.warn("   3. OPENROUTER_API_KEY (experimental)");
+  console.warn("📝 Para produção, configure:");
+  console.warn("   1. Ollama rodando localmente com modelo nomic-embed-text:latest");
+  console.warn("   2. OPENROUTER_API_KEY para modelos de chat");
   
   return new MockEmbeddings() as any;
 }
 
 // Inicializações únicas (reuso entre requisições para ativar cache em memória)
-const embeddingsSingleton = criarEmbeddings();
+let embeddingsSingleton: any;
+let semanticSearch: any;
 const SEARCH_MODE = (process.env.SEARCH_MODE || 'hibrida') as 'hibrida' | 'lancedb' | 'neo4j';
-const semanticSearch = SearchFactory.criarBusca(embeddingsSingleton, "vectorstore.json", "base", SEARCH_MODE);
+
+// Inicializar embeddings de forma assíncrona
+(async () => {
+  try {
+    embeddingsSingleton = await criarEmbeddings();
+    semanticSearch = SearchFactory.criarBusca(embeddingsSingleton, "vectorstore.json", "base", SEARCH_MODE);
+    console.log("🚀 Sistema RAG inicializado com sucesso!");
+  } catch (error) {
+    console.error("❌ Erro na inicialização:", error);
+  }
+})();
 
 // Caches em memória (processo) para acelerar requisições repetidas
 type CacheEntry<T> = { ts: number; value: T };
@@ -240,6 +245,15 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
   try {
     logs.push("🔄 Iniciando processamento da pergunta...");
     logs.push(`🧠 Modo de busca: ${SEARCH_MODE}`);
+
+    // Aguardar inicialização do sistema
+    if (!semanticSearch) {
+      logs.push("⏳ Aguardando inicialização do sistema...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!semanticSearch) {
+        throw new Error("Sistema ainda não foi inicializado. Tente novamente em alguns segundos.");
+      }
+    }
 
     // Cache de resposta completa (pula retrieval e LLM)
     const responseKey = `${modelo}::${pergunta.toLowerCase().trim().replace(/\s+/g, ' ')}`;
@@ -290,35 +304,26 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
       .replace("{pergunta}", pergunta)
       .replace("{base_conhecimento}", baseConhecimento);
     
-    const modeloNome = modelo === '1' ? 'Gemini' : modelo === '2' ? 'Ollama/Mistral' : 'DeepSeek (OpenRouter)';
+    const modeloNome = modelo === '1' ? 'Ollama (Local)' : 'DeepSeek (OpenRouter)';
     logs.push(`🤖 Gerando resposta com modelo: ${modeloNome}`);
     
     let resposta;
     if (modelo === '1') {
-      // Usar Gemini
-      const modeloAI = new ChatGoogleGenerativeAI({
-        modelName: process.env.MODEL_GEMINI || "gemini-1.5-flash"
+      // Usar Ollama
+      const modeloAI = new ChatOllama({
+        model: process.env.MODEL_OLLAMA || "mistral",
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
       });
       resposta = (modeloAI as any).invoke
         ? await (modeloAI as any).invoke(textoPrompt as any)
         : await (modeloAI as any).call({ input: textoPrompt });
     } else if (modelo === '2') {
-      // Usar Ollama
-      const modeloAI = new ChatOllama({
-        model: process.env.MODEL_OLLAMA || "mistral",
-        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
-        format: "json" // Adicionar formato para compatibilidade
-      });
-      resposta = (modeloAI as any).invoke
-        ? await (modeloAI as any).invoke(textoPrompt as any)
-        : await (modeloAI as any).call({ input: textoPrompt });
-    } else if (modelo === '3') {
       // Usar OpenRouter com DeepSeek
       if (!process.env.OPENROUTER_API_KEY) {
         throw new Error("OPENROUTER_API_KEY é obrigatória. Configure no arquivo .env");
       }
       const modeloAI = new ChatOpenAI({
-        modelName: process.env.MODEL_DEEPSEEK || "deepseek/deepseek-r1:free",
+        modelName: process.env.MODEL_OPENROUTER || "deepseek/deepseek-r1:free",
         openAIApiKey: process.env.OPENROUTER_API_KEY,
         configuration: {
           baseURL: "https://openrouter.ai/api/v1",
@@ -385,20 +390,17 @@ app.post('/api/perguntar', async (req, res) => {
 app.get('/api/status', async (req, res) => {
   try {
     const hasDatabase = await semanticSearch.verificarCache();
-    const hasGoogleApiKey = !!process.env.GOOGLE_API_KEY;
     const hasOpenRouterApiKey = !!process.env.OPENROUTER_API_KEY;
     
     res.json({
       database: hasDatabase,
-      googleApiKey: hasGoogleApiKey,
       openRouterApiKey: hasOpenRouterApiKey,
-      status: hasDatabase && (hasGoogleApiKey || hasOpenRouterApiKey) ? 'ready' : 'not_ready',
+      status: hasDatabase ? 'ready' : 'not_ready',
       searchMode: SEARCH_MODE
     });
   } catch (error) {
     res.json({
       database: false,
-      googleApiKey: !!process.env.GOOGLE_API_KEY,
       openRouterApiKey: !!process.env.OPENROUTER_API_KEY,
       status: 'not_ready',
       searchMode: SEARCH_MODE
@@ -494,6 +496,7 @@ app.post('/api/upload-documents', upload.array('documents', 10), async (req, res
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-  console.log(`🔑 Google API Key: ${process.env.GOOGLE_API_KEY ? 'Configurada' : 'Não configurada'}`);
   console.log(`🔑 OpenRouter API Key: ${process.env.OPENROUTER_API_KEY ? 'Configurada' : 'Não configurada'}`);
+  console.log(`🦙 Ollama Base URL: ${process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434'}`);
+  console.log(`🧠 Embedding Model: ${process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest'}`);
 }); 

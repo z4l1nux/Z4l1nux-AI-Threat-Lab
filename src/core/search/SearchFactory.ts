@@ -1,4 +1,4 @@
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { OllamaEmbeddings } from "@langchain/community/embeddings/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { LanceDBSemanticSearch } from "./LanceDBSemanticSearch";
 import { HybridSemanticSearch } from "./HybridSemanticSearch";
