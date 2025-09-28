@@ -6,8 +6,7 @@
 import * as crypto from 'crypto';
 import * as path from 'path';
 import { OllamaEmbeddings } from "@langchain/ollama";
-import { LanceDBCacheManager } from '../core/cache/LanceDBCacheManager';
-import { Neo4jSyncService } from '../core/graph/Neo4jSyncService';
+import { Neo4jCacheManager } from '../core/cache/Neo4jCacheManager';
 
 export interface SecurityCheckResult {
   isValid: boolean;
@@ -125,13 +124,10 @@ export class SecureDocumentProcessor {
           logs.push(`⚠️ ${file.originalname}: ${warning}`)
         );
 
-        // Processar conteúdo diretamente na memória
+        // Processar conteúdo diretamente na memória (já inclui Neo4j)
         const documentName = await this.processFileInMemory(file, securityCheck, embeddings, logs);
         processed++;
         logs.push(`✅ Processado com segurança: ${file.originalname}`);
-        
-        // Sincronizar automaticamente com Neo4j
-        await this.syncToNeo4j(documentName, securityCheck.metadata.hash, logs);
 
       } catch (error: any) {
         rejected++;
@@ -272,11 +268,11 @@ export class SecureDocumentProcessor {
 
     logs.push(`🧠 Gerando embeddings para: ${tempDocument.name}`);
     
-    // Processar diretamente para LanceDB usando o cache manager
-    // mas sem salvar arquivo físico
-    const cacheManager = new LanceDBCacheManager(
-      "lancedb_cache",
-      null, // Não usar pasta base
+    // Processar diretamente para Neo4j usando o cache manager
+    const cacheManager = new Neo4jCacheManager(
+      process.env.NEO4J_URI || "bolt://localhost:7687",
+      process.env.NEO4J_USER || "neo4j",
+      process.env.NEO4J_PASSWORD || "s3nh4forte",
       embeddings,
       {
         mostrarProgresso: false,
@@ -288,48 +284,17 @@ export class SecureDocumentProcessor {
       }
     );
 
+    // Inicializar Neo4j se necessário
+    await cacheManager.initialize();
+
     // Processar documento da memória diretamente
     await cacheManager.processDocumentFromMemory(tempDocument);
     
-    logs.push(`💾 Documento processado diretamente para LanceDB: ${tempDocument.name}`);
+    logs.push(`💾 Documento processado diretamente para Neo4j: ${tempDocument.name}`);
     
     return tempDocument.name;
   }
 
-  /**
-   * Sincroniza documento processado automaticamente com Neo4j
-   */
-  private async syncToNeo4j(documentName: string, documentHash: string, logs: string[]): Promise<void> {
-    try {
-      logs.push(`🔄 Sincronizando com Neo4j: ${documentName}`);
-      
-      const syncService = new Neo4jSyncService();
-      
-      // Buscar chunks do documento no LanceDB
-      const cacheManager = new LanceDBCacheManager("lancedb_cache", null, null);
-      await cacheManager.carregarCache();
-      
-      const allChunks = await cacheManager.obterTodosChunks();
-      const documentChunks = allChunks.filter(chunk => 
-        chunk.metadata?.nomeArquivo === documentName || 
-        (chunk.metadata as any)?.source === 'memory_upload'
-      );
-      
-      if (documentChunks.length > 0) {
-        // Sincronizar documento e chunks
-        await syncService.upsertDocumento(documentName, documentHash);
-        await syncService.upsertChunks(documentName, documentChunks);
-        
-        logs.push(`✅ Sincronizado com Neo4j: ${documentName} (${documentChunks.length} chunks)`);
-      } else {
-        logs.push(`⚠️ Nenhum chunk encontrado para sincronização: ${documentName}`);
-      }
-      
-    } catch (error: any) {
-      logs.push(`❌ Erro na sincronização Neo4j: ${error.message}`);
-      // Não falhar o processo por erro de sincronização
-    }
-  }
 
   /**
    * Analisa conteúdo em busca de padrões perigosos

@@ -7,9 +7,8 @@ import { ChatOllama } from "@langchain/community/chat_models/ollama";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { OpenAIEmbeddings } from "@langchain/openai";
-import { SearchFactory } from "../core/search/SearchFactory";
+import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
-import { LanceDBCacheManager } from "../core/cache/LanceDBCacheManager";
 import { SecureDocumentProcessor, SecureUploadFile } from '../utils/SecureDocumentProcessor';
 import * as dotenv from "dotenv";
 
@@ -186,15 +185,15 @@ async function criarEmbeddings() {
 
 // Inicializações únicas (reuso entre requisições para ativar cache em memória)
 let embeddingsSingleton: any;
-let semanticSearch: any;
-const SEARCH_MODE = (process.env.SEARCH_MODE || 'hibrida') as 'hibrida' | 'lancedb' | 'neo4j';
+let semanticSearch: Neo4jOnlySearchFactory | null = null;
 
 // Inicializar embeddings de forma assíncrona
 (async () => {
   try {
     embeddingsSingleton = await criarEmbeddings();
-    semanticSearch = SearchFactory.criarBusca(embeddingsSingleton, "vectorstore.json", "base", SEARCH_MODE);
-    console.log("🚀 Sistema RAG inicializado com sucesso!");
+    semanticSearch = new Neo4jOnlySearchFactory(embeddingsSingleton);
+    await semanticSearch.initialize();
+    console.log("🚀 Sistema RAG Neo4j inicializado com sucesso!");
   } catch (error) {
     console.error("❌ Erro na inicialização:", error);
   }
@@ -231,7 +230,7 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
   
   try {
     logs.push("🔄 Iniciando processamento da pergunta...");
-    logs.push(`🧠 Modo de busca: ${SEARCH_MODE}`);
+    logs.push(`🧠 Modo de busca: Neo4j`);
 
     // Aguardar inicialização do sistema
     if (!semanticSearch) {
@@ -253,7 +252,7 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
     // Verificar se o cache existe
     const cacheValido = await semanticSearch.verificarCache();
     if (!cacheValido) {
-      throw new Error("Banco de dados LanceDB não encontrado. Execute primeiro: npm run create-lancedb");
+      throw new Error("Banco de dados Neo4j não encontrado ou vazio. Faça upload de documentos primeiro.");
     }
     
     logs.push("📁 Carregando banco de dados...");
@@ -376,21 +375,21 @@ app.post('/api/perguntar', async (req, res) => {
 
 app.get('/api/status', async (req, res) => {
   try {
-    const hasDatabase = await semanticSearch.verificarCache();
+    const hasDatabase = semanticSearch ? await semanticSearch.verificarCache() : false;
     const hasOpenRouterApiKey = !!process.env.OPENROUTER_API_KEY;
     
     res.json({
       database: hasDatabase,
       openRouterApiKey: hasOpenRouterApiKey,
       status: hasDatabase ? 'ready' : 'not_ready',
-      searchMode: SEARCH_MODE
+      searchMode: 'neo4j'
     });
   } catch (error) {
     res.json({
       database: false,
       openRouterApiKey: !!process.env.OPENROUTER_API_KEY,
       status: 'not_ready',
-      searchMode: SEARCH_MODE
+      searchMode: 'neo4j'
     });
   }
 });
