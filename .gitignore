@@ -60,4 +60,24 @@ jspm_packages/
 Thumbs.db
 
 # LanceDB
-lancedb_cache/ 
+lancedb_cache/
+
+# Neo4j (caso use bind mounts em vez de volumes Docker)
+neo4j/data/
+neo4j/logs/
+neo4j/import/
+neo4j/plugins/
+neo4j/certificates/
+*.db
+*.db.*
+neostore.*
+
+# Outros arquivos grandes comuns
+*.zip
+*.tar.gz
+*.sql
+*.dump
+
+# Arquivos temporários
+*.tmp
+*.temp 
