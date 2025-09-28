@@ -10,6 +10,7 @@ import { OpenAIEmbeddings } from "@langchain/openai";
 import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import { SecureDocumentProcessor, SecureUploadFile } from '../utils/SecureDocumentProcessor';
+import { ThreatModelingService, ThreatModelingRequest } from '../utils/ThreatModelingService';
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -346,6 +347,115 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
   }
 }
 
+// Nova função para threat modeling usando o serviço dedicado
+async function processarThreatModeling(request: ThreatModelingRequest, modelo: string): Promise<any> {
+  const logs: string[] = [];
+  
+  try {
+    logs.push("🔄 Iniciando análise de threat modeling...");
+    logs.push(`🧠 Modo de busca: Neo4j`);
+
+    // Aguardar inicialização do sistema
+    if (!semanticSearch) {
+      logs.push("⏳ Aguardando inicialização do sistema...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!semanticSearch) {
+        throw new Error("Sistema ainda não foi inicializado. Tente novamente em alguns segundos.");
+      }
+    }
+
+    // Cache de resposta completa
+    const responseKey = `threat::${modelo}::${JSON.stringify(request)}`;
+    const respostaCacheada = getCache(responseCache, responseKey, RESPONSE_CACHE_TTL_MS);
+    if (respostaCacheada) {
+      logs.push("⚡ Cache HIT (threat modeling)");
+      return { ...respostaCacheada, logs };
+    }
+
+    // Verificar se o cache existe
+    const cacheValido = await semanticSearch.verificarCache();
+    if (!cacheValido) {
+      throw new Error("Banco de dados Neo4j não encontrado ou vazio. Faça upload de documentos primeiro.");
+    }
+    
+    logs.push("📁 Carregando banco de dados...");
+    logs.push("🔍 Buscando resultados relevantes...");
+    
+    // Buscar contexto relevante para threat modeling
+    const query = `${request.systemName} ${request.systemType} ${request.description} threat modeling security vulnerabilities`;
+    const resultados = await semanticSearch.buscar(query, 8);
+    
+    if (resultados.length === 0) {
+      throw new Error("Não conseguiu encontrar informações relevantes para threat modeling na base");
+    }
+    
+    logs.push(`✅ Encontrados ${resultados.length} resultados relevantes`);
+    resultados.forEach((resultado: any, index: number) => {
+      logs.push(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
+    });
+
+    const textosResultado: string[] = [];
+    for (const r of resultados) textosResultado.push(r.documento.pageContent);
+    const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    
+    // Gerar prompt usando o serviço dedicado
+    const textoPrompt = ThreatModelingService.generateThreatModelingPrompt(request, baseConhecimento);
+    
+    const modeloNome = modelo === '1' ? 'Ollama (Local)' : 'DeepSeek (OpenRouter)';
+    logs.push(`🤖 Gerando análise de threat modeling com modelo: ${modeloNome}`);
+    
+    let resposta;
+    if (modelo === '1') {
+      // Usar Ollama
+      const modeloAI = new ChatOllama({
+        model: process.env.MODEL_OLLAMA || "mistral",
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
+      });
+      resposta = (modeloAI as any).invoke
+        ? await (modeloAI as any).invoke(textoPrompt as any)
+        : await (modeloAI as any).call({ input: textoPrompt });
+    } else if (modelo === '2') {
+      // Usar OpenRouter com DeepSeek
+      if (!process.env.OPENROUTER_API_KEY) {
+        throw new Error("OPENROUTER_API_KEY é obrigatória. Configure no arquivo .env");
+      }
+      const modeloAI = new ChatOpenAI({
+        modelName: process.env.MODEL_OPENROUTER || "deepseek/deepseek-r1:free",
+        openAIApiKey: process.env.OPENROUTER_API_KEY,
+        configuration: {
+          baseURL: "https://openrouter.ai/api/v1",
+          defaultHeaders: {
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "Sistema RAG"
+          }
+        }
+      });
+      resposta = await modeloAI.invoke(textoPrompt as any);
+    }
+    
+    logs.push("✅ Análise de threat modeling gerada com sucesso!");
+    
+    const payload: ResponsePayload = {
+      success: true,
+      resposta: resposta.content || resposta.text || resposta,
+      logs: logs,
+      resultadosEncontrados: resultados.length,
+      scores: resultados.map((r: any) => r.score)
+    };
+    
+    setCache(responseCache, responseKey, payload);
+    return payload;
+    
+  } catch (error: any) {
+    logs.push(`❌ Erro: ${error.message}`);
+    return {
+      success: false,
+      error: error.message,
+      logs: logs
+    };
+  }
+}
+
 // Rotas
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../../public/index.html'));
@@ -363,6 +473,37 @@ app.post('/api/perguntar', async (req, res) => {
     }
     
     const resultado = await processarPergunta(pergunta, modelo);
+    res.json(resultado);
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro interno do servidor'
+    });
+  }
+});
+
+// Novo endpoint para threat modeling
+app.post('/api/threat-modeling', async (req, res) => {
+  try {
+    const { systemName, systemType, sensitivity, description, assets, modelo } = req.body;
+    
+    if (!systemName || !systemType || !sensitivity || !description || !assets || !modelo) {
+      return res.status(400).json({
+        success: false,
+        error: 'Todos os campos são obrigatórios'
+      });
+    }
+    
+    const request: ThreatModelingRequest = {
+      systemName,
+      systemType,
+      sensitivity,
+      description,
+      assets
+    };
+    
+    const resultado = await processarThreatModeling(request, modelo);
     res.json(resultado);
     
   } catch (error) {

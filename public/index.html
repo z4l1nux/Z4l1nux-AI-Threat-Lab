@@ -7,6 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="threat-modeling.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #0f1419 0%, #1a2332 50%, #0f1419 100%); color: #e8eaed; min-height: 100vh; }
@@ -35,6 +36,7 @@
         .threat-table th { background: rgba(255, 107, 53, 0.2); padding: 15px 12px; text-align: left; font-weight: 600; color: #ff6b35; font-size: 14px; }
         .threat-table td { padding: 15px 12px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); vertical-align: top; font-size: 13px; line-height: 1.4; }
         .threat-table tr:hover { background: rgba(255, 107, 53, 0.05); }
+        .severity-critical { background: rgba(220, 38, 38, 0.2); color: #fca5a5; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
         .severity-high { background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
         .severity-medium { background: rgba(245, 158, 11, 0.2); color: #fcd34d; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
         .severity-low { background: rgba(34, 197, 94, 0.2); color: #86efac; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; }
@@ -46,272 +48,81 @@
         .stat-card { background: rgba(15, 23, 42, 0.8); padding: 20px; border-radius: 12px; text-align: center; }
         .stat-number { font-size: 2rem; font-weight: 700; color: #ff6b35; margin-bottom: 5px; }
         .stat-label { color: #94a3b8; font-size: 14px; }
-        .model-selector { background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid rgba(148, 163, 184, 0.1); }
-        .model-selector label { display: block; font-weight: 600; margin-bottom: 8px; color: #f1f5f9; }
-        .model-selector select { width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid rgba(148, 163, 184, 0.2); background: rgba(30, 41, 59, 0.8); color: #e8eaed; font-size: 14px; }
-        /* Estilos para upload de documentos */
-        .upload-area {
-            border: 2px dashed rgba(255, 107, 53, 0.3);
-            border-radius: 12px;
-            padding: 40px 20px;
-            text-align: center;
-            background: rgba(15, 23, 42, 0.4);
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .upload-area:hover {
-            border-color: #ff6b35;
-            background: rgba(15, 23, 42, 0.6);
-        }
-        
-        .upload-area.dragover {
-            border-color: #ff6b35;
-            background: rgba(255, 107, 53, 0.1);
-            transform: scale(1.02);
-        }
-        
-        .upload-content h3 {
-            color: #e8eaed;
-            margin: 15px 0 10px 0;
-            font-size: 1.2rem;
-        }
-        
-        .upload-content p {
-            color: #94a3b8;
-            margin-bottom: 20px;
-        }
-
-        .upload-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
-        }
-        
-        .upload-btn, .process-btn {
-            background: linear-gradient(135deg, #ff6b35, #f7931e);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 8px;
-            border: none;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 5px;
-        }
-
-        .upload-btn:hover, .process-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
-        }
-        
-        .uploaded-files {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .file-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: rgba(30, 41, 59, 0.6);
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-        
-        .file-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .file-icon {
-            font-size: 1.2rem;
-        }
-        
-        .file-name {
-            color: #e8eaed;
-            font-weight: 500;
-        }
-        
-        .file-size {
-            color: #94a3b8;
-            font-size: 0.9rem;
-        }
-        
-        .remove-file {
-            background: rgba(239, 68, 68, 0.8);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 5px 10px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .remove-file:hover {
-            background: rgba(239, 68, 68, 1);
-        }
-        
-        .upload-progress {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            padding: 30px;
-            margin-top: 20px;
-            text-align: center;
-        }
-        
-        .progress-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255, 107, 53, 0.3);
-            border-radius: 50%;
-            border-top-color: #ff6b35;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        .upload-results {
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .upload-success {
-            color: #10b981;
-            border-left: 4px solid #10b981;
-            padding-left: 15px;
-        }
-        
-        .upload-error {
-            color: #ef4444;
-            border-left: 4px solid #ef4444;
-            padding-left: 15px;
-        }
-        
-        .log-item {
-            padding: 5px 0;
-            color: #94a3b8;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-
-        @media (max-width: 768px) { .input-grid { grid-template-columns: 1fr; } .container { padding: 15px; } .header h1 { font-size: 2rem; } .threat-table { font-size: 12px; } .threat-table th, .threat-table td { padding: 10px 8px; } .upload-area { padding: 30px 15px; } .upload-content h3 { font-size: 1rem; } .file-item { flex-direction: column; align-items: flex-start; gap: 10px; } }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Z4l1nux AI Threat Lab</h1>
-            <p>Laboratório avançado de análise de ameaças cibernéticas com base no framework STRIDE e catálogo CAPEC</p>
+            <h1>🛡️ Z4l1nux AI Threat Lab</h1>
+            <p>Análise Inteligente de Ameaças de Segurança com IA</p>
         </div>
 
             <div class="input-section">
-            <div class="model-selector">
-                <label for="aiModel">Modelo de IA para Análise:</label>
-                <select id="aiModel">
-                        <option value="">Carregando modelos...</option>
-                    </select>
-                </div>
-        </div>
-        
-        <!-- Seção de Upload de Documentos -->
-        <div class="input-section">
-            <div class="section-header">
-                <h2 style="color: #ff6b35; margin-bottom: 15px;">📚 Documentos de Contexto de Segurança (Opcional)</h2>
-                <p style="color: #94a3b8; margin-bottom: 20px;">Envie documentos sobre o sistema para enriquecer a análise de ameaças no Z4l1nux AI Threat Lab. A IA utilizará essas informações para gerar um relatório de threat modeling mais preciso e contextualizado.</p>
-            </div>
-            
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-content">
-                    <div class="upload-icon">📄</div>
-                    <h3>Arraste arquivos aqui ou clique para selecionar</h3>
-                    <p>Suporte: PDF, TXT, MD, DOCX (até 50MB por arquivo)</p>
-                    <input type="file" id="documentUpload" multiple accept=".pdf,.txt,.md,.docx,.doc" style="display: none;" />
-                    <button type="button" class="upload-btn" onclick="document.getElementById('documentUpload').click()">
-                        📁 Selecionar Arquivos
-                    </button>
-                </div>
-                </div>
-
-            <div id="uploadedFiles" class="uploaded-files" style="display: none;">
-                <h4 style="color: #ff6b35; margin-bottom: 10px;">Arquivos Selecionados:</h4>
-                <div id="filesList"></div>
-                <button type="button" class="process-btn" onclick="uploadDocuments()">
-                    🚀 Processar Documentos
-                </button>
-            </div>
-            
-            <div id="uploadProgress" class="upload-progress" style="display: none;">
-                <div class="progress-content">
-                    <div class="loading-spinner"></div>
-                    <p id="progressText">Processando documentos...</p>
-                </div>
-            </div>
-
-            <div id="uploadResults" class="upload-results" style="display: none;"></div>
-        </div>
-
-        <div class="input-section">
+            <div class="input-grid">
             <div class="input-group">
                 <label for="systemName">Nome do Sistema</label>
-                <input type="text" id="systemName" placeholder="Ex: Sistema de E-commerce Corporativo" />
+                    <input type="text" id="systemName" placeholder="Ex: Sistema de E-commerce">
                 </div>
-
-            <div class="input-grid">
                 <div class="input-group">
                     <label for="systemType">Tipo de Sistema</label>
                     <select id="systemType">
                         <option value="web">Aplicação Web</option>
-                        <option value="mobile">Aplicação Mobile</option>
-                        <option value="api">API/Microserviços</option>
+                        <option value="api">API/Serviço</option>
+                        <option value="mobile">Aplicativo Mobile</option>
                         <option value="desktop">Aplicação Desktop</option>
-                        <option value="iot">Sistema IoT</option>
-                        <option value="cloud">Infraestrutura Cloud</option>
+                        <option value="iot">Dispositivo IoT</option>
+                        <option value="cloud">Sistema Cloud</option>
                     </select>
                 </div>
+                </div>
 
+            <div class="input-grid">
                 <div class="input-group">
                     <label for="sensitivity">Nível de Sensibilidade</label>
                     <select id="sensitivity">
-                        <option value="public">Público</option>
-                        <option value="internal">Interno</option>
-                        <option value="confidential">Confidencial</option>
-                        <option value="restricted">Restrito</option>
+                        <option value="baixa">Baixa</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="critica">Crítica</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="aiModel">Modelo de IA</label>
+                    <select id="aiModel">
+                        <option value="">🔄 Carregando modelos...</option>
                     </select>
                 </div>
             </div>
             
             <div class="input-group">
-                <label for="systemDescription">Descrição Detalhada do Sistema</label>
-                <textarea id="systemDescription" placeholder="Descreva detalhadamente o sistema, suas funcionalidades, arquitetura, componentes, fluxos de dados, usuários, integrações externas, tecnologias utilizadas, e qualquer informação relevante para a modelagem de ameaças..."></textarea>
+                <label for="systemDescription">Descrição do Sistema</label>
+                <textarea id="systemDescription" placeholder="Descreva o sistema, suas funcionalidades, tecnologias utilizadas, arquitetura, etc."></textarea>
+            </div>
+
+            <div class="input-group">
+                <label for="assets">Ativos Principais</label>
+                <textarea id="assets" placeholder="Liste os ativos principais do sistema (dados, funcionalidades, recursos, etc.)"></textarea>
             </div>
             
             <div class="input-group">
-                <label for="assets">Principais Ativos (opcional)</label>
-                <textarea id="assets" placeholder="Liste os principais ativos do sistema: dados pessoais, informações financeiras, propriedade intelectual, etc."></textarea>
+                <label for="documents">📄 Documentos de Referência (Opcional)</label>
+                <input type="file" id="documents" multiple accept=".pdf,.txt,.md,.doc,.docx" style="padding: 8px; border: 2px solid rgba(148, 163, 184, 0.2); border-radius: 8px; background: rgba(15, 23, 42, 0.8); color: #e8eaed;">
+                <small style="color: #94a3b8; font-size: 12px; margin-top: 5px; display: block;">
+                    Faça upload de documentos técnicos, especificações, arquitetura ou outros materiais relevantes para enriquecer a análise de ameaças.
+                </small>
+                <button type="button" onclick="processDocuments()" style="background: rgba(59, 130, 246, 0.8); color: white; padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; transition: all 0.3s ease; margin-top: 10px;">
+                    📄 Processar Documentos
+                </button>
             </div>
-            
-            <button class="generate-btn" onclick="generateThreatModel()">
-                🚀 Gerar Análise de Ameaças
-            </button>
+
+            <button class="generate-btn" onclick="generateThreatModel()">🔍 Gerar Análise de Ameaças</button>
         </div>
         
         <div id="results" class="results-section" style="display: none;"></div>
     </div>
 
     <script>
+        // Inicializar Mermaid
         mermaid.initialize({
             theme: 'dark',
             themeVariables: {
@@ -319,12 +130,155 @@
                 primaryTextColor: '#e8eaed',
                 primaryBorderColor: '#ff6b35',
                 lineColor: '#94a3b8',
-                sectionBkgColor: 'rgba(30, 41, 59, 0.8)',
-                altSectionBkgColor: 'rgba(15, 23, 42, 0.8)',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#0f1419',
+                background: '#0f1419',
+                mainBkg: '#1e293b',
+                secondBkg: '#334155',
+                tertiaryBkg: '#475569',
+                nodeBkg: '#1e293b',
+                nodeBorder: '#ff6b35',
+                clusterBkg: '#334155',
+                clusterBorder: '#475569',
+                defaultLinkColor: '#94a3b8',
+                titleColor: '#ff6b35',
+                edgeLabelBackground: '#1e293b',
+                edgeLabelColor: '#e8eaed',
                 gridColor: 'rgba(148, 163, 184, 0.2)',
                 tertiaryColor: 'rgba(59, 130, 246, 0.2)'
             }
         });
+
+        // Carregar modelos disponíveis quando a página carregar
+        async function loadAvailableModels() {
+            try {
+                console.log('🔄 Carregando modelos disponíveis...');
+                const response = await fetch('/api/models');
+                const models = await response.json();
+                
+                const aiModelSelect = document.getElementById('aiModel');
+                aiModelSelect.innerHTML = '';
+                
+                if (models.chat && models.chat.length > 0) {
+                    models.chat.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.value;
+                        option.textContent = model.name;
+                        option.disabled = !model.enabled;
+                        
+                        if (model.recommended) {
+                            option.selected = true;
+                        }
+                        
+                        aiModelSelect.appendChild(option);
+                    });
+                    console.log('✅ Modelos carregados:', models.chat.length);
+                } else {
+                    // Fallback se não houver modelos configurados
+                    aiModelSelect.innerHTML = `
+                        <option value="1">🦙 Ollama (Local)</option>
+                        <option value="2">🧠 DeepSeek (OpenRouter)</option>
+                    `;
+                    console.log('⚠️ Usando modelos fallback');
+                }
+                
+                console.log('🔧 Embedding:', models.embedding.model, '(' + models.embedding.provider + ')');
+            } catch (error) {
+                console.error('❌ Erro ao carregar modelos:', error);
+                // Fallback em caso de erro
+                const aiModelSelect = document.getElementById('aiModel');
+                aiModelSelect.innerHTML = `
+                    <option value="1">🦙 Ollama (Local)</option>
+                    <option value="2">🧠 DeepSeek (OpenRouter)</option>
+                `;
+            }
+        }
+
+        // Carregar modelos quando a página carregar
+        document.addEventListener('DOMContentLoaded', loadAvailableModels);
+
+        async function processDocuments() {
+            const documentsInput = document.getElementById('documents');
+            
+            if (!documentsInput.files || documentsInput.files.length === 0) {
+                alert('Por favor, selecione pelo menos um documento para processar.');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="loading">📄 Processando documentos...</div>';
+
+            try {
+                const formData = new FormData();
+                for (let i = 0; i < documentsInput.files.length; i++) {
+                    formData.append('documents', documentsInput.files[i]);
+                }
+
+                const uploadResponse = await fetch('/api/upload-documents', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const uploadResult = await uploadResponse.json();
+                console.log('📄 Resultado do processamento:', uploadResult);
+
+                if (uploadResult.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="report-card">
+                            <div class="report-header">
+                                <h2 class="report-title">✅ Documentos Processados com Sucesso</h2>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p><strong>Arquivos processados:</strong> ${uploadResult.summary.filesProcessed}</p>
+                                <p><strong>Arquivos rejeitados:</strong> ${uploadResult.summary.filesRejected}</p>
+                                <p><strong>Total de arquivos:</strong> ${uploadResult.summary.filesUploaded}</p>
+                                <p><strong>Verificações de segurança:</strong> ${uploadResult.summary.securityChecks}</p>
+                                
+                                <h3 style="margin-top: 20px; color: #ff6b35;">📋 Logs do Processamento:</h3>
+                                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                    ${uploadResult.logs.map(log => `<div style="margin: 5px 0; font-family: monospace; font-size: 12px;">${log}</div>`).join('')}
+                                </div>
+                                
+                                <p style="margin-top: 20px; color: #94a3b8;">
+                                    Os documentos foram processados e adicionados à base de conhecimento. 
+                                    Agora você pode gerar a análise de ameaças com informações mais ricas.
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="report-card">
+                            <div class="report-header">
+                                <h2 class="report-title">❌ Erro no Processamento</h2>
+                            </div>
+                            <div style="padding: 20px;">
+                                <p><strong>Erro:</strong> ${uploadResult.error}</p>
+                                
+                                <h3 style="margin-top: 20px; color: #ff6b35;">📋 Logs do Erro:</h3>
+                                <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                                    ${uploadResult.logs.map(log => `<div style="margin: 5px 0; font-family: monospace; font-size: 12px;">${log}</div>`).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Erro no processamento de documentos:', error);
+                resultsDiv.innerHTML = `
+                    <div class="report-card">
+                        <div class="report-header">
+                            <h2 class="report-title">❌ Erro no Processamento</h2>
+                        </div>
+                        <div style="padding: 20px;">
+                            <p><strong>Erro:</strong> ${error.message}</p>
+                            <p>Verifique se o servidor está rodando e tente novamente.</p>
+                        </div>
+                    </div>
+                `;
+            }
+        }
 
         async function generateThreatModel() {
             const systemName = document.getElementById('systemName').value;
@@ -333,6 +287,7 @@
             const description = document.getElementById('systemDescription').value;
             const assets = document.getElementById('assets').value;
             const aiModel = document.getElementById('aiModel').value;
+            const documentsInput = document.getElementById('documents');
 
             if (!systemName || !description) {
                 alert('Por favor, preencha pelo menos o nome e descrição do sistema.');
@@ -344,66 +299,52 @@
             resultsDiv.innerHTML = '<div class="loading">Gerando análise de ameaças no Z4l1nux AI Threat Lab...</div>';
 
             try {
-                const threatAnalysisPrompt = `
-Você é um especialista em segurança cibernética. Analise o sistema descrito abaixo e gere uma análise de ameaças STRIDE baseada nos documentos da base de conhecimento.
+                // Upload de documentos se houver
+                if (documentsInput.files && documentsInput.files.length > 0) {
+                    resultsDiv.innerHTML = '<div class="loading">📄 Fazendo upload de documentos...</div>';
+                    
+                    const formData = new FormData();
+                    for (let i = 0; i < documentsInput.files.length; i++) {
+                        formData.append('documents', documentsInput.files[i]);
+                    }
 
-SISTEMA PARA ANÁLISE:
-- Nome: ${systemName}
-- Tipo: ${systemType}
-- Nível de Sensibilidade: ${sensitivity}
-- Descrição: ${description}
-- Ativos Principais: ${assets || 'Não especificados'}
+                    const uploadResponse = await fetch('/api/upload-documents', {
+                        method: 'POST',
+                        body: formData
+                    });
 
-INSTRUÇÕES CRÍTICAS:
-1. Use OBRIGATORIAMENTE informações da base de conhecimento sobre este tipo de sistema
-2. Consulte especificamente o mapeamento STRIDE-CAPEC disponível na base de conhecimento
-3. Para cada ameaça identificada, use CAPECs REAIS da base de dados, não invente códigos CAPEC
-4. Identifique ameaças específicas baseadas nas tecnologias mencionadas na descrição do sistema
-5. Responda APENAS com um JSON válido no formato especificado abaixo
+                    const uploadResult = await uploadResponse.json();
+                    console.log('📄 Resultado do upload:', uploadResult);
 
-MAPEAMENTO STRIDE OBRIGATÓRIO:
-- S (Spoofing): Use CAPECs relacionados a falsificação de identidade da base
-- T (Tampering): Use CAPECs relacionados a alteração não autorizada da base  
-- R (Repudiation): Use CAPECs relacionados a negação de ações da base
-- I (Information Disclosure): Use CAPECs relacionados a exposição de dados da base
-- D (Denial of Service): Use CAPECs relacionados a negação de serviço da base
-- E (Elevation of Privilege): Use CAPECs relacionados a escalação de privilégios da base
+                    if (!uploadResult.success) {
+                        console.warn('⚠️ Upload de documentos falhou:', uploadResult.error);
+                        // Continuar mesmo se o upload falhar
+                    } else {
+                        console.log('✅ Documentos carregados com sucesso');
+                    }
+                }
 
-FORMATO DE RESPOSTA (JSON):
-{
-  "threats": [
-    {
-      "id": "T001",
-      "stride": ["S"],
-      "categoria": "Nome da categoria",
-      "ameaca": "Título da ameaça específica para este sistema",
-      "descricao": "Descrição detalhada considerando as tecnologias específicas do sistema",
-      "impacto": "Descrição do impacto no contexto deste sistema",
-      "probabilidade": "Alta/Média/Baixa",
-      "severidade": "Alta/Média/Baixa", 
-      "mitigacao": "Recomendações específicas baseadas na arquitetura descrita",
-      "capec": "CAPEC-XXX (usar apenas códigos REAIS da base de conhecimento)",
-      "deteccao": "Como detectar esta ameaça neste tipo de sistema"
-    }
-  ]
-}`;
+                resultsDiv.innerHTML = '<div class="loading">🔍 Analisando ameaças...</div>';
+
+                // Usar o novo serviço de threat modeling
+                const request = {
+                    systemName,
+                    systemType,
+                    sensitivity,
+                    description,
+                    assets: assets || 'Não especificados',
+                    modelo: aiModel
+                };
 
                 console.log('🔍 Enviando prompt de threat modeling para:', aiModel);
+                const result = await window.threatModelingClient.generateThreatModeling(request);
                 
-                const response = await fetch('/api/perguntar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ pergunta: threatAnalysisPrompt, modelo: aiModel })
-                });
-
-                const data = await response.json();
-                console.log('📡 Resposta recebida:', data);
-                
-                if (data.success && data.resposta) {
+                if (result.success) {
                     console.log('✅ Processando resposta da IA');
-                    processThreatAnalysis(data.resposta, systemName, systemType, sensitivity, description, assets);
+                    const threats = window.threatModelingClient.processAIResponse(result.resposta, systemType);
+                    generateReport(threats, systemName, systemType, sensitivity, description, assets);
                 } else {
-                    console.log('❌ Falha na resposta da IA, usando mock:', data.error || 'Erro desconhecido');
+                    console.log('❌ Falha na resposta da IA, usando mock:', result.error);
                     generateMockReport(systemName, systemType, sensitivity, description, assets);
                 }
             } catch (error) {
@@ -412,260 +353,10 @@ FORMATO DE RESPOSTA (JSON):
             }
         }
 
-        function processThreatAnalysis(aiResponse, systemName, systemType, sensitivity, description, assets) {
-            try {
-                console.log('🔍 Processando resposta da IA:', aiResponse.substring(0, 200) + '...');
-                
-                let threats = [];
-                
-                // Estratégia 1: Tentar parsear diretamente como JSON
-                try {
-                    const directParse = JSON.parse(aiResponse);
-                    threats = directParse.threats || directParse.ameacas || [];
-                    console.log('✅ JSON parseado diretamente, threats encontradas:', threats.length);
-                } catch (e) {
-                    console.log('⚠️ Parsing direto falhou, procurando JSON na resposta...');
-                    
-                    // Estratégia 2: Procurar JSON dentro de blocos de código
-                    const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
-                    if (jsonBlockMatch) {
-                        try {
-                            console.log('🔍 JSON encontrado em bloco de código:', jsonBlockMatch[1].substring(0, 100) + '...');
-                            const parsed = JSON.parse(jsonBlockMatch[1]);
-                            threats = parsed.threats || parsed.ameacas || [];
-                            console.log('✅ JSON extraído de bloco, threats encontradas:', threats.length);
-                        } catch (parseError) {
-                            console.log('❌ Erro ao parsear JSON do bloco:', parseError);
-                        }
-                    } else {
-                        // Estratégia 3: Procurar JSON solto na resposta
-                        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            try {
-                                console.log('🔍 JSON encontrado na resposta:', jsonMatch[0].substring(0, 100) + '...');
-                                const parsed = JSON.parse(jsonMatch[0]);
-                                threats = parsed.threats || parsed.ameacas || [];
-                                console.log('✅ JSON extraído, threats encontradas:', threats.length);
-                            } catch (parseError) {
-                                console.log('❌ Erro ao parsear JSON solto:', parseError);
-                            }
-                        }
-                    }
-                    
-                    // Estratégia 4: Se não encontrou JSON válido, processar texto natural
-                    if (threats.length === 0) {
-                        console.log('🔄 Tentando extrair ameaças de texto natural...');
-                        threats = parseNaturalLanguageThreats(aiResponse, systemType);
-                        if (threats.length > 0) {
-                            console.log('✅ Ameaças extraídas de texto natural:', threats.length);
-                        }
-                    }
-                }
-                
-                if (threats.length === 0) {
-                    console.log('⚠️ Nenhuma ameaça encontrada, usando mock');
-                    threats = getMockThreatsForSystem(systemType);
-                }
-                
-                console.log('🎯 Gerando relatório com', threats.length, 'ameaças');
-                generateReport(threats, systemName, systemType, sensitivity, description, assets);
-                
-            } catch (error) {
-                console.error('❌ Erro ao processar resposta da IA:', error);
-                console.log('🔄 Usando dados mock como fallback');
-                generateMockReport(systemName, systemType, sensitivity, description, assets);
-            }
-        }
-
-        function parseNaturalLanguageThreats(aiResponse, systemType) {
-            const threats = [];
-            let threatId = 1;
-            
-            try {
-                // Procurar por padrões de CAPECs mencionados
-                const capecMatches = aiResponse.match(/CAPEC-\d+/gi) || [];
-                const uniqueCapecs = [...new Set(capecMatches)];
-                
-                // Dividir texto em seções ou parágrafos
-                const sections = aiResponse.split(/\n\s*\n|\.\s+/);
-                
-                for (const section of sections) {
-                    if (section.trim().length < 50) continue; // Pular seções muito pequenas
-                    
-                    // Identificar possíveis ameaças baseadas em palavras-chave
-                    const threatKeywords = [
-                        'attack', 'ataque', 'vulnerability', 'vulnerabilidade', 'threat', 'ameaça',
-                        'exploit', 'exploração', 'breach', 'violação', 'malicious', 'malicioso',
-                        'unauthorized', 'não autorizado', 'compromise', 'comprometer'
-                    ];
-                    
-                    const strideKeywords = {
-                        'S': ['spoofing', 'impersonation', 'falsificação', 'identity'],
-                        'T': ['tampering', 'modification', 'alteração', 'manipulation', 'manipulação'],
-                        'R': ['repudiation', 'denial', 'negação', 'repúdio'],
-                        'I': ['disclosure', 'exposure', 'vazamento', 'leak', 'exposição'],
-                        'D': ['denial', 'ddos', 'availability', 'disponibilidade', 'sobrecarga'],
-                        'E': ['privilege', 'escalation', 'elevation', 'privilégio', 'escalação']
-                    };
-                    
-                    const hasThreats = threatKeywords.some(keyword => 
-                        section.toLowerCase().includes(keyword)
-                    );
-                    
-                    if (hasThreats && threats.length < 6) {
-                        // Determinar categoria STRIDE
-                        let strideCategory = ['T']; // Default
-                        for (const [stride, keywords] of Object.entries(strideKeywords)) {
-                            if (keywords.some(keyword => section.toLowerCase().includes(keyword))) {
-                                strideCategory = [stride];
-                                break;
-                            }
-                        }
-                        
-                        // Extrair CAPEC se mencionado nesta seção
-                        const sectionCapecs = section.match(/CAPEC-\d+/gi) || [];
-                        const capec = sectionCapecs.length > 0 ? sectionCapecs[0] : `CAPEC-${Math.floor(Math.random() * 900) + 100}`;
-                        
-                        // Gerar ameaça baseada no conteúdo
-                        const threat = {
-                            id: `T${threatId.toString().padStart(3, '0')}`,
-                            stride: strideCategory,
-                            categoria: getCategoryFromText(section),
-                            ameaca: extractThreatName(section),
-                            descricao: section.substring(0, 200).trim() + (section.length > 200 ? '...' : ''),
-                            impacto: extractImpact(section),
-                            probabilidade: extractProbability(section),
-                            severidade: extractSeverity(section),
-                            mitigacao: extractMitigation(section),
-                            capec: capec,
-                            deteccao: extractDetection(section)
-                        };
-                        
-                        threats.push(threat);
-                        threatId++;
-                    }
-                }
-                
-                // Se não encontrou ameaças suficientes, criar algumas baseadas nos CAPECs mencionados
-                if (threats.length < 3 && uniqueCapecs.length > 0) {
-                    for (let i = 0; i < Math.min(3, uniqueCapecs.length); i++) {
-                        const capec = uniqueCapecs[i];
-                        threats.push({
-                            id: `T${(threatId + i).toString().padStart(3, '0')}`,
-                            stride: ['T'],
-                            categoria: 'Segurança Geral',
-                            ameaca: `Ameaça relacionada ao ${capec}`,
-                            descricao: `Possível exploração baseada no padrão ${capec} identificado na análise`,
-                            impacto: 'Comprometimento da segurança do sistema',
-                            probabilidade: 'Média',
-                            severidade: 'Alta',
-                            mitigacao: 'Implementar controles de segurança apropriados',
-                            capec: capec,
-                            deteccao: 'Monitoramento de atividades suspeitas'
-                        });
-                    }
-                }
-                
-            } catch (error) {
-                console.error('❌ Erro ao processar texto natural:', error);
-            }
-            
-            return threats;
-        }
-        
-        function getCategoryFromText(text) {
-            const categories = {
-                'authentication': 'Autenticação',
-                'authorization': 'Autorização', 
-                'data': 'Integridade de Dados',
-                'network': 'Segurança de Rede',
-                'application': 'Segurança da Aplicação',
-                'deployment': 'Implantação',
-                'configuration': 'Configuração'
-            };
-            
-            for (const [key, value] of Object.entries(categories)) {
-                if (text.toLowerCase().includes(key)) return value;
-            }
-            return 'Segurança Geral';
-        }
-        
-        function extractThreatName(text) {
-            // Tentar extrair uma frase que descreva a ameaça
-            const sentences = text.split(/[.!?]/);
-            for (const sentence of sentences) {
-                if (sentence.length > 20 && sentence.length < 100) {
-                    return sentence.trim();
-                }
-            }
-            return 'Ameaça de segurança identificada';
-        }
-        
-        function extractImpact(text) {
-            const impactKeywords = ['impact', 'consequence', 'result', 'damage', 'harm'];
-            const sentences = text.split(/[.!?]/);
-            for (const sentence of sentences) {
-                if (impactKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
-                    return sentence.trim();
-                }
-            }
-            return 'Possível comprometimento da segurança';
-        }
-        
-        function extractProbability(text) {
-            if (/high|alta|elevada/i.test(text)) return 'Alta';
-            if (/low|baixa/i.test(text)) return 'Baixa';
-            return 'Média';
-        }
-        
-        function extractSeverity(text) {
-            if (/critical|crítica/i.test(text)) return 'Crítica';
-            if (/high|alta/i.test(text)) return 'Alta';
-            if (/low|baixa/i.test(text)) return 'Baixa';
-            return 'Média';
-        }
-        
-        function extractMitigation(text) {
-            const mitigationKeywords = ['mitigation', 'prevent', 'protect', 'secure', 'fix'];
-            const sentences = text.split(/[.!?]/);
-            for (const sentence of sentences) {
-                if (mitigationKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
-                    return sentence.trim();
-                }
-            }
-            return 'Implementar controles de segurança apropriados';
-        }
-        
-        function extractDetection(text) {
-            const detectionKeywords = ['monitor', 'detect', 'log', 'audit', 'track'];
-            const sentences = text.split(/[.!?]/);
-            for (const sentence of sentences) {
-                if (detectionKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
-                    return sentence.trim();
-                }
-            }
-            return 'Monitoramento de atividades suspeitas';
-        }
-
         function generateMockReport(systemName, systemType, sensitivity, description, assets) {
             console.log('🔄 Gerando relatório mock como fallback');
-            const threats = getMockThreatsForSystem(systemType);
+            const threats = window.threatModelingClient.getMockThreatsForSystem(systemType);
             generateReport(threats, systemName, systemType, sensitivity, description, assets);
-        }
-
-        function getMockThreatsForSystem(systemType) {
-            const baseThreats = [
-                { id: 'T001', stride: ['S', 'I'], categoria: 'Autenticação', ameaca: 'Ataques de força bruta contra sistema de login', descricao: 'Atacantes podem tentar quebrar senhas através de ataques automatizados de força bruta', impacto: 'Comprometimento de contas de usuários e acesso não autorizado ao sistema', probabilidade: 'Média', severidade: 'Alta', mitigacao: 'Implementar bloqueio de conta após tentativas falhidas, CAPTCHA, autenticação multifator', capec: 'CAPEC-16, CAPEC-49', deteccao: 'Monitoramento de tentativas de login falhidas consecutivas' },
-                { id: 'T002', stride: ['T'], categoria: 'Integridade de Dados', ameaca: 'Manipulação de parâmetros de requisição', descricao: 'Modificação não autorizada de parâmetros HTTP para alterar comportamento da aplicação', impacto: 'Alteração não autorizada de dados ou bypass de controles de segurança', probabilidade: 'Alta', severidade: 'Média', mitigacao: 'Validação robusta de entrada, assinatura de tokens, controle de integridade', capec: 'CAPEC-137, CAPEC-160', deteccao: 'Monitoramento de anomalias em parâmetros de requisição' },
-                { id: 'T003', stride: ['I'], categoria: 'Exposição de Dados', ameaca: 'Vazamento de informações através de logs', descricao: 'Dados sensíveis podem ser expostos através de logs de sistema mal configurados', impacto: 'Exposição de informações confidenciais e dados pessoais', probabilidade: 'Média', severidade: 'Média', mitigacao: 'Configuração adequada de logs, sanitização de dados sensíveis, controle de acesso aos logs', capec: 'CAPEC-117, CAPEC-204', deteccao: 'Auditoria regular dos logs e configurações de logging' },
-                { id: 'T004', stride: ['R'], categoria: 'Negação de Serviço', ameaca: 'Ataques de DDoS na camada de aplicação', descricao: 'Sobrecarga intencional do sistema através de requisições maliciosas', impacto: 'Indisponibilidade do serviço e degradação da performance', probabilidade: 'Alta', severidade: 'Alta', mitigacao: 'Rate limiting, WAF, CDN, monitoramento de tráfego', capec: 'CAPEC-125, CAPEC-130', deteccao: 'Monitoramento de métricas de performance e padrões de tráfego' },
-                { id: 'T005', stride: ['E'], categoria: 'Auditoria', ameaca: 'Ausência de trilhas de auditoria', descricao: 'Falta de logs adequados para rastreamento de ações críticas', impacto: 'Impossibilidade de investigar incidentes ou detectar atividades suspeitas', probabilidade: 'Média', severidade: 'Média', mitigacao: 'Implementação de logging abrangente, proteção de logs, retenção adequada', capec: 'CAPEC-13', deteccao: 'Verificação regular da completude dos logs de auditoria' }
-            ];
-
-            if (systemType === 'web') return baseThreats.filter(t => ['T001', 'T002', 'T004'].includes(t.id));
-            if (systemType === 'api') return baseThreats.filter(t => ['T002', 'T003', 'T004'].includes(t.id));
-            if (systemType === 'mobile') return baseThreats.filter(t => ['T001', 'T003', 'T005'].includes(t.id));
-            return baseThreats;
         }
 
         function generateReport(threats, systemName, systemType, sensitivity, description, assets) {
@@ -676,49 +367,65 @@ FORMATO DE RESPOSTA (JSON):
             resultsDiv.innerHTML = `
                 <div class="report-card">
                     <div class="report-header">
-                        <h2 class="report-title">📊 Relatório de Análise de Ameaças - Z4l1nux AI Threat Lab</h2>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="export-btn" onclick="exportAttackTree()" style="background: rgba(59, 130, 246, 0.8);">🌳 Ver Árvore Interativa</button>
-                            <button class="export-btn" onclick="exportReport()" style="background: rgba(34, 197, 94, 0.8);">📄 Exportar HTML</button>
-                            <button class="export-btn" onclick="exportPDF()" style="background: rgba(239, 68, 68, 0.8);">📋 Exportar PDF</button>
+                        <h2 class="report-title">🌳 Árvore de Ataque</h2>
+                        <button class="export-btn" onclick="exportReport()">📄 Exportar PDF</button>
+                    </div>
+                    <div class="attack-tree">
+                        <div class="mermaid">${attackTreeDiagram}</div>
                         </div>
                     </div>
                     
-                    <div class="summary-stats">
-                        <div class="stat-card"><div class="stat-number">${summaryStats.total}</div><div class="stat-label">Ameaças Identificadas</div></div>
-                        <div class="stat-card"><div class="stat-number">${summaryStats.high}</div><div class="stat-label">Severidade Alta</div></div>
-                        <div class="stat-card"><div class="stat-number">${summaryStats.medium}</div><div class="stat-label">Severidade Média</div></div>
-                        <div class="stat-card"><div class="stat-number">${summaryStats.stride.length}</div><div class="stat-label">Categorias STRIDE</div></div>
+                <div class="report-card">
+                    <div class="report-header">
+                        <h2 class="report-title">📋 Análise Detalhada de Ameaças</h2>
                     </div>
-
-                    <h3 style="color: #ff6b35; margin: 30px 0 15px 0;">🌳 Árvore de Ataque</h3>
-                    <div class="attack-tree"><div id="attackTreeDiagram">${attackTreeDiagram}</div></div>
-
-                    <h3 style="color: #ff6b35; margin: 30px 0 15px 0;">📋 Análise Detalhada de Ameaças</h3>
+                    <div class="summary-stats">
+                        <div class="stat-card">
+                            <div class="stat-number">${threats.length}</div>
+                            <div class="stat-label">Total de Ameaças</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${summaryStats.critical}</div>
+                            <div class="stat-label">Severidade Crítica</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${summaryStats.high}</div>
+                            <div class="stat-label">Severidade Alta</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${summaryStats.medium}</div>
+                            <div class="stat-label">Severidade Média</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${summaryStats.low}</div>
+                            <div class="stat-label">Severidade Baixa</div>
+                        </div>
+                    </div>
                     ${generateThreatTable(threats)}
                 </div>
             `;
 
-            // Armazenar o código Mermaid para export
-            document.getElementById('attackTreeDiagram').setAttribute('data-mermaid', attackTreeDiagram);
-            
-            mermaid.render('attackTree', attackTreeDiagram).then(result => {
-                document.getElementById('attackTreeDiagram').innerHTML = result.svg;
-            });
+            // Re-inicializar Mermaid para renderizar o novo diagrama
+            mermaid.init(undefined, document.querySelectorAll('.mermaid'));
         }
 
         function generateAttackTree(systemName, threats) {
-            // Gerar árvore baseada nas ameaças específicas da IA
+            const strideColors = { 'S': '#3b82f6', 'T': '#8b5cf6', 'R': '#ef4444', 'I': '#10b981', 'D': '#f59e0b', 'E': '#6366f1' };
+            
+            let diagram = `graph TD\n                A["🎯 ${systemName}"]`;
+            let connections = [];
+            let classes = [];
+            let criticalClasses = [];
+            
             const strideCategories = {
                 'S': { name: '🔑 Spoofing', threats: [] },
                 'T': { name: '🔧 Tampering', threats: [] },
                 'R': { name: '📜 Repudiation', threats: [] },
                 'I': { name: '📊 Information Disclosure', threats: [] },
-                'D': { name: '⚡ Denial of Service', threats: [] },
-                'E': { name: '👤 Elevation of Privilege', threats: [] }
+                'D': { name: '🚫 Denial of Service', threats: [] },
+                'E': { name: '⬆️ Elevation of Privilege', threats: [] }
             };
             
-            // Agrupar ameaças por categoria STRIDE
             threats.forEach((threat, index) => {
                 if (threat.stride && Array.isArray(threat.stride)) {
                     threat.stride.forEach(category => {
@@ -733,42 +440,35 @@ FORMATO DE RESPOSTA (JSON):
                 }
             });
             
-            let diagram = `graph TD\n                A["🎯 ${systemName}"]`;
-            let connections = [];
-            let classes = [];
-            
-            // Gerar nós e conexões para cada categoria STRIDE que tem ameaças
-            Object.keys(strideCategories).forEach((key, categoryIndex) => {
-                const category = strideCategories[key];
+            Object.entries(strideCategories).forEach(([key, category]) => {
                 if (category.threats.length > 0) {
-                    const categoryId = `CAT_${key}`;
-                    diagram += ` --> ${categoryId}["${category.name}"]`;
+                    connections.push(`A --> ${key}`);
+                    connections.push(`${key}["${category.name}"]`);
                     
-                    category.threats.forEach((threat, threatIndex) => {
-                        const threatId = `${categoryId}_${threatIndex}`;
-                        connections.push(`                ${categoryId} --> ${threatId}["${threat.name}"]`);
+                    category.threats.forEach(threat => {
+                        connections.push(`${key} --> ${threat.id}["${threat.name}"]`);
                         
-                        // Aplicar classes de severidade
-                        if (threat.severity === 'Alta') {
-                            classes.push(threatId);
+                        if (threat.severity.toLowerCase() === 'crítica') {
+                            criticalClasses.push(threat.id);
+                        } else if (threat.severity.toLowerCase() === 'alta') {
+                            classes.push(threat.id);
                         }
                     });
                 }
             });
             
-            // Adicionar conexões
-            if (connections.length > 0) {
-                diagram += '\n\n' + connections.join('\n');
-            }
+            diagram += '\n                ' + connections.join('\n                ');
             
-            // Adicionar estilos
             diagram += `
-                
-                classDef high fill:#dc2626,stroke:#991b1b,stroke-width:2px,color:#fff
+                classDef critical fill:#dc2626,stroke:#991b1b,stroke-width:3px,color:#fff
+                classDef high fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
                 classDef medium fill:#d97706,stroke:#92400e,stroke-width:2px,color:#fff
                 classDef low fill:#059669,stroke:#065f46,stroke-width:2px,color:#fff`;
             
-            // Aplicar classes de severidade alta
+            if (criticalClasses.length > 0) {
+                diagram += `\n                class ${criticalClasses.join(',')} critical`;
+            }
+            
             if (classes.length > 0) {
                 diagram += `\n                class ${classes.join(',')} high`;
             }
@@ -780,14 +480,20 @@ FORMATO DE RESPOSTA (JSON):
             const strideColors = { 'S': '#3b82f6', 'T': '#8b5cf6', 'R': '#ef4444', 'I': '#10b981', 'D': '#f59e0b', 'E': '#6366f1' };
             
             const tableRows = threats.map(threat => {
-                const strideTags = threat.stride.map(s => `<span class="stride-tag" style="background-color: ${strideColors[s]}20; color: ${strideColors[s]};">${s}</span>`).join('');
-                const severityClass = threat.severidade.toLowerCase() === 'alta' ? 'severity-high' : threat.severidade.toLowerCase() === 'média' ? 'severity-medium' : 'severity-low';
+                const strideTags = threat.stride.map(s => 
+                    `<span class="stride-tag" style="background-color: ${strideColors[s]}20; color: ${strideColors[s]};">${s}</span>`
+                ).join('');
                 
-                return `<tr>
+                const severityClass = threat.severidade.toLowerCase() === 'crítica' ? 'severity-critical' : 
+                                      threat.severidade.toLowerCase() === 'alta' ? 'severity-high' : 
+                                      threat.severidade.toLowerCase() === 'média' ? 'severity-medium' : 'severity-low';
+                
+                return `
+                    <tr>
                     <td>${threat.id}</td>
                     <td>${strideTags}</td>
                     <td>${threat.categoria}</td>
-                    <td><strong>${threat.ameaca}</strong></td>
+                        <td>${threat.ameaca}</td>
                     <td>${threat.descricao}</td>
                     <td>${threat.impacto}</td>
                     <td>${threat.probabilidade}</td>
@@ -795,340 +501,59 @@ FORMATO DE RESPOSTA (JSON):
                     <td>${threat.mitigacao}</td>
                     <td>${threat.capec}</td>
                     <td>${threat.deteccao}</td>
-                </tr>`;
+                    </tr>
+                `;
             }).join('');
 
-            return `<table class="threat-table">
-                <thead><tr><th>ID</th><th>STRIDE</th><th>Categoria</th><th>Ameaça</th><th>Descrição</th><th>Impacto</th><th>Probabilidade</th><th>Severidade</th><th>Mitigação</th><th>CAPEC</th><th>Detecção</th></tr></thead>
-                <tbody>${tableRows}</tbody>
-            </table>`;
+            return `
+                <table class="threat-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>STRIDE</th>
+                            <th>Categoria</th>
+                            <th>Ameaça</th>
+                            <th>Descrição</th>
+                            <th>Impacto</th>
+                            <th>Probabilidade</th>
+                            <th>Severidade</th>
+                            <th>Mitigação</th>
+                            <th>CAPEC</th>
+                            <th>Detecção</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+            `;
         }
 
         function calculateStats(threats) {
-            return {
-                total: threats.length,
-                high: threats.filter(t => t.severidade === 'Alta').length,
-                medium: threats.filter(t => t.severidade === 'Média').length,
-                low: threats.filter(t => t.severidade === 'Baixa').length,
-                stride: [...new Set(threats.flatMap(t => t.stride))]
-            };
+            const stats = { critical: 0, high: 0, medium: 0, low: 0 };
+            
+            threats.forEach(threat => {
+                const severity = threat.severidade.toLowerCase();
+                if (severity === 'crítica') stats.critical++;
+                else if (severity === 'alta') stats.high++;
+                else if (severity === 'média') stats.medium++;
+                else stats.low++;
+            });
+            
+            return stats;
         }
 
-        function exportReport() {
-            const reportContent = document.querySelector('.report-card').outerHTML;
-            const fullHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Ameaças</title></head><body>' + reportContent + '</body></html>';
-            const blob = new Blob([fullHtml], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'z4l1nux-threat-lab-relatorio-' + new Date().toISOString().split('T')[0] + '.html';
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function exportAttackTree() {
-            const attackTreeDiagram = document.querySelector('#attackTreeDiagram').getAttribute('data-mermaid');
-            if (!attackTreeDiagram) {
-                alert('❌ Árvore de ataque não encontrada. Gere o relatório primeiro.');
-                return;
-            }
-
-            // Abrir o iframe avançado em nova aba para export
-            const encoded = btoa(encodeURIComponent(attackTreeDiagram));
-            const url = `mermaid-iframe.html?diagram=${encoded}`;
-            window.open(url, '_blank', 'width=1200,height=800');
-        }
-
-        async function exportPDF() {
-            try {
-                const originalContent = document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML;
-                document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML = '⏳ Gerando PDF...';
-
-                const reportCard = document.querySelector('.report-card');
-                const canvas = await html2canvas(reportCard, { scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff' });
-
+        async function exportReport() {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            const element = document.querySelector('.report-card');
+            const canvas = await html2canvas(element);
                 const imgData = canvas.toDataURL('image/png');
                 
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-                const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
-                
-                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width * ratio, canvas.height * ratio);
-                pdf.save('z4l1nux-threat-lab-relatorio-' + new Date().toISOString().split('T')[0] + '.pdf');
-
-                document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML = originalContent;
-            } catch (error) {
-                alert('❌ Erro ao gerar PDF. Tente a exportação HTML.');
-            }
+            pdf.addImage(imgData, 'PNG', 10, 10, 190, 0);
+            pdf.save('threat-analysis-report.pdf');
         }
-
-        // Variáveis globais para upload
-        let selectedFiles = [];
-
-        // Funções de upload de documentos
-        function setupUploadEvents() {
-            const uploadArea = document.getElementById('uploadArea');
-            const fileInput = document.getElementById('documentUpload');
-
-            // Drag and drop events
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-
-            uploadArea.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-            });
-
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                
-                const files = Array.from(e.dataTransfer.files);
-                handleFileSelection(files);
-            });
-
-            // Clique na área de upload
-            uploadArea.addEventListener('click', () => {
-                fileInput.click();
-            });
-
-            // Seleção de arquivos via input
-            fileInput.addEventListener('change', (e) => {
-                const files = Array.from(e.target.files);
-                handleFileSelection(files);
-            });
-        }
-
-        function handleFileSelection(files) {
-            // Filtrar arquivos por tipo e tamanho
-            const validFiles = files.filter(file => {
-                const validTypes = ['application/pdf', 'text/plain', 'text/markdown', 
-                                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                  'application/msword'];
-                const validExtensions = /\.(pdf|txt|md|docx|doc)$/i;
-                const maxSize = 50 * 1024 * 1024; // 50MB
-
-                if (!validTypes.includes(file.type) && !validExtensions.test(file.name)) {
-                    alert(`❌ Arquivo "${file.name}" não é suportado. Use PDF, TXT, MD ou DOCX.`);
-                    return false;
-                }
-
-                if (file.size > maxSize) {
-                    alert(`❌ Arquivo "${file.name}" é muito grande. Máximo 50MB.`);
-                    return false;
-                }
-
-                return true;
-            });
-
-            // Adicionar arquivos à lista (evitar duplicatas)
-            validFiles.forEach(file => {
-                if (!selectedFiles.find(f => f.name === file.name && f.size === file.size)) {
-                    selectedFiles.push(file);
-                }
-            });
-
-            displaySelectedFiles();
-        }
-
-        function displaySelectedFiles() {
-            const uploadedFilesDiv = document.getElementById('uploadedFiles');
-            const filesListDiv = document.getElementById('filesList');
-
-            if (selectedFiles.length === 0) {
-                uploadedFilesDiv.style.display = 'none';
-                return;
-            }
-
-            uploadedFilesDiv.style.display = 'block';
-            
-            filesListDiv.innerHTML = selectedFiles.map((file, index) => {
-                const fileIcon = getFileIcon(file.name);
-                const fileSize = formatFileSize(file.size);
-                
-                return `
-                    <div class="file-item">
-                        <div class="file-info">
-                            <span class="file-icon">${fileIcon}</span>
-                            <div>
-                                <div class="file-name">${file.name}</div>
-                                <div class="file-size">${fileSize}</div>
-                            </div>
-                        </div>
-                        <button class="remove-file" onclick="removeFile(${index})">🗑️ Remover</button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function getFileIcon(filename) {
-            const ext = filename.split('.').pop().toLowerCase();
-            switch (ext) {
-                case 'pdf': return '📄';
-                case 'txt': return '📝';
-                case 'md': return '📋';
-                case 'docx':
-                case 'doc': return '📘';
-                default: return '📄';
-            }
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            displaySelectedFiles();
-        }
-
-        async function uploadDocuments() {
-            if (selectedFiles.length === 0) {
-                alert('❌ Selecione ao menos um arquivo para processar.');
-                return;
-            }
-
-            const progressDiv = document.getElementById('uploadProgress');
-            const resultsDiv = document.getElementById('uploadResults');
-            const progressText = document.getElementById('progressText');
-
-            // Mostrar progresso
-            progressDiv.style.display = 'block';
-            resultsDiv.style.display = 'none';
-            progressText.textContent = 'Enviando documentos...';
-
-            try {
-                const formData = new FormData();
-                selectedFiles.forEach(file => {
-                    formData.append('documents', file);
-                });
-
-                progressText.textContent = 'Processando documentos com embeddings...';
-
-                const response = await fetch('/api/upload-documents', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                // Ocultar progresso
-                progressDiv.style.display = 'none';
-                resultsDiv.style.display = 'block';
-
-                if (result.success) {
-                    resultsDiv.innerHTML = `
-                        <div class="upload-success">
-                            <h4>✅ ${result.message}</h4>
-                            <div style="margin-top: 15px;">
-                                <strong>📊 Resumo:</strong><br>
-                                📁 Arquivos enviados: ${result.summary.filesUploaded}<br>
-                                📄 Documentos novos: ${result.summary.documentsAdded}<br>
-                                ✏️ Documentos modificados: ${result.summary.documentsModified}<br>
-                                🗑️ Documentos removidos: ${result.summary.documentsRemoved}
-                            </div>
-                            <div style="margin-top: 15px;">
-                                <strong>📋 Log do processamento:</strong>
-                                <div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
-                                    ${result.logs.map(log => `<div class="log-item">${log}</div>`).join('')}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-
-                    // Limpar arquivos selecionados após sucesso
-                    selectedFiles = [];
-                    displaySelectedFiles();
-
-                } else {
-                    resultsDiv.innerHTML = `
-                        <div class="upload-error">
-                            <h4>❌ Erro no processamento</h4>
-                            <p>${result.error}</p>
-                            <div style="margin-top: 15px;">
-                                <strong>📋 Log do erro:</strong>
-                                <div style="max-height: 200px; overflow-y: auto; margin-top: 10px;">
-                                    ${result.logs.map(log => `<div class="log-item">${log}</div>`).join('')}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-
-            } catch (error) {
-                progressDiv.style.display = 'none';
-                resultsDiv.style.display = 'block';
-                resultsDiv.innerHTML = `
-                    <div class="upload-error">
-                        <h4>❌ Erro de conexão</h4>
-                        <p>Não foi possível conectar ao servidor: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        // Função para carregar modelos disponíveis
-        async function loadAvailableModels() {
-            try {
-                console.log('🔄 Carregando modelos disponíveis...');
-                const response = await fetch('/api/models');
-                const data = await response.json();
-                
-                const aiModelSelect = document.getElementById('aiModel');
-                aiModelSelect.innerHTML = ''; // Limpar opções existentes
-                
-                // Adicionar modelos de chat disponíveis
-                data.chat.forEach(model => {
-                    if (model.enabled) {
-                        const option = document.createElement('option');
-                        option.value = model.value;
-                        option.textContent = model.name + (model.recommended ? ' - Recomendado' : '');
-                        if (model.recommended) option.selected = true;
-                        aiModelSelect.appendChild(option);
-                    }
-                });
-                
-                console.log(`✅ ${data.chat.filter(m => m.enabled).length} modelos carregados`);
-                console.log('🔧 Embedding:', data.embedding.model, `(${data.embedding.provider})`);
-                
-            } catch (error) {
-                console.error('❌ Erro ao carregar modelos:', error);
-                // Fallback para modelos padrão
-                const aiModelSelect = document.getElementById('aiModel');
-                aiModelSelect.innerHTML = `
-                    <option value="1">🦙 mistral (Local)</option>
-                    <option value="2" selected>🧠 deepseek/deepseek-r1:free (OpenRouter)</option>
-                `;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Carregar modelos disponíveis
-            loadAvailableModels();
-            
-            // Configurar eventos de upload
-            setupUploadEvents();
-
-            // Animação de entrada
-            const elements = document.querySelectorAll('.input-section, .header');
-            elements.forEach((el, index) => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(20px)';
-                setTimeout(() => {
-                    el.style.transition = 'all 0.6s ease';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, index * 200);
-            });
-        });
     </script>
 </body>
 </html> 
