@@ -152,6 +152,45 @@ Para cada vulnerabilidade, forneça detalhes específicos baseados no sistema: $
   }
 
   /**
+   * Gera prompt super direto para forçar ameaças específicas
+   */
+  static generateDirectThreatPrompt(request: ThreatModelingRequest): string {
+    return `Liste 5 ameaças de segurança específicas para: ${request.systemName}
+
+Sistema: ${request.systemType}
+Descrição: ${request.description}
+
+FORMATO OBRIGATÓRIO - Responda EXATAMENTE assim:
+
+### **Ameaça 1: [Nome da Ameaça]**
+**Descrição:** [Descrição detalhada da ameaça]
+**Impacto:** [Como esta ameaça afeta o sistema]
+**Mitigação:** [Como prevenir ou mitigar esta ameaça]
+
+### **Ameaça 2: [Nome da Ameaça]**
+**Descrição:** [Descrição detalhada da ameaça]
+**Impacto:** [Como esta ameaça afeta o sistema]
+**Mitigação:** [Como prevenir ou mitigar esta ameaça]
+
+### **Ameaça 3: [Nome da Ameaça]**
+**Descrição:** [Descrição detalhada da ameaça]
+**Impacto:** [Como esta ameaça afeta o sistema]
+**Mitigação:** [Como prevenir ou mitigar esta ameaça]
+
+### **Ameaça 4: [Nome da Ameaça]**
+**Descrição:** [Descrição detalhada da ameaça]
+**Impacto:** [Como esta ameaça afeta o sistema]
+**Mitigação:** [Como prevenir ou mitigar esta ameaça]
+
+### **Ameaça 5: [Nome da Ameaça]**
+**Descrição:** [Descrição detalhada da ameaça]
+**Impacto:** [Como esta ameaça afeta o sistema]
+**Mitigação:** [Como prevenir ou mitigar esta ameaça]
+
+IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças reais e específicas.`;
+  }
+
+  /**
    * Obtém o nome completo da categoria STRIDE
    */
   private static getStrideName(key: string): string {
@@ -448,6 +487,25 @@ Para cada vulnerabilidade, forneça detalhes específicos baseados no sistema: $
       });
     }
     
+    // Método 1.5: Buscar formato específico do Ollama com ### **Nome da Ameaça**
+    if (threats.length === 0) {
+      console.log('🔍 Buscando formato específico do Ollama...');
+      const ollamaSections = text.match(/###\s*\*\*[^*]+\*\*[^]*?(?=###\s*\*\*|$)/g);
+      
+      if (ollamaSections && ollamaSections.length > 0) {
+        console.log(`🔍 Encontradas ${ollamaSections.length} seções do formato Ollama`);
+        
+        ollamaSections.forEach((section, index) => {
+          if (threats.length >= 6) return;
+          
+          const threatData = this.extractThreatFromOllamaSection(section, index + 1);
+          if (threatData) {
+            threats.push(threatData);
+          }
+        });
+      }
+    }
+    
     // Método 2: Buscar por palavras-chave de ameaças se não encontrou seções
     if (threats.length === 0) {
       console.log('🔍 Buscando por patterns de ameaças no texto...');
@@ -716,6 +774,62 @@ Para cada vulnerabilidade, forneça detalhes específicos baseados no sistema: $
       };
     } catch (error) {
       console.warn('⚠️ Erro ao converter CVE para ameaça:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extrai dados de ameaça do formato específico do Ollama
+   */
+  private static extractThreatFromOllamaSection(section: string, index: number): Threat | null {
+    try {
+      const lines = section.split('\n').filter(line => line.trim());
+      if (lines.length < 3) return null;
+      
+      // Extrair título da ameaça (linha com ### **Nome**)
+      let ameaca = lines[0].trim();
+      ameaca = ameaca.replace(/^###\s*\*\*/, '').replace(/\*\*:?\s*$/, '').trim();
+      
+      if (!ameaca || ameaca.length < 5) return null;
+      
+      // Extrair descrição (seção **Descrição:**)
+      const descricaoMatch = section.match(/\*\*Descrição:\*\*\s*([^*]+?)(?=\*\*|$)/s);
+      const descricao = descricaoMatch ? descricaoMatch[1].trim() : '';
+      
+      // Extrair impacto (seção **Impacto:**)
+      const impactoMatch = section.match(/\*\*Impacto:\*\*\s*([^*]+?)(?=\*\*|$)/s);
+      const impacto = impactoMatch ? impactoMatch[1].trim() : '';
+      
+      // Extrair mitigação (seção **Mitigação:**)
+      const mitigacaoMatch = section.match(/\*\*Mitigação:\*\*\s*([^*]+?)(?=\*\*|$)/s);
+      const mitigacao = mitigacaoMatch ? mitigacaoMatch[1].trim() : '';
+      
+      // Determinar STRIDE baseado no conteúdo
+      const strideCategories = this.determineStrideCategories(section);
+      
+      console.log(`🔍 Debug - Ameaça Ollama ${index}:`, {
+        ameaca,
+        descricao: descricao.substring(0, 50) + '...',
+        impacto: impacto.substring(0, 50) + '...',
+        mitigacao: mitigacao.substring(0, 50) + '...',
+        strideCategories
+      });
+      
+      return {
+        id: `T${String(index).padStart(3, '0')}`,
+        stride: strideCategories,
+        categoria: this.extractCategory(section),
+        ameaca: ameaca,
+        descricao: descricao || 'Descrição extraída da análise do Ollama',
+        impacto: impacto || 'Impacto no sistema conforme análise',
+        probabilidade: this.extractProbability(section),
+        severidade: this.extractSeverity(section),
+        mitigacao: mitigacao || 'Implementar controles de segurança apropriados',
+        capec: this.extractCapec(section),
+        deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+      };
+    } catch (error) {
+      console.warn('⚠️ Erro ao extrair ameaça da seção Ollama:', error);
       return null;
     }
   }

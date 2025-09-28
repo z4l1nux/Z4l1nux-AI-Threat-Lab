@@ -418,13 +418,15 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
           ? await (modeloAI as any).invoke(textoPrompt as any)
           : await (modeloAI as any).call({ input: textoPrompt });
         
-        // Verificar se a resposta contém recusa
+        // Verificar se a resposta contém recusa ou é genérica
         const respostaTexto = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
         if (respostaTexto.includes("I'm sorry, but I can't assist") || 
             respostaTexto.includes("I cannot help") ||
-            respostaTexto.includes("I'm not able to")) {
+            respostaTexto.includes("I'm not able to") ||
+            respostaTexto.includes("The provided information includes") ||
+            respostaTexto.includes("success") && respostaTexto.includes("message")) {
           
-          logs.push(`⚠️ Primeiro prompt recusado, tentando prompt alternativo...`);
+          logs.push(`⚠️ Primeiro prompt recusado ou genérico, tentando prompt alternativo...`);
           
           // Tentar prompt alternativo mais direto
           textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
@@ -433,6 +435,24 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
             : await (modeloAI as any).call({ input: textoPrompt });
           
           logs.push(`🔄 Prompt alternativo enviado`);
+          
+          // Verificar se o segundo prompt também falhou
+          const respostaTexto2 = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
+          if (respostaTexto2.includes("I'm sorry, but I can't assist") || 
+              respostaTexto2.includes("I cannot help") ||
+              respostaTexto2.includes("The provided information includes") ||
+              respostaTexto2.includes("success") && respostaTexto2.includes("message")) {
+            
+            logs.push(`⚠️ Segundo prompt também falhou, tentando prompt super direto...`);
+            
+            // Tentar prompt super direto
+            textoPrompt = ThreatModelingService.generateDirectThreatPrompt(request);
+            resposta = (modeloAI as any).invoke
+              ? await (modeloAI as any).invoke(textoPrompt as any)
+              : await (modeloAI as any).call({ input: textoPrompt });
+            
+            logs.push(`🔄 Prompt super direto enviado`);
+          }
         }
       } catch (error) {
         logs.push(`❌ Erro no primeiro prompt: ${error}`);
