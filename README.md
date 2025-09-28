@@ -38,7 +38,7 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 
 ## 🧭 Arquitetura RAG
 
-![RAG Architecture Model](docs/images/rag-architecture.png)
+![RAG Architecture Model](docs/images/rag-architecture-model.png)
 
 ### Fluxo Principal do Sistema
 
