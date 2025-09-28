@@ -544,15 +544,62 @@
         }
 
         async function exportReport() {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
             
-            const element = document.querySelector('.report-card');
-            const canvas = await html2canvas(element);
-                const imgData = canvas.toDataURL('image/png');
+            // Capturar todo o conteúdo dos resultados
+            const resultsSection = document.getElementById('results');
+            if (!resultsSection) {
+                alert('Nenhum relatório encontrado para exportar.');
+                return;
+            }
+            
+            // Adicionar título do relatório
+            pdf.setFontSize(20);
+            pdf.setTextColor(255, 107, 53); // Cor laranja
+            pdf.text('Relatório de Análise de Ameaças', 20, 20);
+            
+            // Adicionar data
+            pdf.setFontSize(10);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, 30);
+            
+            // Capturar cada seção do relatório
+            const reportCards = resultsSection.querySelectorAll('.report-card');
+            let yPosition = 40;
+            
+            for (let i = 0; i < reportCards.length; i++) {
+                const card = reportCards[i];
                 
-            pdf.addImage(imgData, 'PNG', 10, 10, 190, 0);
-            pdf.save('threat-analysis-report.pdf');
+                // Adicionar quebra de página se necessário
+                if (yPosition > 250) {
+                    pdf.addPage();
+                    yPosition = 20;
+                }
+                
+                // Capturar a seção como imagem
+                const canvas = await html2canvas(card, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#0f1419'
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 190;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                // Verificar se cabe na página
+                if (yPosition + imgHeight > 280) {
+                    pdf.addPage();
+                    yPosition = 20;
+                }
+                
+                pdf.addImage(imgData, 'PNG', 10, yPosition, imgWidth, imgHeight);
+                yPosition += imgHeight + 10;
+            }
+            
+            // Salvar o PDF
+            pdf.save('relatorio-analise-ameacas.pdf');
         }
     </script>
 </body>
