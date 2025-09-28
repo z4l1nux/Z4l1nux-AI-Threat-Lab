@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Modelagem de Ameaças</title>
+    <title>Z4l1nux AI Threat Lab</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -213,8 +213,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔐 Sistema de Modelagem de Ameaças</h1>
-            <p>Análise automatizada de ameaças com base no framework STRIDE e catálogo CAPEC</p>
+            <h1>🔐 Z4l1nux AI Threat Lab</h1>
+            <p>Laboratório avançado de análise de ameaças cibernéticas com base no framework STRIDE e catálogo CAPEC</p>
         </div>
 
             <div class="input-section">
@@ -229,8 +229,8 @@
         <!-- Seção de Upload de Documentos -->
         <div class="input-section">
             <div class="section-header">
-                <h2 style="color: #ff6b35; margin-bottom: 15px;">📚 Documentos de Contexto (Opcional)</h2>
-                <p style="color: #94a3b8; margin-bottom: 20px;">Envie documentos sobre o sistema para enriquecer a análise de ameaças. A IA utilizará essas informações para gerar um relatório mais preciso e contextualizado.</p>
+                <h2 style="color: #ff6b35; margin-bottom: 15px;">📚 Documentos de Contexto de Segurança (Opcional)</h2>
+                <p style="color: #94a3b8; margin-bottom: 20px;">Envie documentos sobre o sistema para enriquecer a análise de ameaças no Z4l1nux AI Threat Lab. A IA utilizará essas informações para gerar um relatório de threat modeling mais preciso e contextualizado.</p>
             </div>
             
             <div class="upload-area" id="uploadArea">
@@ -304,7 +304,7 @@
             </div>
             
             <button class="generate-btn" onclick="generateThreatModel()">
-                🚀 Gerar Modelo de Ameaças
+                🚀 Gerar Análise de Ameaças
             </button>
         </div>
         
@@ -341,7 +341,7 @@
 
             const resultsDiv = document.getElementById('results');
             resultsDiv.style.display = 'block';
-            resultsDiv.innerHTML = '<div class="loading">Gerando modelo de ameaças...</div>';
+            resultsDiv.innerHTML = '<div class="loading">Gerando análise de ameaças no Z4l1nux AI Threat Lab...</div>';
 
             try {
                 const threatAnalysisPrompt = `
@@ -676,7 +676,7 @@ FORMATO DE RESPOSTA (JSON):
             resultsDiv.innerHTML = `
                 <div class="report-card">
                     <div class="report-header">
-                        <h2 class="report-title">📊 Relatório de Modelagem de Ameaças</h2>
+                        <h2 class="report-title">📊 Relatório de Análise de Ameaças - Z4l1nux AI Threat Lab</h2>
                         <div style="display: flex; gap: 10px;">
                             <button class="export-btn" onclick="exportAttackTree()" style="background: rgba(59, 130, 246, 0.8);">🌳 Ver Árvore Interativa</button>
                             <button class="export-btn" onclick="exportReport()" style="background: rgba(34, 197, 94, 0.8);">📄 Exportar HTML</button>
@@ -821,7 +821,7 @@ FORMATO DE RESPOSTA (JSON):
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'relatorio-ameacas-' + new Date().toISOString().split('T')[0] + '.html';
+            a.download = 'z4l1nux-threat-lab-relatorio-' + new Date().toISOString().split('T')[0] + '.html';
             a.click();
             URL.revokeObjectURL(url);
         }
@@ -856,7 +856,7 @@ FORMATO DE RESPOSTA (JSON):
                 const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
                 
                 pdf.addImage(imgData, 'PNG', 0, 0, canvas.width * ratio, canvas.height * ratio);
-                pdf.save('relatorio-ameacas-' + new Date().toISOString().split('T')[0] + '.pdf');
+                pdf.save('z4l1nux-threat-lab-relatorio-' + new Date().toISOString().split('T')[0] + '.pdf');
 
                 document.querySelector('.export-btn[onclick="exportPDF()"]').innerHTML = originalContent;
             } catch (error) {

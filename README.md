@@ -1,46 +1,46 @@
-# Sistema RAG Avançado com Controle de Versão e Cache Inteligente
+# Z4l1nux AI Threat Lab
 
-Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em TypeScript com recursos avançados de controle de versão, cache inteligente e processamento incremental. Suporta modelos locais via Ollama e modelos remotos via OpenRouter (DeepSeek).
+O **Z4l1nux AI Threat Lab** é um laboratório avançado de análise de ameaças cibernéticas que implementa um sistema de Retrieval-Augmented Generation (RAG) em TypeScript com recursos avançados de controle de versão, cache inteligente e processamento incremental. O sistema é especializado em análise de threat modeling, detecção de vulnerabilidades e geração de relatórios de segurança automatizados, suportando modelos locais via Ollama e modelos remotos via OpenRouter (DeepSeek).
 
-## ✨ Novas Funcionalidades Implementadas
+## ✨ Funcionalidades do Z4l1nux AI Threat Lab
 
 ### 🚀 **Neo4j - Base de Dados de Grafos com Suporte Vetorial**
-- **Performance Superior**: Busca vetorial e de grafos otimizada
-- **Escalabilidade**: Suporta milhões de nós e relacionamentos
-- **Persistência Robusta**: Base de dados ACID com backup automático
-- **Flexibilidade**: Suporte a vetores, grafos e metadados complexos
-- **Integração Nativa**: Compatível com LangChain e frameworks modernos
+- **Performance Superior**: Busca vetorial e de grafos otimizada para análise de ameaças
+- **Escalabilidade**: Suporta milhões de nós e relacionamentos de vulnerabilidades
+- **Persistência Robusta**: Base de dados ACID com backup automático de dados de segurança
+- **Flexibilidade**: Suporte a vetores, grafos e metadados complexos de threat modeling
+- **Integração Nativa**: Compatível com LangChain e frameworks modernos de IA
 
-### 🔄 **Processamento Incremental**
-- Detecta automaticamente documentos novos, modificados ou removidos
-- Processa apenas os documentos que mudaram
-- Economiza tempo e recursos de processamento
-- Mantém histórico de processamento
+### 🔄 **Processamento Incremental de Dados de Segurança**
+- Detecta automaticamente documentos de threat modeling novos, modificados ou removidos
+- Processa apenas os documentos de segurança que mudaram
+- Economiza tempo e recursos de processamento de análises de ameaças
+- Mantém histórico de processamento de vulnerabilidades
 
-### 📊 **Controle de Versão de Documentos**
-- Hash MD5 para detecção de mudanças
-- Metadados completos de cada documento
-- Rastreamento de data de modificação e processamento
-- Versionamento automático do cache
+### 📊 **Controle de Versão de Documentos de Segurança**
+- Hash MD5 para detecção de mudanças em relatórios de segurança
+- Metadados completos de cada documento de threat modeling
+- Rastreamento de data de modificação e processamento de vulnerabilidades
+- Versionamento automático do cache de dados de segurança
 
-### 💾 **Cache Inteligente com Neo4j**
-- Armazenamento persistente de embeddings no Neo4j
-- Cache por documento com metadados flexíveis
-- Estatísticas detalhadas de uso
-- Limpeza seletiva de cache
-- Backup automático e recuperação
+### 💾 **Cache Inteligente com Neo4j para Dados de Segurança**
+- Armazenamento persistente de embeddings de documentos de segurança no Neo4j
+- Cache por documento com metadados flexíveis de threat modeling
+- Estatísticas detalhadas de uso de análises de ameaças
+- Limpeza seletiva de cache de dados de segurança
+- Backup automático e recuperação de dados críticos
 
-### 🔍 **Busca Semântica Otimizada**
-- Similaridade por cosseno implementada
-- Filtros de qualidade de resultados
-- Busca otimizada com índices vetoriais do Neo4j
-- Performance 10-100x superior ao sistema anterior
+### 🔍 **Busca Semântica Otimizada para Análise de Ameaças**
+- Similaridade por cosseno implementada para documentos de segurança
+- Filtros de qualidade de resultados de threat modeling
+- Busca otimizada com índices vetoriais do Neo4j para vulnerabilidades
+- Performance 10-100x superior ao sistema anterior de análise de ameaças
 
-## 🧭 Arquitetura RAG
+## 🧭 Arquitetura do Z4l1nux AI Threat Lab
 
 ![RAG Architecture Model](docs/images/rag-architecture-model.jpg)
 
-### Fluxo Principal do Sistema
+### Fluxo Principal do Sistema de Análise de Ameaças
 
 ```mermaid
 flowchart TB
@@ -61,14 +61,14 @@ flowchart TB
     LLM -->|Remote| OR[☁️ OpenRouter<br/>DeepSeek]
     
     %% Document Processing
-    DOC[📄 Document Upload] --> SEC[🔒 Security Check]
-    SEC --> PROC[⚙️ Document Processor]
+    DOC[📄 Security Document Upload] --> SEC[🔒 Security Check]
+    SEC --> PROC[⚙️ Threat Document Processor]
     PROC --> NEO
     
     %% Response Generation
-    OLL --> RG[📝 Response Generator]
+    OLL --> RG[📝 Threat Analysis Generator]
     OR --> RG
-    RG --> TM[🎯 Threat Model]
+    RG --> TM[🎯 Threat Model Report]
     TM --> UI
     
     %% Styling
@@ -213,85 +213,85 @@ Após iniciar o container, acesse:
 - **Usuário**: neo4j
 - **Senha**: password
 
-## 📚 Preparando a Base de Conhecimento
+## 📚 Preparando a Base de Conhecimento de Segurança
 
 1. Crie uma pasta chamada `base/` no diretório raiz do projeto
-2. Coloque seus arquivos nesta pasta (PDF, XML, JSON, CSV)
-3. Execute o gerenciador de cache Neo4j:
+2. Coloque seus documentos de threat modeling nesta pasta (PDF, XML, JSON, CSV)
+3. Execute o gerenciador de cache Neo4j para análise de ameaças:
 ```bash
 npm run create-neo4j
 ```
 
-**Nota**: O sistema agora usa Neo4j por padrão, que oferece performance muito superior ao sistema anterior.
+**Nota**: O Z4l1nux AI Threat Lab usa Neo4j por padrão, que oferece performance muito superior para análise de vulnerabilidades e threat modeling.
 
-### 📁 Tipos de Arquivo Suportados
+### 📁 Tipos de Arquivo de Segurança Suportados
 
-O sistema suporta os seguintes tipos de arquivo:
+O Z4l1nux AI Threat Lab suporta os seguintes tipos de arquivo para análise de ameaças:
 
-#### ✅ Formatos Suportados
-- **PDF**: Leitura e processamento completo via LangChain PDFLoader
-- **XML**: Leitura e parsing via XMLLoader personalizado
-- **JSON**: Leitura e parsing via JSONLoader personalizado  
-- **CSV**: Leitura e parsing via CSVLoader personalizado
-- **Markdown (.md/.markdown)**: Leitura de conteúdo Markdown (texto puro) via `MarkdownLoader`
+#### ✅ Formatos de Documentos de Segurança Suportados
+- **PDF**: Leitura e processamento completo de relatórios de segurança via LangChain PDFLoader
+- **XML**: Leitura e parsing de documentos de threat modeling via XMLLoader personalizado
+- **JSON**: Leitura e parsing de dados de vulnerabilidades via JSONLoader personalizado  
+- **CSV**: Leitura e parsing de listas de ameaças via CSVLoader personalizado
+- **Markdown (.md/.markdown)**: Leitura de documentação de segurança via `MarkdownLoader`
 
-#### 🔧 Como Funciona
-Cada tipo de arquivo é processado por um loader específico do LangChain:
-- **PDF**: Usa o `PDFLoader` nativo do LangChain
-- **XML**: Converte XML para JSON estruturado
-- **JSON**: Processa dados JSON estruturados
-- **CSV**: Converte linhas CSV para objetos JSON
+#### 🔧 Como Funciona no Threat Lab
+Cada tipo de arquivo de segurança é processado por um loader específico do LangChain:
+- **PDF**: Usa o `PDFLoader` nativo para relatórios de segurança
+- **XML**: Converte XML de threat modeling para JSON estruturado
+- **JSON**: Processa dados JSON de vulnerabilidades estruturados
+- **CSV**: Converte linhas CSV de ameaças para objetos JSON
 
-Todos os loaders seguem o padrão LangChain e retornam documentos com metadados apropriados.
+Todos os loaders seguem o padrão LangChain e retornam documentos de segurança com metadados apropriados para análise de ameaças.
 
 ## 🎯 Uso
 
-### 🧪 Testes e Verificação
+### 🧪 Testes e Verificação do Threat Lab
 
-Para testar os novos loaders e funcionalidades:
+Para testar os loaders de documentos de segurança e funcionalidades de análise de ameaças:
 
 ```bash
-# Testar os loaders de XML, JSON e CSV
+# Testar os loaders de XML, JSON e CSV para documentos de segurança
 npm run test-loaders
 
-# Testar o sistema RAG completo
+# Testar o sistema RAG completo para análise de ameaças
 npm run test-rag
 
-# Testar especificamente o Neo4j
+# Testar especificamente o Neo4j para threat modeling
 npm run test-neo4j
 ```
 
-### Gerenciador de Cache Interativo
+### Gerenciador de Cache Interativo do Threat Lab
 
-Execute o gerenciador de cache Neo4j:
+Execute o gerenciador de cache Neo4j para análise de ameaças:
 ```bash
 npm run create-neo4j
 ```
 
-**Opções disponíveis:**
+**Opções disponíveis para análise de segurança:**
 
 1. **🔄 Atualização Incremental (Recomendado)**
-   - Detecta automaticamente mudanças nos PDFs
-   - Processa apenas documentos novos/modificados
-   - Mais rápido e eficiente
+   - Detecta automaticamente mudanças nos documentos de threat modeling
+   - Processa apenas documentos de segurança novos/modificados
+   - Mais rápido e eficiente para análise de ameaças
 
 2. **🔄 Reprocessamento Completo**
-   - Reprocessa todos os documentos
-   - Útil para mudanças de configuração
-   - Mais lento, mas garante consistência
+   - Reprocessa todos os documentos de segurança
+   - Útil para mudanças de configuração de análise
+   - Mais lento, mas garante consistência dos dados de ameaças
 
-3. **📊 Mostrar Estatísticas**
-   - Exibe informações detalhadas do cache
-   - Total de documentos e chunks
-   - Tamanho do cache e datas
+3. **📊 Mostrar Estatísticas de Segurança**
+   - Exibe informações detalhadas do cache de dados de segurança
+   - Total de documentos de threat modeling e chunks
+   - Tamanho do cache e datas de análise
 
-4. **🗑️ Limpar Cache**
-   - Remove completamente o cache
-   - Útil para resetar o sistema
+4. **🗑️ Limpar Cache de Segurança**
+   - Remove completamente o cache de dados de ameaças
+   - Útil para resetar o sistema de análise
 
-### Interface Web (Recomendado)
+### Interface Web do Threat Lab (Recomendado)
 
-1. **Iniciar o servidor web:**
+1. **Iniciar o servidor web do Threat Lab:**
 ```bash
 npm run web
 ```
@@ -301,99 +301,112 @@ npm run web
 http://localhost:3000
 ```
 
-3. **Usar a interface web:**
+3. **Usar a interface web para análise de ameaças:**
    - Escolha entre Ollama (local) ou DeepSeek (OpenRouter)
-   - Digite sua pergunta
-   - Veja a resposta e logs em tempo real
-   - Visualize estatísticas dos resultados
+   - Digite sua pergunta sobre threat modeling ou vulnerabilidades
+   - Veja a resposta de análise de ameaças e logs em tempo real
+   - Visualize estatísticas dos resultados de segurança
 
-### Interface de Linha de Comando
+### Interface de Linha de Comando do Threat Lab
 
-1. **Executar o programa:**
+1. **Executar o programa de análise de ameaças:**
 ```bash
 npm run dev
 ```
 
-2. **Escolher o modelo:**
-   - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama
-   - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter
+2. **Escolher o modelo para análise de threat modeling:**
+   - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama para análise de segurança
+   - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter para threat modeling
 
-**Nota**: O sistema agora usa Neo4j por padrão para busca semântica, oferecendo performance muito superior.
+**Nota**: O Z4l1nux AI Threat Lab usa Neo4j por padrão para busca semântica de dados de segurança, oferecendo performance muito superior para análise de ameaças.
 
-## 📈 Vantagens do Novo Sistema
+## 📈 Vantagens do Z4l1nux AI Threat Lab
 
-### ⚡ **Performance**
-- Processamento incremental reduz tempo de atualização
-- Neo4j oferece busca vetorial otimizada com índices nativos
-- Performance 10-100x superior ao sistema anterior
-- Cache local elimina dependências externas
-- Busca otimizada com filtros de qualidade
+### ⚡ **Performance para Análise de Ameaças**
+- Processamento incremental reduz tempo de atualização de dados de segurança
+- Neo4j oferece busca vetorial otimizada com índices nativos para threat modeling
+- Performance 10-100x superior ao sistema anterior de análise de ameaças
+- Cache local elimina dependências externas para dados de segurança
+- Busca otimizada com filtros de qualidade para vulnerabilidades
 
-### 🔒 **Confiabilidade**
-- Controle de versão previne inconsistências
-- Hash MD5 garante integridade dos dados
-- Neo4j oferece backup automático e recuperação
-- Base de dados ACID garante consistência
+### 🔒 **Confiabilidade de Dados de Segurança**
+- Controle de versão previne inconsistências em documentos de threat modeling
+- Hash MD5 garante integridade dos dados de segurança
+- Neo4j oferece backup automático e recuperação de dados críticos
+- Base de dados ACID garante consistência de análises de ameaças
 
-### 📊 **Monitoramento**
-- Estatísticas detalhadas de uso
-- Logs de processamento
-- Rastreamento de performance
+### 📊 **Monitoramento de Análises de Segurança**
+- Estatísticas detalhadas de uso do sistema de threat modeling
+- Logs de processamento de documentos de segurança
+- Rastreamento de performance de análises de ameaças
 
-### 🛠️ **Manutenibilidade**
-- Código modular e bem estruturado
-- Separação clara de responsabilidades
-- Fácil extensão de funcionalidades
-- Neo4j oferece APIs modernas e bem documentadas
-- Suporte a múltiplos backends (Neo4j, JSON, otimizado)
+### 🛠️ **Manutenibilidade do Sistema de Segurança**
+- Código modular e bem estruturado para análise de ameaças
+- Separação clara de responsabilidades de threat modeling
+- Fácil extensão de funcionalidades de segurança
+- Neo4j oferece APIs modernas e bem documentadas para dados de segurança
+- Suporte a múltiplos backends (Neo4j, JSON, otimizado) para análise de vulnerabilidades
 
-## 🏗️ Arquitetura do Sistema
+## 🏗️ Arquitetura do Z4l1nux AI Threat Lab
 
 ### Estrutura de Diretórios
 
 ```
-src/
-├── core/                    # 🧠 Lógica principal do sistema
-│   ├── cache/              # 💾 Gerenciadores de cache
-│   │   └── Neo4jCacheManager.ts      # Cache Neo4j
-│   ├── search/             # 🔍 Implementações de busca
-│   │   ├── SearchFactory.ts          # Factory para múltiplos backends
-│   │   ├── SemanticSearch.ts         # Busca tradicional
-│   │   ├── OptimizedSemanticSearch.ts # Busca otimizada
-│   │   └── Neo4jSemanticSearch.ts    # Busca Neo4j
-│   ├── graph/              # 🕸️ Integração com Neo4j
-│   │   ├── Neo4jClient.ts            # Cliente Neo4j
-│   │   └── Neo4jSyncService.ts       # Sincronização com grafos
-│   └── types.ts            # 📝 Tipos principais do sistema
-├── cli/                    # 💻 Interfaces de linha de comando
-│   ├── main.ts             # Interface principal CLI
-│   ├── criarNeo4j.ts       # Gerenciador Neo4j
-│   ├── reprocessNonInteractive.ts   # Reprocessamento automático
-│   └── managers/           # 🛠️ Gerenciadores específicos
-│       ├── criarNeo4j.ts   # Gerenciador Neo4j
-│       └── buscaNeo4j.ts   # Busca Neo4j
-├── web/                    # 🌐 Interface web
-│   └── server.ts           # Servidor web Express
-├── utils/                  # 🔧 Utilitários gerais
-│   ├── fileUtils.ts        # Utilitários para arquivos
-│   ├── documentLoaders.ts  # Loaders para diferentes formatos
-│   ├── ProgressTracker.ts  # Rastreador de progresso
-│   └── PromptTemplates.ts  # Templates de prompts
-└── test/                   # 🧪 Testes
-    ├── testNeo4j.ts        # Testes específicos Neo4j
-    ├── testRAG.ts          # Testes do sistema RAG
-    ├── testLoaders.ts      # Testes dos loaders
-    ├── testPerformance.ts  # Testes de performance
-    ├── testCAPECSearch.ts  # Testes de busca CAPEC
-    └── testFormattedResponse.ts # Testes de resposta formatada
+threat-model/
+├── src/                    # 📁 Código fonte principal
+│   ├── core/              # 🧠 Lógica principal do sistema de análise de ameaças
+│   │   ├── cache/         # 💾 Gerenciadores de cache de dados de segurança
+│   │   │   ├── LanceDBCacheManager.ts    # Cache LanceDB para documentos de segurança
+│   │   │   └── Neo4jCacheManager.ts      # Cache Neo4j para threat modeling
+│   │   ├── search/        # 🔍 Implementações de busca semântica
+│   │   │   ├── SearchFactory.ts          # Factory para múltiplos backends
+│   │   │   ├── SemanticSearch.ts         # Busca tradicional de vulnerabilidades
+│   │   │   ├── OptimizedSemanticSearch.ts # Busca otimizada para threat modeling
+│   │   │   └── Neo4jSemanticSearch.ts    # Busca Neo4j para análise de ameaças
+│   │   ├── graph/         # 🕸️ Integração com Neo4j para grafos de ameaças
+│   │   │   ├── Neo4jClient.ts            # Cliente Neo4j para dados de segurança
+│   │   │   └── Neo4jSyncService.ts       # Sincronização com grafos de vulnerabilidades
+│   │   └── types.ts       # 📝 Tipos principais do sistema de threat modeling
+│   ├── cli/               # 💻 Interfaces de linha de comando
+│   │   ├── main.ts        # Interface principal CLI do Threat Lab
+│   │   ├── criarLanceDB.ts # Gerenciador LanceDB para documentos de segurança
+│   │   ├── reprocessNonInteractive.ts   # Reprocessamento automático de ameaças
+│   │   └── managers/      # 🛠️ Gerenciadores específicos de análise
+│   │       ├── buscaHibrida.ts          # Busca híbrida de vulnerabilidades
+│   │       ├── buscaNeo4j.ts            # Busca Neo4j para threat modeling
+│   │       └── criarNeo4j.ts            # Gerenciador Neo4j para dados de segurança
+│   ├── web/               # 🌐 Interface web do Threat Lab
+│   │   └── server.ts      # Servidor web Express para análise de ameaças
+│   ├── utils/             # 🔧 Utilitários gerais do sistema
+│   │   ├── fileUtils.ts   # Utilitários para arquivos de segurança
+│   │   ├── documentLoaders.ts  # Loaders para diferentes formatos de documentos
+│   │   ├── ProgressTracker.ts  # Rastreador de progresso de análises
+│   │   ├── PromptTemplates.ts  # Templates de prompts para threat modeling
+│   │   └── SecureDocumentProcessor.ts   # Processador seguro de documentos
+│   └── test/              # 🧪 Testes do sistema de análise de ameaças
+│       ├── testCAPECSearch.ts           # Testes de busca CAPEC
+│       ├── testFormattedResponse.ts     # Testes de resposta formatada
+│       ├── testLanceDB.ts               # Testes específicos LanceDB
+│       ├── testLoaders.ts               # Testes dos loaders de documentos
+│       ├── testPerformance.ts           # Testes de performance do sistema
+│       └── testRAG.ts                   # Testes do sistema RAG completo
+├── dist/                  # 📦 Arquivos compilados (TypeScript → JavaScript)
+├── docs/                  # 📚 Documentação do Threat Lab
+│   └── images/            # 🖼️ Imagens e diagramas de arquitetura
+├── public/                # 🌐 Arquivos públicos da interface web
+├── docker-compose.yml     # 🐳 Configuração Docker para Neo4j
+├── package.json           # 📋 Dependências e scripts do projeto
+├── tsconfig.json          # ⚙️ Configuração TypeScript
+└── README.md              # 📖 Documentação principal do Z4l1nux AI Threat Lab
 ```
 
-### Princípios de Organização
+### Princípios de Organização do Threat Lab
 
-- **Separação de Responsabilidades**: Cada diretório tem uma função específica
-- **Padrão de Nomenclatura**: PascalCase para classes, camelCase para funções
-- **Organização por Funcionalidade**: Arquivos relacionados ficam próximos
-- **Imports Organizados**: Relativos claros e intuitivos
+- **Separação de Responsabilidades**: Cada diretório tem uma função específica no sistema de análise de ameaças
+- **Padrão de Nomenclatura**: PascalCase para classes de threat modeling, camelCase para funções de análise
+- **Organização por Funcionalidade**: Arquivos relacionados à segurança ficam próximos
+- **Imports Organizados**: Relativos claros e intuitivos para componentes de análise de ameaças
+- **Modularidade de Segurança**: Componentes independentes para diferentes tipos de análise de vulnerabilidades
 
 ## 🔧 Configurações Avançadas
 
@@ -530,9 +543,9 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 
 ## 🙏 Agradecimentos
 
-- LangChain para o framework RAG
-- Neo4j para a base de dados vetorial e de grafos moderna
-- Neo4j para busca vetorial e de grafos
-- Ollama para modelos locais
-- OpenRouter para modelos remotos
-- Comunidade open source 
+- **LangChain** para o framework RAG que possibilita análise avançada de ameaças
+- **Neo4j** para a base de dados vetorial e de grafos moderna para threat modeling
+- **Ollama** para modelos locais de análise de segurança
+- **OpenRouter** para modelos remotos de threat modeling
+- **Comunidade de segurança cibernética** open source
+- **Pesquisadores de threat modeling** que contribuem com conhecimento e dados de segurança 
