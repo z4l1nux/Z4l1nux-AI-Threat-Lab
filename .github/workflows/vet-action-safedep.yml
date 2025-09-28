@@ -33,7 +33,7 @@ jobs:
         with:
           # Path to the policy file.
           # Remove following line to use the default policy
-          policy: .github/vet/policy.yml
+          policy: .github/vet-policy/policy.yml
         env:
           # Required for writing pull request comment
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
