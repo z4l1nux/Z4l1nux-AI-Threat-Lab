@@ -1,7 +1,7 @@
 import * as readline from "readline";
 import * as dotenv from "dotenv";
 import { OllamaEmbeddings } from "@langchain/ollama";
-import { SearchFactory } from "../../core/search/SearchFactory";
+import { Neo4jOnlySearchFactory } from "../../core/search/Neo4jOnlySearchFactory";
 
 dotenv.config();
 
@@ -14,16 +14,16 @@ async function main() {
     model: process.env.EMBEDDING_MODEL || "nomic-embed-text:latest",
     baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
-  const search = SearchFactory.criarBusca(embeddings, "", "base", "neo4j");
+  const search = Neo4jOnlySearchFactory.criarBusca(embeddings);
+  await search.initialize();
 
-  await (search as any).garantirIndiceVetorial?.();
-  const ok = await (search as any).verificarCache();
+  const ok = await search.verificarCache();
   if (!ok) {
     console.log("❌ Grafo sem dados. Rode: npm run sync-neo4j");
     return;
   }
 
-  const resultados = await (search as any).buscar(pergunta, 8);
+  const resultados = await search.buscar(pergunta, 8);
   console.log(`Encontrados ${resultados.length} resultados`);
   resultados.forEach((r: any, i: number) => console.log(`${i + 1}. Score=${r.score.toFixed(3)} | ${r.chunk?.id}`));
 }

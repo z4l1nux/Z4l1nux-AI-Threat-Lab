@@ -356,12 +356,9 @@ threat-model/
 ├── src/                    # 📁 Código fonte principal
 │   ├── core/              # 🧠 Lógica principal do sistema de análise de ameaças
 │   │   ├── cache/         # 💾 Gerenciadores de cache de dados de segurança
-│   │   │   ├── LanceDBCacheManager.ts    # Cache LanceDB para documentos de segurança
 │   │   │   └── Neo4jCacheManager.ts      # Cache Neo4j para threat modeling
 │   │   ├── search/        # 🔍 Implementações de busca semântica
-│   │   │   ├── SearchFactory.ts          # Factory para múltiplos backends
-│   │   │   ├── SemanticSearch.ts         # Busca tradicional de vulnerabilidades
-│   │   │   ├── OptimizedSemanticSearch.ts # Busca otimizada para threat modeling
+│   │   │   ├── Neo4jOnlySearchFactory.ts # Factory para busca Neo4j
 │   │   │   └── Neo4jSemanticSearch.ts    # Busca Neo4j para análise de ameaças
 │   │   ├── graph/         # 🕸️ Integração com Neo4j para grafos de ameaças
 │   │   │   ├── Neo4jClient.ts            # Cliente Neo4j para dados de segurança
@@ -369,10 +366,8 @@ threat-model/
 │   │   └── types.ts       # 📝 Tipos principais do sistema de threat modeling
 │   ├── cli/               # 💻 Interfaces de linha de comando
 │   │   ├── main.ts        # Interface principal CLI do Threat Lab
-│   │   ├── criarLanceDB.ts # Gerenciador LanceDB para documentos de segurança
 │   │   ├── reprocessNonInteractive.ts   # Reprocessamento automático de ameaças
 │   │   └── managers/      # 🛠️ Gerenciadores específicos de análise
-│   │       ├── buscaHibrida.ts          # Busca híbrida de vulnerabilidades
 │   │       ├── buscaNeo4j.ts            # Busca Neo4j para threat modeling
 │   │       └── criarNeo4j.ts            # Gerenciador Neo4j para dados de segurança
 │   ├── web/               # 🌐 Interface web do Threat Lab
@@ -386,7 +381,6 @@ threat-model/
 │   └── test/              # 🧪 Testes do sistema de análise de ameaças
 │       ├── testCAPECSearch.ts           # Testes de busca CAPEC
 │       ├── testFormattedResponse.ts     # Testes de resposta formatada
-│       ├── testLanceDB.ts               # Testes específicos LanceDB
 │       ├── testLoaders.ts               # Testes dos loaders de documentos
 │       ├── testPerformance.ts           # Testes de performance do sistema
 │       └── testRAG.ts                   # Testes do sistema RAG completo

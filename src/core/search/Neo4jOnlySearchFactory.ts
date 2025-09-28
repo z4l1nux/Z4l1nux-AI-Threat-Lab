@@ -23,6 +23,13 @@ export class Neo4jOnlySearchFactory {
   }
 
   /**
+   * Método estático para criar instância da busca
+   */
+  static criarBusca(embeddings: OllamaEmbeddings): Neo4jOnlySearchFactory {
+    return new Neo4jOnlySearchFactory(embeddings);
+  }
+
+  /**
    * Inicializa o sistema de busca
    */
   async initialize(): Promise<void> {

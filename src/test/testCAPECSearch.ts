@@ -1,5 +1,5 @@
 import { OllamaEmbeddings } from "@langchain/ollama";
-import { SearchFactory } from "../core/search/SearchFactory";
+import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -12,7 +12,7 @@ async function testarBuscaCAPEC() {
     baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
-  const search = SearchFactory.criarBuscaOtimizada(embeddings, "vectorstore.json");
+  const search = Neo4jOnlySearchFactory.criarBusca(embeddings);
 
   const perguntasCAPEC = [
     "Quais CAPECs estão associados a Repudiation?",

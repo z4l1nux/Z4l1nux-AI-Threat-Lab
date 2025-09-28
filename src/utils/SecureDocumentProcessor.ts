@@ -1,5 +1,5 @@
 /**
- * Processador seguro de documentos que processa diretamente para LanceDB/Neo4j
+ * Processador seguro de documentos que processa diretamente para Neo4j
  * sem salvar arquivos no filesystem, com verificações de segurança robustas
  */
 
@@ -83,7 +83,7 @@ export class SecureDocumentProcessor {
   ];
 
   /**
-   * Processa arquivos de forma segura diretamente para LanceDB/Neo4j
+   * Processa arquivos de forma segura diretamente para Neo4j
    */
   async processDocumentsSecurely(
     files: SecureUploadFile[], 

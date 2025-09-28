@@ -2,7 +2,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { OpenAIEmbeddings } from "@langchain/openai";
 // Removido ChatPromptTemplate para evitar dependência faltante
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
-import { SearchFactory } from "../core/search/SearchFactory";
+import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import * as dotenv from "dotenv";
 import * as readline from "readline";
@@ -44,13 +44,13 @@ async function perguntarComOllama(): Promise<void> {
 
   try {
     const embeddings = criarEmbeddings();
-    const semanticSearch = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
+    const semanticSearch = Neo4jOnlySearchFactory.criarBusca(embeddings);
     
     // Verificar se o cache existe
     const cacheValido = await semanticSearch.verificarCache();
     if (!cacheValido) {
-      console.log("❌ Banco de dados LanceDB não encontrado!");
-      console.log("📝 Execute primeiro: npm run create-lancedb");
+      console.log("❌ Banco de dados Neo4j não encontrado!");
+      console.log("📝 Execute primeiro: npm run create-neo4j");
       rl.close();
       return;
     }

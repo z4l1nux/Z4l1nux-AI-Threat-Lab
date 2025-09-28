@@ -1,5 +1,5 @@
 /**
- * Neo4j Cache Manager - Substitui LanceDBCacheManager
+ * Neo4j Cache Manager
  * Gerencia documentos, chunks e embeddings diretamente no Neo4j
  * com índices vetoriais para busca semântica
  */
@@ -394,7 +394,7 @@ export class Neo4jCacheManager {
   }
 
   /**
-   * Busca híbrida: vetorial + texto (simplificada)
+   * Busca semântica: vetorial com fallback para texto
    */
   async hybridSearch(query: string, limit: number = 8): Promise<Neo4jSearchResult[]> {
     try {

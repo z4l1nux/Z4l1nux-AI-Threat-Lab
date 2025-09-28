@@ -1,6 +1,6 @@
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOllama } from "@langchain/community/chat_models/ollama";
-import { SearchFactory } from "../core/search/SearchFactory";
+import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import * as dotenv from "dotenv";
 
@@ -14,7 +14,7 @@ async function testarRespostaFormatada() {
     baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
   });
 
-  const search = SearchFactory.criarBusca(embeddings, "vectorstore.json", "base", "lancedb");
+  const search = Neo4jOnlySearchFactory.criarBusca(embeddings);
   const modelo = new ChatOllama({
     model: process.env.MODEL_OLLAMA || "mistral",
     baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
