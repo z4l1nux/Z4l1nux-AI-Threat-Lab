@@ -98,7 +98,7 @@
                 <label for="systemDescription">Descrição do Sistema</label>
                 <textarea id="systemDescription" placeholder="Descreva o sistema, suas funcionalidades, tecnologias utilizadas, arquitetura, etc."></textarea>
             </div>
-
+            
             <div class="input-group">
                 <label for="assets">Ativos Principais</label>
                 <textarea id="assets" placeholder="Liste os ativos principais do sistema (dados, funcionalidades, recursos, etc.)"></textarea>
@@ -112,7 +112,7 @@
                 </small>
                 <button type="button" onclick="processDocuments()" style="background: rgba(59, 130, 246, 0.8); color: white; padding: 8px 16px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; transition: all 0.3s ease; margin-top: 10px;">
                     📄 Processar Documentos
-                </button>
+            </button>
             </div>
 
             <button class="generate-btn" onclick="generateThreatModel()">🔍 Gerar Análise de Ameaças</button>
@@ -341,7 +341,9 @@
                 
                 if (result.success) {
                     console.log('✅ Processando resposta da IA');
+                    console.log('📝 Resposta da IA:', result.resposta);
                     const threats = window.threatModelingClient.processAIResponse(result.resposta, systemType);
+                    console.log('🎯 Threats processadas:', threats);
                     generateReport(threats, systemName, systemType, sensitivity, description, assets);
                 } else {
                     console.log('❌ Falha na resposta da IA, usando mock:', result.error);
@@ -533,7 +535,7 @@
             const stats = { critical: 0, high: 0, medium: 0, low: 0 };
             
             threats.forEach(threat => {
-                const severity = threat.severidade.toLowerCase();
+                const severity = (threat.severidade || 'média').toLowerCase();
                 if (severity === 'crítica') stats.critical++;
                 else if (severity === 'alta') stats.high++;
                 else if (severity === 'média') stats.medium++;
@@ -553,7 +555,7 @@
                 alert('Nenhum relatório encontrado para exportar.');
                 return;
             }
-            
+
             // Adicionar título do relatório
             pdf.setFontSize(20);
             pdf.setTextColor(255, 107, 53); // Cor laranja

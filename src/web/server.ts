@@ -399,21 +399,49 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
     
     // Gerar prompt usando o serviço dedicado
-    const textoPrompt = ThreatModelingService.generateThreatModelingPrompt(request, baseConhecimento);
+    let textoPrompt = ThreatModelingService.generateThreatModelingPrompt(request, baseConhecimento);
     
     const modeloNome = modelo === '1' ? 'Ollama (Local)' : 'DeepSeek (OpenRouter)';
     logs.push(`🤖 Gerando análise de threat modeling com modelo: ${modeloNome}`);
     
     let resposta;
     if (modelo === '1') {
-      // Usar Ollama
+      // Usar Ollama com tentativas de prompts alternativos
       const modeloAI = new ChatOllama({
         model: process.env.MODEL_OLLAMA || "mistral",
         baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
       });
-      resposta = (modeloAI as any).invoke
-        ? await (modeloAI as any).invoke(textoPrompt as any)
-        : await (modeloAI as any).call({ input: textoPrompt });
+      
+      // Tentar primeiro prompt
+      try {
+        resposta = (modeloAI as any).invoke
+          ? await (modeloAI as any).invoke(textoPrompt as any)
+          : await (modeloAI as any).call({ input: textoPrompt });
+        
+        // Verificar se a resposta contém recusa
+        const respostaTexto = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
+        if (respostaTexto.includes("I'm sorry, but I can't assist") || 
+            respostaTexto.includes("I cannot help") ||
+            respostaTexto.includes("I'm not able to")) {
+          
+          logs.push(`⚠️ Primeiro prompt recusado, tentando prompt alternativo...`);
+          
+          // Tentar prompt alternativo mais direto
+          textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
+          resposta = (modeloAI as any).invoke
+            ? await (modeloAI as any).invoke(textoPrompt as any)
+            : await (modeloAI as any).call({ input: textoPrompt });
+          
+          logs.push(`🔄 Prompt alternativo enviado`);
+        }
+      } catch (error) {
+        logs.push(`❌ Erro no primeiro prompt: ${error}`);
+        // Tentar prompt alternativo em caso de erro
+        textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
+        resposta = (modeloAI as any).invoke
+          ? await (modeloAI as any).invoke(textoPrompt as any)
+          : await (modeloAI as any).call({ input: textoPrompt });
+      }
     } else if (modelo === '2') {
       // Usar OpenRouter com DeepSeek
       if (!process.env.OPENROUTER_API_KEY) {
@@ -435,9 +463,17 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
     
     logs.push("✅ Análise de threat modeling gerada com sucesso!");
     
+    // Extrair resposta do modelo
+    const respostaTexto = resposta.content || resposta.text || resposta;
+    console.log('🤖 Resposta do modelo:', respostaTexto ? respostaTexto.substring(0, 200) + '...' : 'RESPOSTA VAZIA');
+    
+    if (!respostaTexto || respostaTexto.trim() === '') {
+      throw new Error("Modelo retornou resposta vazia");
+    }
+    
     const payload: ResponsePayload = {
       success: true,
-      resposta: resposta.content || resposta.text || resposta,
+      resposta: respostaTexto,
       logs: logs,
       resultadosEncontrados: resultados.length,
       scores: resultados.map((r: any) => r.score)
