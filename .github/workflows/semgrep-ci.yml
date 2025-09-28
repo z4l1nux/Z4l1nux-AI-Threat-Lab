@@ -1,0 +1,145 @@
+name: semgrep-ci
+on:
+  workflow_call:
+    inputs:
+      PARANOIA_LEVEL:
+        required: false
+        type: number
+        default: 2
+        description: "The level of intolerance to vulnerabilities found by severity: 1=ERROR, 2=WARNING, 3=INFO."
+      SEMGREP_APP_TOKEN:
+        required: false
+        type: string
+        description: "Token for Semgrep App integration"
+      UPLOAD_SARIF:
+        required: false
+        type: boolean
+        default: true
+        description: "Upload SARIF results to GitHub Security tab"
+
+env:
+  SEMGREP_APP_TOKEN: ${{ inputs.SEMGREP_APP_TOKEN }}
+
+jobs:
+  semgrep_scan:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necessário para diff scans
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+          
+      - name: Cache Semgrep rules
+        uses: actions/cache@v3
+        with:
+          path: ~/.semgrep
+          key: semgrep-rules-${{ runner.os }}-${{ hashFiles('**/semgrep.yml', '**/semgrep.yaml', '**/.semgrep.yml') }}
+          restore-keys: |
+            semgrep-rules-${{ runner.os }}-
+      
+      - name: Determine severity threshold
+        id: severity
+        run: |
+          case ${{ inputs.PARANOIA_LEVEL }} in
+            1)
+              echo "severity=ERROR" >> $GITHUB_OUTPUT
+              echo "threshold=ERROR" >> $GITHUB_OUTPUT
+              ;;
+            2)
+              echo "severity=WARNING" >> $GITHUB_OUTPUT
+              echo "threshold=WARNING" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "severity=INFO" >> $GITHUB_OUTPUT
+              echo "threshold=INFO" >> $GITHUB_OUTPUT
+              ;;
+          esac
+      
+      - name: Run Semgrep scan
+        run: |
+          semgrep \
+            --config=auto \
+            --json \
+            --output=semgrep-results.json \
+            --severity=${{ steps.severity.outputs.severity }} \
+            --timeout=300 \
+            --max-memory=8192 \
+            --verbose || echo "Semgrep completed with findings"
+      
+      - name: Convert to SARIF
+        if: inputs.UPLOAD_SARIF
+        run: |
+          semgrep \
+            --config=auto \
+            --sarif \
+            --output=semgrep.sarif \
+            --severity=${{ steps.severity.outputs.severity }} \
+            --timeout=300 \
+            --max-memory=8192 || echo "SARIF generation completed"
+      
+      - name: Upload SARIF to GitHub Security
+        if: inputs.UPLOAD_SARIF
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+        continue-on-error: true
+      
+      - name: Check severity threshold
+        run: |
+          # Conta findings por severity
+          ERROR_COUNT=$(jq '[.results[] | select(.extra.severity == "ERROR")] | length' semgrep-results.json)
+          WARNING_COUNT=$(jq '[.results[] | select(.extra.severity == "WARNING")] | length' semgrep-results.json)
+          INFO_COUNT=$(jq '[.results[] | select(.extra.severity == "INFO")] | length' semgrep-results.json)
+          
+          echo "Found $ERROR_COUNT ERROR(s), $WARNING_COUNT WARNING(s), $INFO_COUNT INFO(s)"
+          
+          # Verifica threshold baseado no PARANOIA_LEVEL
+          case ${{ inputs.PARANOIA_LEVEL }} in
+            1)
+              if [ $ERROR_COUNT -gt 0 ]; then
+                echo "❌ Found $ERROR_COUNT ERROR(s) - exceeds threshold"
+                exit 1
+              fi
+              ;;
+            2)
+              if [ $ERROR_COUNT -gt 0 ] || [ $WARNING_COUNT -gt 0 ]; then
+                echo "❌ Found $ERROR_COUNT ERROR(s) and $WARNING_COUNT WARNING(s) - exceeds threshold"
+                exit 1
+              fi
+              ;;
+            *)
+              if [ $ERROR_COUNT -gt 0 ] || [ $WARNING_COUNT -gt 0 ] || [ $INFO_COUNT -gt 0 ]; then
+                echo "❌ Found security issues - exceeds threshold"
+                exit 1
+              fi
+              ;;
+          esac
+          
+          echo "✅ No issues found above threshold level"
+      
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: |
+            semgrep-results.json
+            semgrep.sarif
+          retention-days: 30
