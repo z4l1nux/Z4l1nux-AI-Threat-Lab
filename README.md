@@ -43,14 +43,44 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 ### Fluxo Principal do Sistema
 
 ```mermaid
-flowchart LR
-  C[Client] -- "1. Question" --> F[Framework]
-  F -- Response --> C
-  F -- "Semantic Search" --> V[(Vector Database)]
-  V -- "Contextual Data" --> F
-  F -- "3. Prompt" --> LLM((LLM))
-  LLM -- "4. Post Processing" --> F
-  V --- D[[Original | New Content]]
+flowchart TB
+    %% User Interface
+    UI[🌐 Web Interface] --> API[📡 REST API]
+    
+    %% Core Processing
+    API --> QP[🔍 Question Processor]
+    QP --> VS[🧠 Vector Search]
+    
+    %% Database Layer
+    VS --> NEO[(🗂️ Neo4j<br/>Graph Database)]
+    NEO --> EMB[📊 Embeddings<br/>nomic-embed-text]
+    
+    %% LLM Processing
+    VS --> LLM{🤖 LLM Selection}
+    LLM -->|Local| OLL[🦙 Ollama<br/>Mistral]
+    LLM -->|Remote| OR[☁️ OpenRouter<br/>DeepSeek]
+    
+    %% Document Processing
+    DOC[📄 Document Upload] --> SEC[🔒 Security Check]
+    SEC --> PROC[⚙️ Document Processor]
+    PROC --> NEO
+    
+    %% Response Generation
+    OLL --> RG[📝 Response Generator]
+    OR --> RG
+    RG --> TM[🎯 Threat Model]
+    TM --> UI
+    
+    %% Styling
+    classDef database fill:#e1f5fe
+    classDef llm fill:#f3e5f5
+    classDef security fill:#ffebee
+    classDef processing fill:#e8f5e8
+    
+    class NEO database
+    class OLL,OR,LLM llm
+    class SEC security
+    class QP,VS,PROC,RG processing
 ```
 
 ### Sistema de Cache Inteligente
