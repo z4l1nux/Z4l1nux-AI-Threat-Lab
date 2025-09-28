@@ -4,12 +4,12 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 
 ## ✨ Novas Funcionalidades Implementadas
 
-### 🚀 **LanceDB - Base de Dados Vetorial Moderna**
-- **Performance Superior**: Busca vetorial otimizada com índices nativos
-- **Escalabilidade**: Suporta milhões de vetores com eficiência
+### 🚀 **Neo4j - Base de Dados de Grafos com Suporte Vetorial**
+- **Performance Superior**: Busca vetorial e de grafos otimizada
+- **Escalabilidade**: Suporta milhões de nós e relacionamentos
 - **Persistência Robusta**: Base de dados ACID com backup automático
-- **Flexibilidade**: Suporte a múltiplos tipos de dados e metadados
-- **Integração Nativa**: Compatível com LangChain e outros frameworks
+- **Flexibilidade**: Suporte a vetores, grafos e metadados complexos
+- **Integração Nativa**: Compatível com LangChain e frameworks modernos
 
 ### 🔄 **Processamento Incremental**
 - Detecta automaticamente documentos novos, modificados ou removidos
@@ -23,9 +23,9 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 - Rastreamento de data de modificação e processamento
 - Versionamento automático do cache
 
-### 💾 **Cache Inteligente com LanceDB**
-- Armazenamento persistente de embeddings no LanceDB
-- Cache por arquivo com metadados flexíveis
+### 💾 **Cache Inteligente com Neo4j**
+- Armazenamento persistente de embeddings no Neo4j
+- Cache por documento com metadados flexíveis
 - Estatísticas detalhadas de uso
 - Limpeza seletiva de cache
 - Backup automático e recuperação
@@ -33,7 +33,7 @@ Este projeto implementa um sistema de Retrieval-Augmented Generation (RAG) em Ty
 ### 🔍 **Busca Semântica Otimizada**
 - Similaridade por cosseno implementada
 - Filtros de qualidade de resultados
-- Busca otimizada com índices nativos do LanceDB
+- Busca otimizada com índices vetoriais do Neo4j
 - Performance 10-100x superior ao sistema anterior
 
 ## 🧭 Arquitetura RAG
@@ -94,7 +94,7 @@ O sistema implementa um cache inteligente que resolve os seguintes problemas:
 - ❌ Sem otimização de performance
 
 **Soluções Implementadas:**
-- ✅ Cache inteligente com LanceDB
+- ✅ Cache inteligente com Neo4j
 - ✅ Processamento incremental de documentos
 - ✅ Busca semântica otimizada
 - ✅ Redução significativa de tokens e tempo
@@ -103,7 +103,7 @@ O sistema implementa um cache inteligente que resolve os seguintes problemas:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Documentos    │───▶│  LanceDB Cache   │───▶│  Busca Semântica│
+│   Documentos    │───▶│  Neo4j Cache     │───▶│  Busca Semântica│
 │   (JSON/PDF)    │    │   (Embeddings)   │    │   (Similarity)  │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
                                 │
@@ -118,7 +118,7 @@ O sistema implementa um cache inteligente que resolve os seguintes problemas:
 
 1. **Ingestão**: Documentos são processados e divididos em chunks
 2. **Embedding**: Cada chunk gera embedding vetorial
-3. **Cache**: Embeddings são armazenados no LanceDB
+3. **Cache**: Embeddings são armazenados no Neo4j
 4. **Busca**: Consultas são convertidas em embeddings e buscadas por similaridade
 5. **Cache de Query**: Embeddings de consultas são cacheados
 
@@ -156,7 +156,7 @@ EMBEDDING_MODEL=nomic-embed-text:latest
 OPENROUTER_API_KEY=sua_chave_openrouter_aqui
 MODEL_OPENROUTER=deepseek/deepseek-r1:free
 
-# Configurações do Neo4j (para busca híbrida)
+# Configurações do Neo4j
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
@@ -168,8 +168,8 @@ PORT=3000
 RESPONSE_CACHE_TTL_MS=300000
 RETRIEVAL_CACHE_TTL_MS=300000
 
-# Modo de busca (hibrida, lancedb, neo4j)
-SEARCH_MODE=hibrida
+# Modo de busca (neo4j)
+SEARCH_MODE=neo4j
 ```
 
 ## ⚙️ Configuração do Ollama
@@ -192,7 +192,7 @@ ollama serve
 
 ## 🗄️ Configuração do Neo4j (Opcional)
 
-Para usar busca híbrida (vetorial + grafos), configure o Neo4j:
+Para usar busca vetorial e de grafos, configure o Neo4j:
 
 ### Docker Compose (Recomendado)
 
@@ -217,12 +217,12 @@ Após iniciar o container, acesse:
 
 1. Crie uma pasta chamada `base/` no diretório raiz do projeto
 2. Coloque seus arquivos nesta pasta (PDF, XML, JSON, CSV)
-3. Execute o gerenciador de cache LanceDB:
+3. Execute o gerenciador de cache Neo4j:
 ```bash
-npm run create-lancedb
+npm run create-neo4j
 ```
 
-**Nota**: O sistema agora usa LanceDB por padrão, que oferece performance muito superior ao sistema anterior.
+**Nota**: O sistema agora usa Neo4j por padrão, que oferece performance muito superior ao sistema anterior.
 
 ### 📁 Tipos de Arquivo Suportados
 
@@ -257,15 +257,15 @@ npm run test-loaders
 # Testar o sistema RAG completo
 npm run test-rag
 
-# Testar especificamente o LanceDB
-npm run test-lancedb
+# Testar especificamente o Neo4j
+npm run test-neo4j
 ```
 
 ### Gerenciador de Cache Interativo
 
-Execute o gerenciador de cache LanceDB:
+Execute o gerenciador de cache Neo4j:
 ```bash
-npm run create-lancedb
+npm run create-neo4j
 ```
 
 **Opções disponíveis:**
@@ -318,13 +318,13 @@ npm run dev
    - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama
    - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter
 
-**Nota**: O sistema agora usa LanceDB por padrão para busca semântica, oferecendo performance muito superior.
+**Nota**: O sistema agora usa Neo4j por padrão para busca semântica, oferecendo performance muito superior.
 
 ## 📈 Vantagens do Novo Sistema
 
 ### ⚡ **Performance**
 - Processamento incremental reduz tempo de atualização
-- LanceDB oferece busca vetorial otimizada com índices nativos
+- Neo4j oferece busca vetorial otimizada com índices nativos
 - Performance 10-100x superior ao sistema anterior
 - Cache local elimina dependências externas
 - Busca otimizada com filtros de qualidade
@@ -332,7 +332,7 @@ npm run dev
 ### 🔒 **Confiabilidade**
 - Controle de versão previne inconsistências
 - Hash MD5 garante integridade dos dados
-- LanceDB oferece backup automático e recuperação
+- Neo4j oferece backup automático e recuperação
 - Base de dados ACID garante consistência
 
 ### 📊 **Monitoramento**
@@ -344,8 +344,8 @@ npm run dev
 - Código modular e bem estruturado
 - Separação clara de responsabilidades
 - Fácil extensão de funcionalidades
-- LanceDB oferece APIs modernas e bem documentadas
-- Suporte a múltiplos backends (LanceDB, JSON, otimizado)
+- Neo4j oferece APIs modernas e bem documentadas
+- Suporte a múltiplos backends (Neo4j, JSON, otimizado)
 
 ## 🏗️ Arquitetura do Sistema
 
@@ -355,24 +355,23 @@ npm run dev
 src/
 ├── core/                    # 🧠 Lógica principal do sistema
 │   ├── cache/              # 💾 Gerenciadores de cache
-│   │   └── LanceDBCacheManager.ts    # Cache LanceDB
+│   │   └── Neo4jCacheManager.ts      # Cache Neo4j
 │   ├── search/             # 🔍 Implementações de busca
 │   │   ├── SearchFactory.ts          # Factory para múltiplos backends
 │   │   ├── SemanticSearch.ts         # Busca tradicional
 │   │   ├── OptimizedSemanticSearch.ts # Busca otimizada
-│   │   └── LanceDBSemanticSearch.ts  # Busca LanceDB
+│   │   └── Neo4jSemanticSearch.ts    # Busca Neo4j
 │   ├── graph/              # 🕸️ Integração com Neo4j
 │   │   ├── Neo4jClient.ts            # Cliente Neo4j
 │   │   └── Neo4jSyncService.ts       # Sincronização com grafos
 │   └── types.ts            # 📝 Tipos principais do sistema
 ├── cli/                    # 💻 Interfaces de linha de comando
 │   ├── main.ts             # Interface principal CLI
-│   ├── criarLanceDB.ts     # Gerenciador LanceDB
+│   ├── criarNeo4j.ts       # Gerenciador Neo4j
 │   ├── reprocessNonInteractive.ts   # Reprocessamento automático
 │   └── managers/           # 🛠️ Gerenciadores específicos
 │       ├── criarNeo4j.ts   # Gerenciador Neo4j
-│       ├── buscaHibrida.ts # Busca híbrida
-│       └── buscaNeo4j.ts   # Busca apenas Neo4j
+│       └── buscaNeo4j.ts   # Busca Neo4j
 ├── web/                    # 🌐 Interface web
 │   └── server.ts           # Servidor web Express
 ├── utils/                  # 🔧 Utilitários gerais
@@ -381,7 +380,7 @@ src/
 │   ├── ProgressTracker.ts  # Rastreador de progresso
 │   └── PromptTemplates.ts  # Templates de prompts
 └── test/                   # 🧪 Testes
-    ├── testLanceDB.ts      # Testes específicos LanceDB
+    ├── testNeo4j.ts        # Testes específicos Neo4j
     ├── testRAG.ts          # Testes do sistema RAG
     ├── testLoaders.ts      # Testes dos loaders
     ├── testPerformance.ts  # Testes de performance
@@ -427,9 +426,7 @@ maxResults: 8
 - **Embeddings**: Não suportado (use Ollama)
 
 ### Modos de Busca
-- **`hibrida`**: Combina LanceDB + Neo4j (recomendado)
-- **`lancedb`**: Apenas busca vetorial
-- **`neo4j`**: Apenas busca em grafos
+- **`neo4j`**: Busca vetorial e de grafos (recomendado)
 
 ## 🚀 Comandos Disponíveis
 
@@ -447,11 +444,11 @@ npm run build
 
 ### Gerenciamento de Cache
 ```bash
-# Cache LanceDB (recomendado)
-npm run create-lancedb
+# Cache Neo4j (recomendado)
+npm run create-neo4j
 
 # Reprocessamento automático
-npm run reprocess-lancedb
+npm run reprocess-neo4j
 
 # Sincronização com Neo4j
 npm run sync-neo4j
@@ -459,17 +456,14 @@ npm run sync-neo4j
 
 ### Busca Especializada
 ```bash
-# Busca híbrida (LanceDB + Neo4j)
-npm run search-hybrid
-
-# Busca apenas Neo4j
+# Busca Neo4j
 npm run search-neo4j
 ```
 
 ### Testes
 ```bash
 # Testes específicos
-npm run test-lancedb
+npm run test-neo4j
 npm run test-rag
 npm run test-loaders
 npm run test-performance
@@ -483,7 +477,7 @@ npm run test-formatted
 - **Escalabilidade**: Suporte a milhões de documentos
 - **Confiabilidade**: Backup automático e recuperação
 - **Flexibilidade**: Metadados mais ricos e consultas avançadas
-- **Busca Híbrida**: Combina busca vetorial com grafos de conhecimento
+- **Busca Neo4j**: Combina busca vetorial com grafos de conhecimento
 
 ## 🐛 Solução de Problemas
 
@@ -494,10 +488,10 @@ cp .env.example .env
 # Edite o arquivo .env e adicione sua chave OpenRouter
 ```
 
-### Erro: "Banco de dados LanceDB não encontrado"
+### Erro: "Banco de dados Neo4j não encontrado"
 ```bash
-# Execute o gerenciador de cache LanceDB
-npm run create-lancedb
+# Execute o gerenciador de cache Neo4j
+npm run create-neo4j
 ```
 
 ### Erro: "Ollama não está rodando"
@@ -537,8 +531,8 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 ## 🙏 Agradecimentos
 
 - LangChain para o framework RAG
-- LanceDB para a base de dados vetorial moderna
-- Neo4j para busca híbrida com grafos
+- Neo4j para a base de dados vetorial e de grafos moderna
+- Neo4j para busca vetorial e de grafos
 - Ollama para modelos locais
 - OpenRouter para modelos remotos
 - Comunidade open source 
