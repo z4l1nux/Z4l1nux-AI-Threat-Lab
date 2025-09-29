@@ -8,6 +8,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { ChatOpenAI } from "@langchain/openai";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { Neo4jOnlySearchFactory } from "../core/search/Neo4jOnlySearchFactory";
+import { Neo4jClient } from "../core/graph/Neo4jClient";
 import { PromptTemplates } from "../utils/PromptTemplates";
 import { SecureDocumentProcessor, SecureUploadFile } from '../utils/SecureDocumentProcessor';
 import { ThreatModelingService, ThreatModelingRequest } from '../utils/ThreatModelingService';
@@ -57,6 +58,73 @@ const upload = multer({
 });
 
 // Endpoint para buscar modelos disponíveis
+// Endpoint para verificar status da base de conhecimento
+app.get('/api/knowledge-base-status', async (req, res) => {
+  try {
+    if (!semanticSearch) {
+      return res.json({
+        status: 'not_initialized',
+        message: 'Sistema ainda não foi inicializado'
+      });
+    }
+
+    const cacheValido = await semanticSearch.verificarCache();
+    if (!cacheValido) {
+      return res.json({
+        status: 'empty',
+        message: 'Base de conhecimento vazia. Faça upload de documentos primeiro.',
+        documents: 0,
+        chunks: 0
+      });
+    }
+
+    // Buscar estatísticas da base
+    const session = Neo4jClient.getSession();
+    try {
+      const docResult = await session.run("MATCH (d:Document) RETURN count(d) AS docCount");
+      const chunkResult = await session.run("MATCH (c:Chunk) RETURN count(c) AS chunkCount");
+      
+      const docCount = docResult.records[0]?.get("docCount").toInt?.() ?? docResult.records[0]?.get("docCount") ?? 0;
+      const chunkCount = chunkResult.records[0]?.get("chunkCount").toInt?.() ?? chunkResult.records[0]?.get("chunkCount") ?? 0;
+
+      // Verificar se há conteúdo CAPEC-STRIDE
+      const capecResult = await session.run(`
+        MATCH (c:Chunk) 
+        WHERE toLower(c.content) CONTAINS 'capec' 
+        RETURN count(c) AS capecChunks
+      `);
+      const capecChunks = capecResult.records[0]?.get("capecChunks").toInt?.() ?? capecResult.records[0]?.get("capecChunks") ?? 0;
+
+      const strideResult = await session.run(`
+        MATCH (c:Chunk) 
+        WHERE toLower(c.content) CONTAINS 'stride' 
+        RETURN count(c) AS strideChunks
+      `);
+      const strideChunks = strideResult.records[0]?.get("strideChunks").toInt?.() ?? strideResult.records[0]?.get("strideChunks") ?? 0;
+
+      return res.json({
+        status: 'ready',
+        message: 'Base de conhecimento carregada e pronta',
+        documents: docCount,
+        chunks: chunkCount,
+        capecChunks: capecChunks,
+        strideChunks: strideChunks,
+        hasCAPEC: capecChunks > 0,
+        hasSTRIDE: strideChunks > 0
+      });
+    } finally {
+      await session.close();
+    }
+
+  } catch (error: any) {
+    console.error('Erro ao verificar base de conhecimento:', error);
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
 app.get('/api/models', (req, res) => {
   try {
     const models = {
@@ -387,22 +455,64 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
     logs.push("📁 Carregando banco de dados...");
     logs.push("🔍 Buscando resultados relevantes...");
     
-    // Buscar contexto relevante para threat modeling
-    const query = `${request.systemName} ${request.systemType} ${request.description} threat modeling security vulnerabilities`;
-    const resultados = await semanticSearch.buscar(query, 8);
+           // Buscar contexto relevante para threat modeling - query mais abrangente
+           let query = `threat modeling security vulnerabilities CAPEC STRIDE attack patterns ${request.systemType} ${request.systemName} ${request.description}`;
+           let resultados = await semanticSearch.buscar(query, 8);
+           
+           // Se não encontrou resultados específicos do sistema, tentar busca mais específica
+           if (resultados.length === 0 || resultados[0].score < 0.7) {
+             logs.push("🔍 Tentando busca específica para o sistema...");
+             query = `${request.systemName} ${request.description} farmácia medicamentos prescrições ANVISA`;
+             resultados = await semanticSearch.buscar(query, 6);
+           }
+    
+    // Se não encontrou resultados, tentar busca mais específica para CAPEC-STRIDE
+    if (resultados.length === 0) {
+      logs.push("🔍 Tentando busca específica para CAPEC-STRIDE...");
+      query = `CAPEC STRIDE spoofing tampering repudiation information disclosure denial service elevation privilege`;
+      resultados = await semanticSearch.buscar(query, 8);
+    }
+    
+    // Se ainda não encontrou, tentar busca mais genérica
+    if (resultados.length === 0) {
+      logs.push("🔍 Tentando busca genérica de segurança...");
+      query = `security attack vulnerability threat risk`;
+      resultados = await semanticSearch.buscar(query, 8);
+    }
     
     if (resultados.length === 0) {
       throw new Error("Não conseguiu encontrar informações relevantes para threat modeling na base");
     }
     
-    logs.push(`✅ Encontrados ${resultados.length} resultados relevantes`);
-    resultados.forEach((resultado: any, index: number) => {
-      logs.push(`${index + 1}. Score: ${resultado.score.toFixed(3)}`);
-    });
+           logs.push(`✅ Encontrados ${resultados.length} resultados relevantes`);
+           logs.push(`🔍 Query usada: "${query}"`);
+           resultados.forEach((resultado: any, index: number) => {
+             logs.push(`${index + 1}. Score: ${resultado.score.toFixed(3)} - ${resultado.documento.metadata?.source || 'Fonte desconhecida'}`);
+             // Log do conteúdo para debug
+             const content = resultado.documento.pageContent.substring(0, 150);
+             logs.push(`   📄 Conteúdo: "${content}..."`);
+             
+             // Verificar se contém informações do sistema específico
+             const hasSystemInfo = content.toLowerCase().includes(request.systemName.toLowerCase()) || 
+                                  content.toLowerCase().includes('farmácia') || 
+                                  content.toLowerCase().includes('medicamentos');
+             logs.push(`   🎯 Contém info do sistema: ${hasSystemInfo ? '✅ Sim' : '❌ Não'}`);
+           });
 
     const textosResultado: string[] = [];
     for (const r of resultados) textosResultado.push(r.documento.pageContent);
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
+    
+    // Verificar se há conteúdo CAPEC-STRIDE na base de conhecimento
+    const temCAPEC = baseConhecimento.toLowerCase().includes('capec');
+    const temSTRIDE = baseConhecimento.toLowerCase().includes('stride');
+    const temThreatModeling = baseConhecimento.toLowerCase().includes('threat') || baseConhecimento.toLowerCase().includes('ameaça');
+    
+    logs.push(`🔍 Verificação da Base de Conhecimento:`);
+    logs.push(`   📋 CAPEC encontrado: ${temCAPEC ? '✅ Sim' : '❌ Não'}`);
+    logs.push(`   🎯 STRIDE encontrado: ${temSTRIDE ? '✅ Sim' : '❌ Não'}`);
+    logs.push(`   🛡️ Threat Modeling encontrado: ${temThreatModeling ? '✅ Sim' : '❌ Não'}`);
+    logs.push(`   📊 Tamanho da base: ${baseConhecimento.length} caracteres`);
     
     // Gerar prompt usando o serviço dedicado
     let textoPrompt = ThreatModelingService.generateThreatModelingPrompt(request, baseConhecimento);
@@ -577,10 +687,10 @@ app.post('/api/threat-modeling', async (req, res) => {
   try {
     const { systemName, systemType, sensitivity, description, assets, modelo } = req.body;
     
-    if (!systemName || !systemType || !sensitivity || !description || !assets || !modelo) {
+    if (!systemName || !systemType || !sensitivity || !description || !modelo) {
       return res.status(400).json({
         success: false,
-        error: 'Todos os campos são obrigatórios'
+        error: 'Campos obrigatórios: systemName, systemType, sensitivity, description, modelo'
       });
     }
     

@@ -66,34 +66,39 @@ export class ThreatModelingService {
     request: ThreatModelingRequest,
     baseConhecimento: string
   ): string {
-    // Usar linguagem mais técnica e educacional
-    return `ANÁLISE TÉCNICA DE SEGURANÇA - AVALIAÇÃO DE RISCOS
+    return `Você é um especialista em threat modeling. Analise o sistema e gere cenários de risco em formato JSON.
 
-Contexto: Análise de segurança cibernética para documentação técnica.
+SISTEMA:
+- Nome: ${request.systemName}
+- Tipo: ${request.systemType}
+- Sensibilidade: ${request.sensitivity}
+- Descrição: ${request.description}
+- Ativos: ${request.assets}
 
-SISTEMA ANALISADO:
-Nome: ${request.systemName}
-Tipo: ${request.systemType}
-Nível de Sensibilidade: ${request.sensitivity}
-Descrição Técnica: ${request.description}
-Ativos Principais: ${request.assets}
-
-METODOLOGIA STRIDE (Standard Industry Framework):
-- S (Spoofing): Riscos de falsificação de identidade
-- T (Tampering): Riscos de alteração não autorizada
-- R (Repudiation): Riscos de negação de transações
-- I (Information Disclosure): Riscos de exposição de dados
-- D (Denial of Service): Riscos de indisponibilidade
-- E (Elevation of Privilege): Riscos de escalação de privilégios
-
-TAREFA TÉCNICA:
-Identifique 4-6 cenários de risco de segurança específicos para este sistema.
-Para cada cenário, forneça análise estruturada conforme padrão da indústria.
-
-BASE DE CONHECIMENTO TÉCNICO:
+BASE DE CONHECIMENTO:
 ${baseConhecimento}
 
-IMPORTANTE: Responda APENAS com o objeto JSON estruturado, SEM texto adicional antes ou depois.`;
+INSTRUÇÕES OBRIGATÓRIAS:
+1. Identifique 4-6 cenários de risco específicos para este sistema
+2. Use a metodologia STRIDE (S, T, R, I, D, E)
+3. Para cada cenário, forneça CAPECs relevantes quando possível
+4. Retorne APENAS o JSON abaixo, sem texto adicional
+
+FORMATO OBRIGATÓRIO:
+\`\`\`json
+{
+  "cenarios_risco": [
+    {
+      "tipo_risco": "Spoofing",
+      "descritivo": "Descrição detalhada do cenário de risco",
+      "impacto": "Impacto específico no sistema",
+      "mitigacao": "Medidas de mitigação recomendadas"
+    }
+  ]
+}
+\`\`\`
+
+RESPOSTA (JSON obrigatório):`;
   }
 
   /**

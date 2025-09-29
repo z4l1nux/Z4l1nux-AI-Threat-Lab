@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThreatModelingRequest, SystemType, SensitivityLevel } from '@shared/types/threat-modeling';
+import { DocumentUpload } from './DocumentUpload';
+import { KnowledgeBaseStatus } from './KnowledgeBaseStatus';
 
 interface ThreatModelingFormProps {
   onSubmit: (request: ThreatModelingRequest) => void;
@@ -25,6 +27,7 @@ export const ThreatModelingForm: React.FC<ThreatModelingFormProps> = ({ onSubmit
   });
 
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([]);
 
   useEffect(() => {
     loadAvailableModels();
@@ -52,6 +55,10 @@ export const ThreatModelingForm: React.FC<ThreatModelingFormProps> = ({ onSubmit
     }));
   };
 
+  const handleDocumentsUploaded = (files: File[]) => {
+    setUploadedDocuments(files);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.systemName && formData.description) {
@@ -63,6 +70,13 @@ export const ThreatModelingForm: React.FC<ThreatModelingFormProps> = ({ onSubmit
 
   return (
     <div className="input-section">
+      <KnowledgeBaseStatus />
+      
+      <DocumentUpload 
+        onDocumentsUploaded={handleDocumentsUploaded}
+        isLoading={isLoading}
+      />
+      
       <form onSubmit={handleSubmit}>
         <div className="input-grid">
           <div className="input-group">
@@ -149,6 +163,13 @@ export const ThreatModelingForm: React.FC<ThreatModelingFormProps> = ({ onSubmit
             onChange={(e) => handleInputChange('assets', e.target.value)}
             placeholder="Liste os ativos principais do sistema (dados, funcionalidades, recursos, etc.)"
           />
+          {uploadedDocuments.length > 0 && (
+            <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+              <p style={{ color: '#86efac', fontSize: '14px', margin: '0' }}>
+                📄 {uploadedDocuments.length} documento(s) carregado(s) para contexto
+              </p>
+            </div>
+          )}
         </div>
 
         <button 

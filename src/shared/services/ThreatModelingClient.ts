@@ -116,6 +116,17 @@ export class ThreatModelingClient {
         };
       }
 
+      // Verificar formato com apenas resumo (formato incompleto)
+      if (parsedResponse.resumo && !parsedResponse.cenarios_risco && !parsedResponse.cenarios_de_risco) {
+        console.log('⚠️ Formato incompleto detectado (apenas resumo), usando fallback');
+        return {
+          success: false,
+          threats: this.getMockThreatsForSystem(systemType),
+          source: 'mock',
+          confidence: 0
+        };
+      }
+
       // Fallback para mock
       return {
         success: false,
