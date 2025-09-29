@@ -421,15 +421,6 @@ ollama pull mistral
 ollama pull nomic-embed-text
 ```
 
-## 📝 Logs e Debugging
-
-O sistema gera logs detalhados para facilitar o debugging:
-
-- **🔄 Processamento**: Status de cada etapa
-- **📊 Estatísticas**: Métricas de performance
-- **⚠️ Avisos**: Problemas não críticos
-- **❌ Erros**: Falhas que precisam atenção
-
 ## 🤝 Contribuição
 
 1. Fork o projeto
