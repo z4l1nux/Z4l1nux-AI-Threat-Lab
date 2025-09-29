@@ -339,16 +339,6 @@ scoreThreshold: 0.1
 maxResults: 8
 ```
 
-### Modelos Disponíveis
-
-#### Ollama (Local)
-- **Chat**: mistral, llama2, codellama, etc.
-- **Embeddings**: nomic-embed-text:latest
-
-#### OpenRouter (Remoto)
-- **Chat**: deepseek/deepseek-r1:free, anthropic/claude-3-haiku, etc.
-- **Embeddings**: Não suportado (use Ollama)
-
 ### Modos de Busca
 - **`neo4j`**: Busca vetorial e de grafos (recomendado)
 
