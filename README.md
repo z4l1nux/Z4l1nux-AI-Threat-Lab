@@ -99,21 +99,6 @@ O sistema implementa um cache inteligente que resolve os seguintes problemas:
 - ✅ Busca semântica otimizada
 - ✅ Redução significativa de tokens e tempo
 
-### Componentes Principais
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Documentos    │───▶│  Neo4j Cache     │───▶│  Busca Semântica│
-│   (JSON/PDF)    │    │   (Embeddings)   │    │   (Similarity)  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   Query Cache    │
-                       │  (Embeddings)    │
-                       └──────────────────┘
-```
-
 ### Fluxo de Processamento
 
 1. **Ingestão**: Documentos são processados e divididos em chunks
@@ -127,7 +112,7 @@ O sistema implementa um cache inteligente que resolve os seguintes problemas:
 - Node.js (versão 18 ou superior)
 - npm ou yarn
 - Ollama (para uso local)
-- Docker (para Neo4j - opcional)
+- Docker (para Neo4j)
 
 ## 📦 Instalação
 
