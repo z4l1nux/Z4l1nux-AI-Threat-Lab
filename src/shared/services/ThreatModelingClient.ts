@@ -144,12 +144,17 @@ export class ThreatModelingClient {
     cenarios.forEach((cenario, index) => {
       try {
         // Extrair informações do cenário - Suporte a múltiplos formatos
-        const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario['Cenário de Risco'] || '';
+        const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario.nome || cenario['Cenário de Risco'] || '';
         const descritivo = cenario.descritivo || cenario.descricao || cenario.resumo || cenario['Descrição'] || '';
         const impacto = cenario.impacto || cenario['Impacto'] || '';
-        const mitigacao = Array.isArray(cenario.mitigacao) 
+        let mitigacao = Array.isArray(cenario.mitigacao) 
           ? cenario.mitigacao.join('; ') 
-          : cenario.mitigacao || cenario['Mitigação'] || '';
+          : cenario.mitigacao || cenario.mitigação || cenario['Mitigação'] || '';
+        
+        // Se mitigação estiver vazia, gerar uma baseada no tipo de ameaça
+        if (!mitigacao || mitigacao.trim() === '') {
+          mitigacao = this.generateMitigationByStride(strideCategories, descritivo);
+        }
         
         // Determinar categorias STRIDE
         const strideCategories = this.determineStrideCategories(tipoRisco + ' ' + descritivo);
@@ -241,6 +246,53 @@ export class ThreatModelingClient {
     }
     
     return detectedCategories.length > 0 ? detectedCategories : ['T'];
+  }
+
+  /**
+   * Gera mitigação baseada no tipo STRIDE quando não fornecida pela IA
+   */
+  private generateMitigationByStride(strideCategories: StrideCategory[], descritivo: string): string {
+    const mitigations: string[] = [];
+    
+    // Mitigações específicas por STRIDE
+    if (strideCategories.includes('S')) {
+      mitigations.push('Implementar autenticação multifator (MFA)');
+      mitigations.push('Validação rigorosa de identidades');
+      mitigations.push('Monitoramento de tentativas de login suspeitas');
+    }
+    if (strideCategories.includes('T')) {
+      mitigations.push('Criptografia em trânsito e repouso');
+      mitigations.push('Assinaturas digitais para integridade');
+      mitigations.push('Validação de integridade de dados');
+    }
+    if (strideCategories.includes('R')) {
+      mitigations.push('Logs auditáveis com assinatura digital');
+      mitigations.push('Sistema de auditoria contínua');
+      mitigations.push('Integração com blockchain para imutabilidade');
+    }
+    if (strideCategories.includes('I')) {
+      mitigations.push('Controle de acesso baseado em roles (RBAC)');
+      mitigations.push('Criptografia de dados sensíveis');
+      mitigations.push('Monitoramento de acessos não autorizados');
+    }
+    if (strideCategories.includes('D')) {
+      mitigations.push('Sistemas de proteção DDoS');
+      mitigations.push('Rate limiting e throttling');
+      mitigations.push('Monitoramento de disponibilidade');
+    }
+    if (strideCategories.includes('E')) {
+      mitigations.push('Princípio do menor privilégio');
+      mitigations.push('Revisão periódica de permissões');
+      mitigations.push('Auditoria de escalação de privilégios');
+    }
+    
+    // Mitigações gerais baseadas no contexto
+    if (descritivo.toLowerCase().includes('financeiro') || descritivo.toLowerCase().includes('banco')) {
+      mitigations.push('Compliance com regulamentações bancárias');
+      mitigations.push('Monitoramento de transações suspeitas');
+    }
+    
+    return mitigations.length > 0 ? mitigations.join('; ') : 'Implementar controles de segurança apropriados';
   }
 
   /**
