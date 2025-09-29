@@ -207,42 +207,61 @@ class ThreatModelingClient {
     
     cenarios.forEach((cenario, index) => {
       try {
-        // Extrair informações do cenário
-        const cenarioText = cenario.cenario || '';
-        const resumo = cenario.resumo || '';
+        // Extrair informações do cenário - CORRIGIDO para usar os campos corretos da resposta da IA
+        const tipoRisco = cenario.tipo_risco || '';
+        const descritivo = cenario.descritivo || '';
         const impacto = cenario.impacto || '';
         const mitigacao = Array.isArray(cenario.mitigacao) 
           ? cenario.mitigacao.join('; ') 
           : cenario.mitigacao || '';
         
-        // Determinar categorias STRIDE baseadas no nome do cenário
-        const strideCategories = this.determineStrideCategories(cenarioText + ' ' + resumo);
+        // Determinar categorias STRIDE baseadas no tipo de risco e descritivo
+        const strideCategories = this.determineStrideCategories(tipoRisco + ' ' + descritivo);
         
-        // Extrair nome da ameaça do cenário
-        let ameaca = cenarioText;
+        // Extrair nome da ameaça do tipo_risco
+        let ameaca = tipoRisco;
         if (ameaca.includes('(') && ameaca.includes(')')) {
           // Remover categorias STRIDE do nome (ex: "Spoofing (S)" -> "Spoofing")
           ameaca = ameaca.replace(/\s*\([^)]+\)\s*$/, '').trim();
         }
         
         // Determinar categoria baseada no conteúdo
-        const categoria = this.extractCategory(resumo + ' ' + impacto);
+        const categoria = this.extractCategory(descritivo + ' ' + impacto);
         
-        // Determinar severidade baseada no impacto
+        // Determinar severidade baseada no impacto - MELHORADO
         let severidade = 'Média';
-        if (impacto.toLowerCase().includes('crítica') || impacto.toLowerCase().includes('critical')) {
+        const impactoLower = impacto.toLowerCase();
+        
+        // Severidade Crítica - palavras-chave de alto impacto
+        if (impactoLower.includes('crítica') || impactoLower.includes('critical') ||
+            impactoLower.includes('fraude financeira') || impactoLower.includes('financial fraud') ||
+            impactoLower.includes('comprometimento total') || impactoLower.includes('total compromise') ||
+            impactoLower.includes('perda total') || impactoLower.includes('total loss')) {
           severidade = 'Crítica';
-        } else if (impacto.toLowerCase().includes('alta') || impacto.toLowerCase().includes('high')) {
+        }
+        // Severidade Alta - palavras-chave de impacto significativo
+        else if (impactoLower.includes('alta') || impactoLower.includes('high') ||
+                 impactoLower.includes('perda de dados') || impactoLower.includes('data loss') ||
+                 impactoLower.includes('violação de privacidade') || impactoLower.includes('privacy violation') ||
+                 impactoLower.includes('vazamento de dados') || impactoLower.includes('data breach') ||
+                 impactoLower.includes('acesso não autorizado') || impactoLower.includes('unauthorized access') ||
+                 impactoLower.includes('perda de negócios') || impactoLower.includes('business loss') ||
+                 impactoLower.includes('compliance') || impactoLower.includes('regulatório')) {
           severidade = 'Alta';
-        } else if (impacto.toLowerCase().includes('baixa') || impacto.toLowerCase().includes('low')) {
+        }
+        // Severidade Baixa - palavras-chave de baixo impacto
+        else if (impactoLower.includes('baixa') || impactoLower.includes('low') ||
+                 impactoLower.includes('menor') || impactoLower.includes('minor') ||
+                 impactoLower.includes('inconveniente') || impactoLower.includes('inconvenience') ||
+                 impactoLower.includes('degradação') || impactoLower.includes('degradation')) {
           severidade = 'Baixa';
         }
         
         // Determinar probabilidade baseada no tipo de ameaça
         let probabilidade = 'Média';
-        if (cenarioText.toLowerCase().includes('injection') || cenarioText.toLowerCase().includes('xss')) {
+        if (tipoRisco.toLowerCase().includes('injection') || tipoRisco.toLowerCase().includes('xss')) {
           probabilidade = 'Alta';
-        } else if (cenarioText.toLowerCase().includes('spoofing') || cenarioText.toLowerCase().includes('dos')) {
+        } else if (tipoRisco.toLowerCase().includes('spoofing') || tipoRisco.toLowerCase().includes('dos')) {
           probabilidade = 'Alta';
         }
         
@@ -251,12 +270,12 @@ class ThreatModelingClient {
           stride: strideCategories,
           categoria: categoria,
           ameaca: ameaca,
-          descricao: resumo,
+          descricao: descritivo,  // CORRIGIDO: usar descritivo em vez de resumo
           impacto: impacto,
           probabilidade: probabilidade,
           severidade: severidade,
           mitigacao: mitigacao,
-          capec: this.extractCapec(resumo + ' ' + impacto),
+          capec: this.extractCapec(descritivo + ' ' + impacto),
           deteccao: 'Monitoramento baseado em logs e métricas de segurança'
         };
         
