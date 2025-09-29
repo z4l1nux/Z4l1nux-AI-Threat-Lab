@@ -10,9 +10,7 @@ interface KnowledgeBaseStatus {
   documents?: number;
   chunks?: number;
   capecChunks?: number;
-  strideChunks?: number;
   hasCAPEC?: boolean;
-  hasSTRIDE?: boolean;
 }
 
 export const KnowledgeBaseStatus: React.FC<KnowledgeBaseStatusProps> = ({ onStatusChange }) => {
@@ -145,13 +143,6 @@ export const KnowledgeBaseStatus: React.FC<KnowledgeBaseStatusProps> = ({ onStat
                   {status.capecChunks || 0}
                 </div>
                 <div style={{ fontSize: '12px', color: '#94a3b8' }}>CAPEC</div>
-              </div>
-
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: '600', color: status.hasSTRIDE ? '#22c55e' : '#ef4444' }}>
-                  {status.strideChunks || 0}
-                </div>
-                <div style={{ fontSize: '12px', color: '#94a3b8' }}>STRIDE</div>
               </div>
             </div>
           )}

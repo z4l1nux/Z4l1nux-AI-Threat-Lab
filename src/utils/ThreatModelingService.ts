@@ -78,27 +78,27 @@ SISTEMA:
 BASE DE CONHECIMENTO:
 ${baseConhecimento}
 
-INSTRUÇÕES OBRIGATÓRIAS:
-1. Identifique 4-6 cenários de risco específicos para este sistema
-2. Use a metodologia STRIDE (S, T, R, I, D, E)
-3. Para cada cenário, forneça CAPECs relevantes quando possível
-4. Retorne APENAS o JSON abaixo, sem texto adicional
+       INSTRUÇÕES OBRIGATÓRIAS:
+       1. Identifique 4-6 cenários de risco específicos para este sistema
+       2. Use a metodologia STRIDE (S, T, R, I, D, E)
+       3. Para cada cenário, forneça CAPECs relevantes quando possível
+       4. IMPORTANTE: Use aspas duplas para todas as strings JSON
+       5. IMPORTANTE: Escape aspas dentro das strings com \"
+       6. Retorne APENAS o JSON válido abaixo, sem texto adicional
 
-FORMATO OBRIGATÓRIO:
-\`\`\`json
-{
-  "cenarios_risco": [
-    {
-      "tipo_risco": "Spoofing",
-      "descritivo": "Descrição detalhada do cenário de risco",
-      "impacto": "Impacto específico no sistema",
-      "mitigacao": "Medidas de mitigação recomendadas"
-    }
-  ]
-}
-\`\`\`
+       FORMATO OBRIGATÓRIO (JSON válido):
+       {
+         "cenarios_risco": [
+           {
+             "tipo_risco": "Spoofing",
+             "descritivo": "Descrição detalhada do cenário de risco",
+             "impacto": "Impacto específico no sistema",
+             "mitigacao": "Medidas de mitigação recomendadas"
+           }
+         ]
+       }
 
-RESPOSTA (JSON obrigatório):`;
+       RESPOSTA (JSON válido obrigatório):`;
   }
 
   /**

@@ -95,22 +95,13 @@ app.get('/api/knowledge-base-status', async (req, res) => {
       `);
       const capecChunks = capecResult.records[0]?.get("capecChunks").toInt?.() ?? capecResult.records[0]?.get("capecChunks") ?? 0;
 
-      const strideResult = await session.run(`
-        MATCH (c:Chunk) 
-        WHERE toLower(c.content) CONTAINS 'stride' 
-        RETURN count(c) AS strideChunks
-      `);
-      const strideChunks = strideResult.records[0]?.get("strideChunks").toInt?.() ?? strideResult.records[0]?.get("strideChunks") ?? 0;
-
       return res.json({
         status: 'ready',
         message: 'Base de conhecimento carregada e pronta',
         documents: docCount,
         chunks: chunkCount,
         capecChunks: capecChunks,
-        strideChunks: strideChunks,
-        hasCAPEC: capecChunks > 0,
-        hasSTRIDE: strideChunks > 0
+        hasCAPEC: capecChunks > 0
       });
     } finally {
       await session.close();
@@ -503,14 +494,12 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
     for (const r of resultados) textosResultado.push(r.documento.pageContent);
     const baseConhecimento = textosResultado.join("\n\n----\n\n");
     
-    // Verificar se há conteúdo CAPEC-STRIDE na base de conhecimento
-    const temCAPEC = baseConhecimento.toLowerCase().includes('capec');
-    const temSTRIDE = baseConhecimento.toLowerCase().includes('stride');
-    const temThreatModeling = baseConhecimento.toLowerCase().includes('threat') || baseConhecimento.toLowerCase().includes('ameaça');
+           // Verificar se há conteúdo CAPEC na base de conhecimento
+           const temCAPEC = baseConhecimento.toLowerCase().includes('capec');
+           const temThreatModeling = baseConhecimento.toLowerCase().includes('threat') || baseConhecimento.toLowerCase().includes('ameaça');
     
     logs.push(`🔍 Verificação da Base de Conhecimento:`);
     logs.push(`   📋 CAPEC encontrado: ${temCAPEC ? '✅ Sim' : '❌ Não'}`);
-    logs.push(`   🎯 STRIDE encontrado: ${temSTRIDE ? '✅ Sim' : '❌ Não'}`);
     logs.push(`   🛡️ Threat Modeling encontrado: ${temThreatModeling ? '✅ Sim' : '❌ Não'}`);
     logs.push(`   📊 Tamanho da base: ${baseConhecimento.length} caracteres`);
     
@@ -538,14 +527,12 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
           
           // Usar o método structured outputs do Ollama
           if ((modeloAI as any).invoke) {
-            resposta = await (modeloAI as any).invoke({
-              input: textoPrompt,
+            resposta = await (modeloAI as any).invoke(textoPrompt, {
               format: schema
             });
           } else {
             // Fallback para método antigo se structured outputs não estiver disponível
-            resposta = await (modeloAI as any).call({ 
-              input: textoPrompt,
+            resposta = await (modeloAI as any).call(textoPrompt, {
               format: schema
             });
           }

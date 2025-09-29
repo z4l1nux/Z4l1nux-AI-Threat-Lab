@@ -74,7 +74,23 @@ export class ThreatModelingClient {
         // Procurar JSON em blocos de código - suporte para array e objeto
         const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/i);
         if (jsonBlockMatch) {
-          parsedResponse = JSON.parse(jsonBlockMatch[1]);
+          try {
+            parsedResponse = JSON.parse(jsonBlockMatch[1]);
+          } catch (jsonError) {
+            console.log('⚠️ JSON malformado, tentando corrigir...');
+            // Tentar corrigir JSON malformado
+            let jsonText = jsonBlockMatch[1];
+            // Corrigir aspas não escapadas em strings
+            jsonText = jsonText.replace(/"([^"]*)"([^"]*)"([^"]*)":/g, '"$1$2$3":');
+            // Corrigir vírgulas extras
+            jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+            try {
+              parsedResponse = JSON.parse(jsonText);
+            } catch (finalError) {
+              console.log('❌ Não foi possível corrigir JSON:', finalError);
+              throw new Error('JSON malformado e não foi possível corrigir');
+            }
+          }
         } else {
           throw new Error('Não foi possível parsear a resposta da IA');
         }

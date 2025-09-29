@@ -223,19 +223,18 @@ Todos os loaders seguem o padrão LangChain e retornam documentos de segurança 
 
 ### **🚀 Execução em Desenvolvimento**
 
-#### **Linux/macOS:**
+#### **Scripts Automatizados:**
 ```bash
-./scripts/dev.sh
-```
+# Linux/macOS
+./scripts/setup.sh && npm run dev
 
-#### **Windows:**
-```powershell
+# Windows
 .\scripts\dev.ps1
 ```
 
 #### **Manual:**
 ```bash
-# Executar aplicação completa
+# Executar aplicação completa (backend + frontend)
 npm run dev
 ```
 
@@ -252,19 +251,14 @@ npm run dev
 
 **Nota:** Em desenvolvimento, use `http://localhost:3000` para acessar a aplicação. O Vite dev server (3001) é usado internamente para hot reload.
 
-### **🧪 Testes e Verificação do Threat Lab**
-
-Para testar os loaders de documentos de segurança e funcionalidades de análise de ameaças:
+### **🧪 Testes do Sistema**
 
 ```bash
-# Testar os loaders de XML, JSON e CSV para documentos de segurança
-npm run test-loaders
-
-# Testar o sistema RAG completo para análise de ameaças
+# Testar o sistema RAG completo
 npm run test-rag
 
-# Testar especificamente o Neo4j para threat modeling
-npm run test-neo4j
+# Testar os loaders de documentos
+npm run test-loaders
 ```
 
 ### Gerenciador de Cache Interativo do Threat Lab
@@ -295,34 +289,24 @@ npm run create-neo4j
    - Remove completamente o cache de dados de ameaças
    - Útil para resetar o sistema de análise
 
-### Interface Web do Threat Lab (Recomendado)
+### **🌐 Interface Web (Recomendado)**
 
-1. **Iniciar o servidor web do Threat Lab:**
-```bash
-npm run web
-```
-
-2. **Abrir no navegador:**
-```
-http://localhost:3000
-```
-
-3. **Usar a interface web para análise de ameaças:**
-   - Escolha entre Ollama (Qwen2.5-Coder:7b) ou OpenRouter (Llama-3.3-70b-Instruct)
-   - Digite sua pergunta sobre threat modeling ou vulnerabilidades
-   - Veja a resposta de análise de ameaças e logs em tempo real
-   - Visualize estatísticas dos resultados de segurança
-
-### Interface de Linha de Comando do Threat Lab
-
-1. **Executar o programa de análise de ameaças:**
+1. **Iniciar a aplicação:**
 ```bash
 npm run dev
 ```
 
-2. **Escolher o modelo para análise de threat modeling:**
-   - **1 - Ollama (Local)**: Usa o modelo Qwen2.5-Coder:7b local via Ollama para análise de segurança
-   - **2 - OpenRouter (Cloud)**: Usa o modelo Llama-3.3-70b-Instruct via OpenRouter para threat modeling
+2. **Acessar no navegador:**
+```
+http://localhost:3000
+```
+
+3. **Funcionalidades da interface:**
+   - Escolha entre Ollama (Qwen2.5-Coder:7b) ou OpenRouter (Llama-3.3-70b-Instruct)
+   - Upload de documentos para contexto
+   - Análise de threat modeling automatizada
+   - Visualização de relatórios com diagramas Mermaid
+   - Status da base de conhecimento em tempo real
 
 ## 🏗️ Arquitetura do Z4l1nux AI Threat Lab
 
@@ -331,122 +315,70 @@ npm run dev
 ```
 threat-model/
 ├── src/                    # 📁 Código fonte principal
-│   ├── core/              # 🧠 Lógica principal do sistema de análise de ameaças
-│   │   ├── cache/         # 💾 Gerenciadores de cache de dados de segurança
-│   │   │   └── Neo4jCacheManager.ts      # Cache Neo4j para threat modeling
-│   │   ├── search/        # 🔍 Implementações de busca semântica
-│   │   │   ├── Neo4jOnlySearchFactory.ts # Factory para busca Neo4j
-│   │   │   └── Neo4jSemanticSearch.ts    # Busca Neo4j para análise de ameaças
-│   │   ├── graph/         # 🕸️ Integração com Neo4j para grafos de ameaças
-│   │   │   ├── Neo4jClient.ts            # Cliente Neo4j para dados de segurança
-│   │   │   └── Neo4jSyncService.ts       # Sincronização com grafos de vulnerabilidades
-│   │   └── types.ts       # 📝 Tipos principais do sistema de threat modeling
-│   ├── cli/               # 💻 Interfaces de linha de comando
-│   │   ├── main.ts        # Interface principal CLI do Threat Lab
-│   │   ├── reprocessNonInteractive.ts   # Reprocessamento automático de ameaças
-│   │   └── managers/      # 🛠️ Gerenciadores específicos de análise
-│   │       ├── buscaNeo4j.ts            # Busca Neo4j para threat modeling
-│   │       └── criarNeo4j.ts            # Gerenciador Neo4j para dados de segurança
-│   ├── web/               # 🌐 Interface web do Threat Lab
-│   │   └── server.ts      # Servidor web Express para análise de ameaças
-│   ├── utils/             # 🔧 Utilitários gerais do sistema
-│   │   ├── fileUtils.ts   # Utilitários para arquivos de segurança
-│   │   ├── documentLoaders.ts  # Loaders para diferentes formatos de documentos
-│   │   ├── ProgressTracker.ts  # Rastreador de progresso de análises
-│   │   ├── PromptTemplates.ts  # Templates de prompts para threat modeling
-│   │   └── SecureDocumentProcessor.ts   # Processador seguro de documentos
-│   └── test/              # 🧪 Testes do sistema de análise de ameaças
-│       ├── testCAPECSearch.ts           # Testes de busca CAPEC
-│       ├── testFormattedResponse.ts     # Testes de resposta formatada
-│       ├── testLoaders.ts               # Testes dos loaders de documentos
-│       ├── testPerformance.ts           # Testes de performance do sistema
-│       └── testRAG.ts                   # Testes do sistema RAG completo
-├── dist/                  # 📦 Arquivos compilados (TypeScript → JavaScript)
-├── docs/                  # 📚 Documentação do Threat Lab
-│   └── images/            # 🖼️ Imagens e diagramas de arquitetura
-├── public/                # 🌐 Arquivos públicos da interface web
-├── docker-compose.yml     # 🐳 Configuração Docker para Neo4j
-├── package.json           # 📋 Dependências e scripts do projeto
-├── tsconfig.json          # ⚙️ Configuração TypeScript
-└── README.md              # 📖 Documentação principal do Z4l1nux AI Threat Lab
+│   ├── client/            # 🌐 Frontend React + TypeScript
+│   │   ├── src/           # Componentes React
+│   │   └── package.json   # Dependências do frontend
+│   ├── core/              # 🧠 Lógica principal do sistema
+│   │   ├── cache/         # 💾 Gerenciadores de cache
+│   │   ├── search/        # 🔍 Busca semântica
+│   │   ├── graph/         # 🕸️ Integração Neo4j
+│   │   └── types.ts       # 📝 Tipos principais
+│   ├── shared/            # 🔄 Código compartilhado
+│   │   ├── services/      # Serviços compartilhados
+│   │   └── types/         # Tipos compartilhados
+│   ├── web/               # 🌐 Backend Express
+│   │   └── server.ts      # Servidor web
+│   ├── utils/             # 🔧 Utilitários
+│   └── test/              # 🧪 Testes
+├── public/                # 🌐 Arquivos públicos
+│   └── react/             # Build do frontend
+├── scripts/               # 📜 Scripts de automação
+├── docker-compose.yml     # 🐳 Configuração Docker
+├── package.json           # 📋 Dependências principais
+└── README.md              # 📖 Documentação
 ```
 
-### Princípios de Organização do Threat Lab
+### Princípios de Organização
 
-- **Separação de Responsabilidades**: Cada diretório tem uma função específica no sistema de análise de ameaças
-- **Padrão de Nomenclatura**: PascalCase para classes de threat modeling, camelCase para funções de análise
-- **Organização por Funcionalidade**: Arquivos relacionados à segurança ficam próximos
-- **Imports Organizados**: Relativos claros e intuitivos para componentes de análise de ameaças
-- **Modularidade de Segurança**: Componentes independentes para diferentes tipos de análise de vulnerabilidades
+- **Separação de Responsabilidades**: Frontend, backend e lógica de negócio separados
+- **Código Compartilhado**: Tipos e serviços compartilhados entre frontend e backend
+- **Modularidade**: Componentes independentes e reutilizáveis
+- **TypeScript**: Tipagem forte em todo o projeto
 
-## 🔧 Configurações Avançadas
-
-### Parâmetros de Chunking
-```typescript
-{
-  chunkSize: 2000,        // Tamanho do chunk em caracteres
-  chunkOverlap: 500,      // Sobreposição entre chunks
-  modelEmbedding: "nomic-embed-text:latest"  // Modelo de embedding
-}
-```
-
-### Filtros de Busca
-```typescript
-// Similaridade mínima para resultados
-scoreThreshold: 0.1
-
-// Número máximo de resultados
-maxResults: 8
-```
+## 🔧 Configurações
 
 ### Modos de Busca
 - **`neo4j`**: Busca vetorial e de grafos (recomendado)
 
-## 🚀 Comandos Disponíveis
+## 🚀 Comandos Principais
 
 ### Desenvolvimento
 ```bash
-# Interface CLI
+# Executar aplicação completa (backend + frontend)
 npm run dev
-
-# Aplicação Web (React + TypeScript)
-# Acesse: http://localhost:3000 (backend serve o React)
 
 # Build de produção
 npm run build
 
-# Ou usar scripts automatizados
-./scripts/build.sh        # Linux/macOS
-.\scripts\build.ps1       # Windows
+# Scripts automatizados
+./scripts/setup.sh        # Linux/macOS - Setup completo
+.\scripts\setup.ps1       # Windows - Setup completo
+.\scripts\dev.ps1         # Windows - Desenvolvimento
 ```
 
 ### Gerenciamento de Cache
 ```bash
-# Cache Neo4j (recomendado)
+# Gerenciador de cache Neo4j
 npm run create-neo4j
-
-# Reprocessamento automático
-npm run reprocess-neo4j
-
-# Sincronização com Neo4j
-npm run sync-neo4j
-```
-
-### Busca Especializada
-```bash
-# Busca Neo4j
-npm run search-neo4j
 ```
 
 ### Testes
 ```bash
-# Testes específicos
-npm run test-neo4j
+# Testes do sistema RAG
 npm run test-rag
+
+# Testes dos loaders de documentos
 npm run test-loaders
-npm run test-performance
-npm run test-capec
-npm run test-formatted
 ```
 
 ### Vantagens do Sistema:
