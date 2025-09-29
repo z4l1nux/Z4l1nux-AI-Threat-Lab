@@ -53,7 +53,6 @@ export interface CenarioRisco {
   'Descrição'?: string;         // Formato OpenRouter novo
   'Impacto'?: string;           // Formato OpenRouter novo
   'Mitigação'?: string;         // Formato OpenRouter novo
-  mitigacao?: string;           // Formato OpenRouter novo
   mitigação?: string;           // Formato OpenRouter novo
   impacto: string;
   mitigacao: string | string[];

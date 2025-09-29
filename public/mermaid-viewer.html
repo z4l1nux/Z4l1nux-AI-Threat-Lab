@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mermaid Threat Model Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #ffffff;
+    }
+
+    #inputView {
+      padding: 1rem;
+      background: #2a2a2a;
+      border-bottom: 1px solid #444;
+    }
+
+    textarea {
+      width: 100%;
+      min-width: 80vw;
+      height: 200px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 14px;
+      background: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 8px;
+      resize: vertical;
+    }
+
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 16px;
+      background: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #005a9e;
+    }
+
+    #diagram {
+      height: calc(100vh - 300px);
+      width: 100vw;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      overflow: auto;
+    }
+
+    #diagram svg {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .error {
+      color: #ff6b6b;
+      padding: 1rem;
+      background: #2a1a1a;
+      border: 1px solid #ff6b6b;
+      border-radius: 4px;
+      margin: 1rem;
+    }
+
+    h1 {
+      color: #007acc;
+      margin-bottom: 1rem;
+    }
+
+    .loading {
+      color: #888;
+      text-align: center;
+      padding: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="inputView" style="display: none;">
+    <h1>🎯 Mermaid Threat Model Viewer</h1>
+    <textarea id="diagramInput" placeholder="Cole aqui o código do diagrama Mermaid..."></textarea><br/>
+    <button onclick="generateDiagram()">🔄 Gerar Diagrama</button>
+  </div>
+
+  <div id="diagram">
+    <div class="loading">Carregando diagrama...</div>
+  </div>
+
+  <script>
+    mermaid.initialize({ 
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        primaryColor: '#007acc',
+        primaryTextColor: '#ffffff',
+        primaryBorderColor: '#444444',
+        lineColor: '#666666',
+        secondaryColor: '#2a2a2a',
+        tertiaryColor: '#1a1a1a'
+      }
+    });
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function generateDiagram() {
+      const text = document.getElementById("diagramInput").value;
+      if (!text.trim()) {
+        alert('Por favor, insira um código de diagrama Mermaid.');
+        return;
+      }
+      const encoded = btoa(encodeURIComponent(text));
+      const newUrl = `${window.location.origin}${window.location.pathname}?diagram=${encoded}`;
+      window.location.href = newUrl;
+    }
+
+    async function renderDiagram(text) {
+      const diagramDiv = document.getElementById("diagram");
+      try {
+        diagramDiv.innerHTML = '<div class="loading">Renderizando diagrama...</div>';
+        const { svg } = await mermaid.render('theGraph', text);
+        diagramDiv.innerHTML = svg;
+      } catch (e) {
+        diagramDiv.innerHTML = `<div class="error">❌ Erro ao renderizar diagrama: ${e.message}</div>`;
+      }
+    }
+
+    const diagramInput = document.getElementById("diagramInput");
+    const inputView = document.getElementById("inputView");
+    const diagramDiv = document.getElementById("diagram");
+
+    function onDiagramInputChange() {
+      const text = diagramInput.value.trim();
+      if (text) {
+        renderDiagram(text);
+      }
+    }
+
+    diagramInput.addEventListener("input", onDiagramInputChange);
+
+    const base64Diagram = getQueryParam("diagram");
+    const editMode = getQueryParam("edit") === "true";
+
+    if (base64Diagram) {
+      try {
+        const decoded = decodeURIComponent(atob(base64Diagram));
+        if (editMode) {
+          diagramInput.value = decoded;
+          inputView.style.display = "block";
+          diagramDiv.style.display = "block";
+          renderDiagram(decoded);
+        } else {
+          renderDiagram(decoded);
+          inputView.style.display = "none";
+        }
+      } catch (err) {
+        console.error(err);
+        document.body.innerHTML = "<div class='error'>❌ Erro ao decodificar diagrama</div>";
+      }
+    } else {
+      inputView.style.display = "block";
+      diagramDiv.style.display = "block";
+    }
+  </script>
+</body>
+</html>

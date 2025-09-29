@@ -147,6 +147,10 @@ export class ThreatModelingClient {
         const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario.nome || cenario['Cenário de Risco'] || '';
         const descritivo = cenario.descritivo || cenario.descricao || cenario.resumo || cenario['Descrição'] || '';
         const impacto = cenario.impacto || cenario['Impacto'] || '';
+        
+        // Determinar categorias STRIDE primeiro
+        const strideCategories = this.determineStrideCategories(tipoRisco + ' ' + descritivo);
+        
         let mitigacao = Array.isArray(cenario.mitigacao) 
           ? cenario.mitigacao.join('; ') 
           : cenario.mitigacao || cenario.mitigação || cenario['Mitigação'] || '';
@@ -155,9 +159,6 @@ export class ThreatModelingClient {
         if (!mitigacao || mitigacao.trim() === '') {
           mitigacao = this.generateMitigationByStride(strideCategories, descritivo);
         }
-        
-        // Determinar categorias STRIDE
-        const strideCategories = this.determineStrideCategories(tipoRisco + ' ' + descritivo);
         
         // Extrair nome da ameaça
         let ameaca = tipoRisco;

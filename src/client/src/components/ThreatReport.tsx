@@ -21,17 +21,19 @@ export const ThreatReport: React.FC<ThreatReportProps> = ({
   const mermaidRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (mermaidRef.current && (window as any).mermaid) {
+    if (mermaidRef.current) {
       try {
         const attackTreeDiagram = generateAttackTree(systemName, threats);
-        mermaidRef.current.innerHTML = attackTreeDiagram;
+        const encoded = btoa(encodeURIComponent(attackTreeDiagram));
+        const iframeUrl = `/mermaid-viewer.html?diagram=${encoded}`;
         
-        // Aguardar um pouco para o DOM ser atualizado
-        setTimeout(() => {
-          if (mermaidRef.current) {
-            (window as any).mermaid.init(undefined, mermaidRef.current);
-          }
-        }, 100);
+        mermaidRef.current.innerHTML = `
+          <iframe 
+            src="${iframeUrl}" 
+            style="width: 100%; height: 600px; border: none; border-radius: 8px;"
+            title="Diagrama de Árvore de Ataque"
+          ></iframe>
+        `;
       } catch (error) {
         console.error('Erro ao renderizar Mermaid:', error);
         if (mermaidRef.current) {
