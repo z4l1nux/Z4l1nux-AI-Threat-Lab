@@ -299,7 +299,8 @@ async function processarPergunta(pergunta: string, modelo: string): Promise<any>
       // Usar Ollama
       const modeloAI = new ChatOllama({
         model: process.env.MODEL_OLLAMA || "mistral",
-        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
+        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
+        temperature: 0.1,  // Menor temperatura para respostas mais consistentes
       });
       resposta = (modeloAI as any).invoke
         ? await (modeloAI as any).invoke(textoPrompt as any)
@@ -405,64 +406,89 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
     logs.push(`🤖 Gerando análise de threat modeling com modelo: ${modeloNome}`);
     
     let resposta;
-    if (modelo === '1') {
-      // Usar Ollama com tentativas de prompts alternativos
-      const modeloAI = new ChatOllama({
-        model: process.env.MODEL_OLLAMA || "mistral",
-        baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434"
-      });
-      
-      // Tentar primeiro prompt
-      try {
-        resposta = (modeloAI as any).invoke
-          ? await (modeloAI as any).invoke(textoPrompt as any)
-          : await (modeloAI as any).call({ input: textoPrompt });
+      if (modelo === '1') {
+        // Usar Ollama com structured outputs (JSON Schema)
+        const modeloAI = new ChatOllama({
+          model: process.env.MODEL_OLLAMA || "mistral",
+          baseUrl: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
+          temperature: 0.1,  // Menor temperatura para respostas mais consistentes
+        });
         
-        // Verificar se a resposta contém recusa ou é genérica
-        const respostaTexto = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
-        if (respostaTexto.includes("I'm sorry, but I can't assist") || 
-            respostaTexto.includes("I cannot help") ||
-            respostaTexto.includes("I'm not able to") ||
-            respostaTexto.includes("The provided information includes") ||
-            respostaTexto.includes("success") && respostaTexto.includes("message")) {
+        // Obter o JSON Schema para structured outputs
+        const schema = ThreatModelingService.getThreatModelingSchema();
+        
+        // Tentar primeiro com structured outputs
+        try {
+          logs.push(`🔧 Usando structured outputs com JSON Schema...`);
           
-          logs.push(`⚠️ Primeiro prompt recusado ou genérico, tentando prompt alternativo...`);
+          // Usar o método structured outputs do Ollama
+          if ((modeloAI as any).invoke) {
+            resposta = await (modeloAI as any).invoke({
+              input: textoPrompt,
+              format: schema
+            });
+          } else {
+            // Fallback para método antigo se structured outputs não estiver disponível
+            resposta = await (modeloAI as any).call({ 
+              input: textoPrompt,
+              format: schema
+            });
+          }
           
-          // Tentar prompt alternativo mais direto
-          textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
-          resposta = (modeloAI as any).invoke
-            ? await (modeloAI as any).invoke(textoPrompt as any)
-            : await (modeloAI as any).call({ input: textoPrompt });
+          logs.push(`✅ Structured output recebido`);
           
-          logs.push(`🔄 Prompt alternativo enviado`);
+        } catch (error) {
+          logs.push(`⚠️ Erro com structured outputs: ${error}`);
           
-          // Verificar se o segundo prompt também falhou
-          const respostaTexto2 = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
-          if (respostaTexto2.includes("I'm sorry, but I can't assist") || 
-              respostaTexto2.includes("I cannot help") ||
-              respostaTexto2.includes("The provided information includes") ||
-              respostaTexto2.includes("success") && respostaTexto2.includes("message")) {
-            
-            logs.push(`⚠️ Segundo prompt também falhou, tentando prompt super direto...`);
-            
-            // Tentar prompt super direto
-            textoPrompt = ThreatModelingService.generateDirectThreatPrompt(request);
+          // Fallback: tentar sem structured outputs
+          try {
+            logs.push(`🔄 Tentando sem structured outputs...`);
             resposta = (modeloAI as any).invoke
               ? await (modeloAI as any).invoke(textoPrompt as any)
               : await (modeloAI as any).call({ input: textoPrompt });
             
-            logs.push(`🔄 Prompt super direto enviado`);
+            // Verificar se a resposta contém recusa ou é genérica
+            const respostaTexto = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
+            if (respostaTexto.includes("I'm sorry, but I can't assist") || 
+                respostaTexto.includes("I cannot help") ||
+                respostaTexto.includes("I'm not able to") ||
+                respostaTexto.includes("The provided information includes") ||
+                respostaTexto.includes("success") && respostaTexto.includes("message")) {
+              
+              logs.push(`⚠️ Primeiro prompt recusado ou genérico, tentando prompt alternativo...`);
+              
+              // Tentar prompt alternativo mais direto
+              textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
+              resposta = (modeloAI as any).invoke
+                ? await (modeloAI as any).invoke(textoPrompt as any)
+                : await (modeloAI as any).call({ input: textoPrompt });
+              
+              logs.push(`🔄 Prompt alternativo enviado`);
+              
+              // Verificar se o segundo prompt também falhou
+              const respostaTexto2 = typeof resposta === 'string' ? resposta : resposta?.content || resposta?.text || '';
+              if (respostaTexto2.includes("I'm sorry, but I can't assist") || 
+                  respostaTexto2.includes("I cannot help") ||
+                  respostaTexto2.includes("The provided information includes") ||
+                  respostaTexto2.includes("success") && respostaTexto2.includes("message")) {
+                
+                logs.push(`⚠️ Segundo prompt também falhou, tentando prompt super direto...`);
+                
+                // Tentar prompt super direto
+                textoPrompt = ThreatModelingService.generateDirectThreatPrompt(request);
+                resposta = (modeloAI as any).invoke
+                  ? await (modeloAI as any).invoke(textoPrompt as any)
+                  : await (modeloAI as any).call({ input: textoPrompt });
+                
+                logs.push(`🔄 Prompt super direto enviado`);
+              }
+            }
+          } catch (fallbackError) {
+            logs.push(`❌ Erro no fallback: ${fallbackError}`);
+            throw fallbackError;
           }
         }
-      } catch (error) {
-        logs.push(`❌ Erro no primeiro prompt: ${error}`);
-        // Tentar prompt alternativo em caso de erro
-        textoPrompt = ThreatModelingService.generateAlternativePrompt(request);
-        resposta = (modeloAI as any).invoke
-          ? await (modeloAI as any).invoke(textoPrompt as any)
-          : await (modeloAI as any).call({ input: textoPrompt });
-      }
-    } else if (modelo === '2') {
+      } else if (modelo === '2') {
       // Usar OpenRouter com DeepSeek
       if (!process.env.OPENROUTER_API_KEY) {
         throw new Error("OPENROUTER_API_KEY é obrigatória. Configure no arquivo .env");

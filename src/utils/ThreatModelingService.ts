@@ -90,29 +90,84 @@ TAREFA TÉCNICA:
 Identifique 4-6 cenários de risco de segurança específicos para este sistema.
 Para cada cenário, forneça análise estruturada conforme padrão da indústria.
 
-FORMATO DE RESPOSTA REQUERIDO:
-{
-  "threats": [
-    {
-      "id": "THREAT-001",
-      "stride": ["S"],
-      "categoria": "Categoria técnica",
-      "ameaca": "Nome específico do cenário",
-      "descricao": "Descrição técnica detalhada",
-      "impacto": "Impacto no sistema e dados",
-      "probabilidade": "Alta/Média/Baixa",
-      "severidade": "Crítica/Alta/Média/Baixa",
-      "mitigacao": "Controles técnicos recomendados",
-      "capec": "CAPEC-XXX",
-      "deteccao": "Métodos de detecção técnica"
-    }
-  ]
-}
-
 BASE DE CONHECIMENTO TÉCNICO:
 ${baseConhecimento}
 
-Nota: Esta análise é para fins educacionais e de documentação técnica de segurança.`;
+IMPORTANTE: Responda APENAS com o objeto JSON estruturado, SEM texto adicional antes ou depois.`;
+  }
+
+  /**
+   * Gera o JSON Schema para structured outputs do Ollama
+   */
+  static getThreatModelingSchema(): any {
+    return {
+      type: "object",
+      properties: {
+        threats: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: {
+                type: "string",
+                description: "Identificador único da ameaça (ex: T001, T002)"
+              },
+              stride: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: ["S", "T", "R", "I", "D", "E"]
+                },
+                description: "Categorias STRIDE aplicáveis à ameaça"
+              },
+              categoria: {
+                type: "string",
+                description: "Categoria técnica da ameaça"
+              },
+              ameaca: {
+                type: "string",
+                description: "Nome específico da ameaça"
+              },
+              descricao: {
+                type: "string",
+                description: "Descrição técnica detalhada da ameaça"
+              },
+              impacto: {
+                type: "string",
+                description: "Impacto no sistema e dados"
+              },
+              probabilidade: {
+                type: "string",
+                enum: ["Alta", "Média", "Baixa"],
+                description: "Probabilidade de ocorrência"
+              },
+              severidade: {
+                type: "string",
+                enum: ["Crítica", "Alta", "Média", "Baixa"],
+                description: "Severidade da ameaça"
+              },
+              mitigacao: {
+                type: "string",
+                description: "Controles técnicos recomendados"
+              },
+              capec: {
+                type: "string",
+                description: "Código CAPEC relacionado (ex: CAPEC-123)"
+              },
+              deteccao: {
+                type: "string",
+                description: "Métodos de detecção técnica"
+              }
+            },
+            required: ["id", "stride", "categoria", "ameaca", "descricao", "impacto", "probabilidade", "severidade", "mitigacao", "capec", "deteccao"]
+          },
+          minItems: 3,
+          maxItems: 6,
+          description: "Lista de ameaças identificadas"
+        }
+      },
+      required: ["threats"]
+    };
   }
 
   /**
@@ -148,7 +203,28 @@ Identifique 5 vulnerabilidades comuns para sistemas ${request.systemType}:
    - Impacto: Interrupção de serviços, perda de produtividade
    - Mitigação: Rate limiting, proteção DDoS, monitoramento
 
-Para cada vulnerabilidade, forneça detalhes específicos baseados no sistema: ${request.description}`;
+Para cada vulnerabilidade, forneça detalhes específicos baseados no sistema: ${request.description}
+
+FORMATO DE RESPOSTA REQUERIDO (forneça APENAS JSON válido):
+{
+  "threats": [
+    {
+      "id": "THREAT-001",
+      "stride": ["S"],
+      "categoria": "Categoria técnica",
+      "ameaca": "Nome específico do cenário",
+      "descricao": "Descrição técnica detalhada",
+      "impacto": "Impacto no sistema e dados",
+      "probabilidade": "Alta/Média/Baixa",
+      "severidade": "Crítica/Alta/Média/Baixa",
+      "mitigacao": "Controles técnicos recomendados",
+      "capec": "CAPEC-XXX",
+      "deteccao": "Métodos de detecção técnica"
+    }
+  ]
+}
+
+IMPORTANTE: Responda APENAS com o objeto JSON estruturado, SEM texto adicional antes ou depois.`;
   }
 
   /**
@@ -353,26 +429,55 @@ IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças re
       let threats: Threat[] = [];
       let confidence = 0;
 
-      // Estratégia 1: Tentar parsear diretamente como JSON
-      try {
-        const directParse = JSON.parse(aiResponse);
-        
-        // Verificar se é um formato de CVE e converter
-        if (directParse.cve || directParse.description) {
-          console.log('🔍 Detectado formato CVE, convertendo para ameaça...');
-          const convertedThreat = this.convertCVEToThreat(directParse);
-          if (convertedThreat) {
-            threats = [convertedThreat];
-            confidence = 0.8;
-          }
-        } else {
-          threats = directParse.threats || directParse.ameacas || [];
-          if (threats.length > 0) {
-            console.log('✅ JSON parseado diretamente, threats encontradas:', threats.length);
-            confidence = 0.9;
-          }
-        }
-      } catch (e) {
+       // Estratégia 1: Tentar parsear diretamente como JSON (structured outputs)
+       try {
+         const directParse = JSON.parse(aiResponse);
+         
+         // Verificar se é um formato de CVE e converter
+         if (directParse.cve || directParse.description) {
+           console.log('🔍 Detectado formato CVE, convertendo para ameaça...');
+           const convertedThreat = this.convertCVEToThreat(directParse);
+           if (convertedThreat) {
+             threats = [convertedThreat];
+             confidence = 0.8;
+           }
+         } else if (directParse.threats && Array.isArray(directParse.threats)) {
+           // Structured output do Ollama - formato perfeito!
+           console.log('🎯 Structured output detectado! Threats encontradas:', directParse.threats.length);
+           threats = this.validateAndNormalizeThreats(directParse.threats);
+           confidence = 0.95; // Alta confiança para structured outputs
+         } else if (directParse.cenarios_risco && Array.isArray(directParse.cenarios_risco)) {
+           // Formato específico do Ollama com cenarios_risco
+           console.log('🎯 Formato Ollama (cenarios_risco) detectado! Cenários encontrados:', directParse.cenarios_risco.length);
+           threats = this.convertCenariosRiscoToThreats(directParse.cenarios_risco);
+           confidence = 0.9; // Alta confiança para formato estruturado
+         } else if (directParse.cenarios_de_risco && Array.isArray(directParse.cenarios_de_risco)) {
+           // Formato específico do OpenRouter com cenarios_de_risco
+           console.log('🎯 Formato OpenRouter (cenarios_de_risco) detectado! Cenários encontrados:', directParse.cenarios_de_risco.length);
+           threats = this.convertCenariosDeRiscoToThreats(directParse.cenarios_de_risco);
+           confidence = 0.9; // Alta confiança para formato estruturado
+         } else if (directParse.cenariosDeRisco && Array.isArray(directParse.cenariosDeRisco)) {
+           // Formato específico do OpenRouter com cenariosDeRisco (camelCase)
+           console.log('🎯 Formato OpenRouter (cenariosDeRisco) detectado! Cenários encontrados:', directParse.cenariosDeRisco.length);
+           threats = this.convertCenariosDeRiscoToThreats(directParse.cenariosDeRisco);
+           confidence = 0.9; // Alta confiança para formato estruturado
+         } else {
+           // Verificar se é um objeto com uma mensagem aninhada e tentar extrair conteúdo
+           if (directParse.response && directParse.response.message) {
+             console.log('🔍 Detectado formato aninhado, tentando extrair conteúdo...');
+             threats = this.parseNaturalLanguageThreats(directParse.response.message, systemType);
+             if (threats.length > 0) {
+               confidence = 0.7;
+             }
+           } else {
+             threats = directParse.threats || directParse.ameacas || [];
+             if (threats.length > 0) {
+               console.log('✅ JSON parseado diretamente, threats encontradas:', threats.length);
+               confidence = 0.9;
+             }
+           }
+         }
+       } catch (e) {
         console.log('⚠️ Parsing direto falhou, procurando JSON na resposta...');
         
         // Estratégia 2: Procurar JSON dentro de blocos de código
@@ -419,6 +524,7 @@ IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças re
       // Estratégia 4: Se não encontrou JSON válido, processar texto natural
       if (threats.length === 0) {
         console.log('🔄 Tentando extrair ameaças de texto natural...');
+        console.log('🔍 Conteúdo da resposta para análise de texto:', aiResponse.substring(0, 500) + '...');
         threats = this.parseNaturalLanguageThreats(aiResponse, systemType);
         if (threats.length > 0) {
           console.log('✅ Ameaças extraídas de texto natural:', threats.length);
@@ -471,23 +577,67 @@ IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças re
       return [];
     }
     
-    // Método 1: Buscar seções numeradas com ** ou ###
-    const numberedSections = text.match(/(?:###\s*\d+\.|\d+\.\s*\*\*)[^]*?(?=(?:###\s*\d+\.|\d+\.\s*\*\*|$))/g);
+    // Método 0: Buscar formato específico do Ollama (ex: '### 1. Ataque de Injeção SQL')
+    const ollamaFormatSections = text.match(/###\s*\d+\.\s*([^\n]+)\n([^]*?)(?=###\s*\d+\.\s*|$)/g);
     
-    if (numberedSections && numberedSections.length > 0) {
-      console.log(`🔍 Encontradas ${numberedSections.length} seções numeradas`);
+    if (ollamaFormatSections && ollamaFormatSections.length > 0) {
+      console.log(`🔍 Encontradas ${ollamaFormatSections.length} seções no formato Ollama`);
       
-      numberedSections.forEach((section, index) => {
+      ollamaFormatSections.forEach((section, index) => {
         if (threats.length >= 6) return;
         
-        const threatData = this.extractThreatFromSection(section, index + 1);
+        const threatData = this.extractThreatFromOllamaFormat(section, index + 1);
         if (threatData) {
           threats.push(threatData);
         }
       });
     }
     
-    // Método 1.5: Buscar formato específico do Ollama com ### **Nome da Ameaça**
+    // Método 0.5: Buscar formato alternativo do Ollama (ex: '### Ataque de Injeção SQL') sem números
+    if (threats.length === 0) {
+      const ollamaAltFormatSections = text.match(/###\s*([^\n]+)\n([^]*?)(?=###\s*[^\n]+|$)/g);
+      
+      if (ollamaAltFormatSections && ollamaAltFormatSections.length > 0) {
+        console.log(`🔍 Encontradas ${ollamaAltFormatSections.length} seções no formato alternativo Ollama`);
+        
+        ollamaAltFormatSections.forEach((section, index) => {
+          if (threats.length >= 6) return;
+          
+          // Verificar se esta seção contém termos de ameaças antes de processar
+          const lowerSection = section.toLowerCase();
+          const hasSecurityTerms = this.THREAT_KEYWORDS.some(keyword => 
+            lowerSection.includes(keyword.toLowerCase())
+          );
+          
+          if (hasSecurityTerms) {
+            const threatData = this.extractThreatFromOllamaFormat(section, index + 1);
+            if (threatData) {
+              threats.push(threatData);
+            }
+          }
+        });
+      }
+    }
+    
+    // Método 1: Buscar seções numeradas com ** ou ###
+    if (threats.length === 0) {
+      const numberedSections = text.match(/(?:###\s*\d+\.|\d+\.\s*\*\*)[^]*?(?=(?:###\s*\d+\.|\d+\.\s*\*\*|$))/g);
+      
+      if (numberedSections && numberedSections.length > 0) {
+        console.log(`🔍 Encontradas ${numberedSections.length} seções numeradas`);
+        
+        numberedSections.forEach((section, index) => {
+          if (threats.length >= 6) return;
+          
+          const threatData = this.extractThreatFromSection(section, index + 1);
+          if (threatData) {
+            threats.push(threatData);
+          }
+        });
+      }
+    }
+    
+    // Método 1.5: Buscar formato específico do Ollama com ### **Nome da Ameça**
     if (threats.length === 0) {
       console.log('🔍 Buscando formato específico do Ollama...');
       const ollamaSections = text.match(/###\s*\*\*[^*]+\*\*[^]*?(?=###\s*\*\*|$)/g);
@@ -726,6 +876,246 @@ IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças re
     return capecMatch ? capecMatch[0] : `CAPEC-${Math.floor(Math.random() * 900) + 100}`;
   }
 
+   /**
+    * Remove formatação excessiva e limpa texto extraído
+    */
+   private static sanitizeText(text: string): string {
+     if (!text) return '';
+     
+     // Remover asteriscos extras, mas manter o conteúdo significativo
+     return text.replace(/\*\*/g, '')
+               .replace(/^[:\s\-\*]+|[:\s\-\*]+$/g, '')
+               .trim();
+   }
+
+   /**
+    * Valida e normaliza ameaças extraídas
+    */
+   private static validateAndNormalizeThreats(rawThreats: any[]): Threat[] {
+     const threats: Threat[] = [];
+     
+     rawThreats.forEach((threat, index) => {
+       try {
+         // Validar campos obrigatórios
+         if (!threat.ameaca || !threat.descricao) {
+           console.warn(`⚠️ Ameaça ${index + 1} inválida: campos obrigatórios ausentes`);
+           return;
+         }
+         
+         const normalizedThreat: Threat = {
+           id: threat.id || `T${String(index + 1).padStart(3, '0')}`,
+           stride: Array.isArray(threat.stride) ? threat.stride : ['T'],
+           categoria: threat.categoria || this.extractCategory(threat.descricao),
+           ameaca: threat.ameaca,
+           descricao: threat.descricao,
+           impacto: threat.impacto || 'Impacto não especificado',
+           probabilidade: this.normalizeProbability(threat.probabilidade),
+           severidade: this.normalizeSeverity(threat.severidade),
+           mitigacao: threat.mitigacao || 'Implementar controles de segurança apropriados',
+           capec: threat.capec || this.extractCapec(threat.descricao),
+           deteccao: threat.deteccao || 'Monitoramento baseado em logs e métricas de segurança'
+         };
+         
+         threats.push(normalizedThreat);
+       } catch (error) {
+         console.warn(`⚠️ Erro ao normalizar ameaça ${index + 1}:`, error);
+       }
+     });
+     
+     return threats;
+   }
+
+   /**
+    * Normaliza valores de probabilidade
+    */
+   private static normalizeProbability(prob: string): string {
+     if (!prob) return 'Média';
+     const lower = prob.toLowerCase();
+     if (lower.includes('alta') || lower.includes('high')) return 'Alta';
+     if (lower.includes('baixa') || lower.includes('low')) return 'Baixa';
+     return 'Média';
+   }
+
+   /**
+    * Normaliza valores de severidade
+    */
+   private static normalizeSeverity(sev: string): string {
+     if (!sev) return 'Média';
+     const lower = sev.toLowerCase();
+     if (lower.includes('crítica') || lower.includes('critical')) return 'Crítica';
+     if (lower.includes('alta') || lower.includes('high')) return 'Alta';
+     if (lower.includes('baixa') || lower.includes('low')) return 'Baixa';
+     return 'Média';
+   }
+
+   /**
+    * Converte formato cenarios_de_risco do OpenRouter para formato de ameaças
+    */
+   private static convertCenariosDeRiscoToThreats(cenarios: any[]): Threat[] {
+     const threats: Threat[] = [];
+     
+     cenarios.forEach((cenario, index) => {
+       try {
+         // Extrair informações do cenário (suporta múltiplos formatos)
+         const tipo = cenario.tipo || '';
+         const descricao = cenario.descricao || '';
+         const probabilidade = cenario.probabilidade || 'Média';
+         const impacto = cenario.impacto || 'Médio';
+         const exemplo = cenario.exemplo || '';
+         const exemplos = Array.isArray(cenario.exemplos) 
+           ? cenario.exemplos.join('; ') 
+           : exemplo;
+         
+         // Determinar categorias STRIDE baseadas no tipo
+         const strideCategories = this.determineStrideCategories(tipo + ' ' + descricao);
+         
+         // Extrair nome da ameaça do tipo (remover categorias STRIDE se presentes)
+         let ameaca = tipo;
+         if (ameaca.includes('(') && ameaca.includes(')')) {
+           // Remover categorias STRIDE do nome (ex: "S (Spoofing)" -> "Spoofing")
+           ameaca = ameaca.replace(/^[A-Z]\s*\(/, '').replace(/\)$/, '').trim();
+         }
+         
+         // Mapear nomes específicos
+         if (ameaca === 'Information Disclosure') ameaca = 'Exposição de Informações';
+         else if (ameaca === 'Denial of Service') ameaca = 'Negação de Serviço';
+         else if (ameaca === 'Elevation of Privilege') ameaca = 'Escalação de Privilégios';
+         else if (ameaca === 'Repudiation') ameaca = 'Repúdio de Transações';
+         
+         // Determinar categoria baseada no tipo
+         const categoria = this.extractCategory(tipo + ' ' + descricao);
+         
+         // Mapear severidade do OpenRouter
+         let severidade = 'Média';
+         if (impacto === 'Crítico') severidade = 'Crítica';
+         else if (impacto === 'Alto') severidade = 'Alta';
+         else if (impacto === 'Médio') severidade = 'Média';
+         else if (impacto === 'Baixo') severidade = 'Baixa';
+         
+         // Mapear probabilidade do OpenRouter
+         let probabilidadeNormalizada = 'Média';
+         if (probabilidade === 'Alta') probabilidadeNormalizada = 'Alta';
+         else if (probabilidade === 'Média') probabilidadeNormalizada = 'Média';
+         else if (probabilidade === 'Baixa') probabilidadeNormalizada = 'Baixa';
+         
+         // Gerar mitigação baseada no tipo
+         let mitigacao = 'Implementar controles de segurança apropriados';
+         if (tipo.includes('Spoofing')) mitigacao = 'Autenticação multifator, validação rigorosa de identidade, auditoria de acessos';
+         else if (tipo.includes('Tampering')) mitigacao = 'Controle de integridade, assinaturas digitais, validação de dados';
+         else if (tipo.includes('Information Disclosure')) mitigacao = 'Criptografia, controle de acesso, classificação de dados';
+         else if (tipo.includes('Denial of Service')) mitigacao = 'Rate limiting, WAF, monitoramento de tráfego, redundância';
+         else if (tipo.includes('Elevation of Privilege')) mitigacao = 'Princípio do menor privilégio, auditoria de permissões, controle de acesso';
+         else if (tipo.includes('Repudiation')) mitigacao = 'Logs imutáveis, assinaturas digitais, auditoria completa';
+         
+         const threat: Threat = {
+           id: `T${String(index + 1).padStart(3, '0')}`,
+           stride: strideCategories,
+           categoria: categoria,
+           ameaca: ameaca,
+           descricao: descricao,
+           impacto: exemplos ? `Exemplo: ${exemplos}. Impacto: ${impacto}` : `Impacto: ${impacto}`,
+           probabilidade: probabilidadeNormalizada,
+           severidade: severidade,
+           mitigacao: mitigacao,
+           capec: this.extractCapec(tipo + ' ' + descricao),
+           deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+         };
+         
+         threats.push(threat);
+         
+         console.log(`🔍 Convertido cenário OpenRouter ${index + 1}:`, {
+           ameaca: threat.ameaca,
+           categoria: threat.categoria,
+           stride: threat.stride,
+           severidade: threat.severidade
+         });
+         
+       } catch (error) {
+         console.warn(`⚠️ Erro ao converter cenário OpenRouter ${index + 1}:`, error);
+       }
+     });
+     
+     return threats;
+   }
+
+   /**
+    * Converte formato cenarios_risco do Ollama para formato de ameaças
+    */
+   private static convertCenariosRiscoToThreats(cenarios: any[]): Threat[] {
+     const threats: Threat[] = [];
+     
+     cenarios.forEach((cenario, index) => {
+       try {
+         // Extrair informações do cenário
+         const cenarioText = cenario.cenario || '';
+         const resumo = cenario.resumo || '';
+         const impacto = cenario.impacto || '';
+         const mitigacao = Array.isArray(cenario.mitigacao) 
+           ? cenario.mitigacao.join('; ') 
+           : cenario.mitigacao || '';
+         
+         // Determinar categorias STRIDE baseadas no nome do cenário
+         const strideCategories = this.determineStrideCategories(cenarioText + ' ' + resumo);
+         
+         // Extrair nome da ameaça do cenário
+         let ameaca = cenarioText;
+         if (ameaca.includes('(') && ameaca.includes(')')) {
+           // Remover categorias STRIDE do nome (ex: "Spoofing (S)" -> "Spoofing")
+           ameaca = ameaca.replace(/\s*\([^)]+\)\s*$/, '').trim();
+         }
+         
+         // Determinar categoria baseada no conteúdo
+         const categoria = this.extractCategory(resumo + ' ' + impacto);
+         
+         // Determinar severidade baseada no impacto
+         let severidade = 'Média';
+         if (impacto.toLowerCase().includes('crítica') || impacto.toLowerCase().includes('critical')) {
+           severidade = 'Crítica';
+         } else if (impacto.toLowerCase().includes('alta') || impacto.toLowerCase().includes('high')) {
+           severidade = 'Alta';
+         } else if (impacto.toLowerCase().includes('baixa') || impacto.toLowerCase().includes('low')) {
+           severidade = 'Baixa';
+         }
+         
+         // Determinar probabilidade baseada no tipo de ameaça
+         let probabilidade = 'Média';
+         if (cenarioText.toLowerCase().includes('injection') || cenarioText.toLowerCase().includes('xss')) {
+           probabilidade = 'Alta';
+         } else if (cenarioText.toLowerCase().includes('spoofing') || cenarioText.toLowerCase().includes('dos')) {
+           probabilidade = 'Alta';
+         }
+         
+         const threat: Threat = {
+           id: `T${String(index + 1).padStart(3, '0')}`,
+           stride: strideCategories,
+           categoria: categoria,
+           ameaca: ameaca,
+           descricao: resumo,
+           impacto: impacto,
+           probabilidade: probabilidade,
+           severidade: severidade,
+           mitigacao: mitigacao,
+           capec: this.extractCapec(resumo + ' ' + impacto),
+           deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+         };
+         
+         threats.push(threat);
+         
+         console.log(`🔍 Convertido cenário ${index + 1}:`, {
+           ameaca: threat.ameaca,
+           categoria: threat.categoria,
+           stride: threat.stride,
+           severidade: threat.severidade
+         });
+         
+       } catch (error) {
+         console.warn(`⚠️ Erro ao converter cenário ${index + 1}:`, error);
+       }
+     });
+     
+     return threats;
+   }
+
   /**
    * Converte formato CVE para formato de ameaça
    */
@@ -830,6 +1220,69 @@ IMPORTANTE: Baseie-se especificamente no sistema descrito e forneça ameaças re
       };
     } catch (error) {
       console.warn('⚠️ Erro ao extrair ameaça da seção Ollama:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extrai dados de ameaça do formato específico do Ollama (ex: '### 1. Nome da Ameaça')
+   */
+  private static extractThreatFromOllamaFormat(section: string, index: number): Threat | null {
+    try {
+      const lines = section.split('\n').filter(line => line.trim());
+      if (lines.length < 2) return null;
+      
+      // Extrair título da ameaça (linha com ### 1. Nome ou similar)
+      let ameaca = lines[0].trim();
+      // Tenta diferentes padrões para extrair o nome da ameaça
+      ameaca = ameaca.replace(/^###\s*\d+\./, '')
+                 .replace(/^###\s*/, '')
+                 .replace(/^\d+\./, '')
+                 .trim();
+      
+      if (!ameaca || ameaca.length < 5) return null;
+      
+      // Extrair descrição, impacto e mitigação do restante do texto
+      const remainingText = section.substring(section.indexOf('\n') + 1);
+      
+      // Procurar por seções específicas no formato do Ollama (com ou sem **)
+      const descricaoMatch = remainingText.match(/(?:\*\*Descrição:\*\*|Descrição:|\*\*Descrição\*\*|Descrição\*\*)[^]*?(?=\*\*Impacto|\*\*Mitigação|\*\*Conclusão|\n\s*\n|\*\*Risco|\*\*Solução|$)/i);
+      const descricao = descricaoMatch ? this.sanitizeText(descricaoMatch[0].replace(/\*\*Descrição[:\*]*\*\*/i, '').trim()) : '';
+      
+      const impactoMatch = remainingText.match(/(?:\*\*Impacto:\*\*|Impacto:|\*\*Impacto\*\*|Impacto\*\*)[^]*?(?=\*\*Mitigação|\*\*Descrição|\*\*Conclusão|\n\s*\n|\*\*Risco|\*\*Solução|$)/i);
+      const impacto = impactoMatch ? this.sanitizeText(impactoMatch[0].replace(/\*\*Impacto[:\*]*\*\*/i, '').trim()) : '';
+      
+      const mitigacaoMatch = remainingText.match(/(?:\*\*Mitigação:\*\*|Mitigação:|\*\*Mitigação\*\*|Mitigação\*\*|\*\*Solução:\*\*|Solução:|\*\*Solução\*\*|Solução\*\*|\*\*Recomendação:\*\*|Recomendação:|\*\*Recomendação\*\*|Recomendação\*\*)[^]*?(?=\*\*Descrição|\*\*Impacto|\*\*Conclusão|\n\s*\n|$)/i);
+      const mitigacao = mitigacaoMatch ? this.sanitizeText(mitigacaoMatch[0].replace(/\*\*(Mitigação|Solução|Recomendação)[:\*]*\*\*/i, '').trim()) : '';
+      
+      // Se não encontrar os campos específicos, usar o restante como descrição
+      const descricaoFinal = descricao || remainingText.substring(0, 300).trim();
+      
+      // Determinar STRIDE baseado no conteúdo
+      const strideCategories = this.determineStrideCategories(remainingText);
+      
+      console.log(`🔍 Debug - Ameaça Ollama Format ${index}:`, {
+        ameaca,
+        descricao: descricaoFinal.substring(0, 50) + '...',
+        impacto: impacto.substring(0, 50) + '...',
+        mitigacao: mitigacao.substring(0, 50) + '...'
+      });
+      
+      return {
+        id: `T${String(index).padStart(3, '0')}`,
+        stride: strideCategories,
+        categoria: this.extractCategory(remainingText),
+        ameaca: ameaca,
+        descricao: descricaoFinal || 'Descrição extraída da análise do Ollama',
+        impacto: impacto || 'Impacto baseado na análise do Ollama',
+        probabilidade: this.extractProbability(remainingText),
+        severidade: this.extractSeverity(remainingText),
+        mitigacao: mitigacao || 'Implementar controles de segurança apropriados',
+        capec: this.extractCapec(remainingText),
+        deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+      };
+    } catch (error) {
+      console.warn('⚠️ Erro ao extrair ameaça do formato Ollama:', error);
       return null;
     }
   }

@@ -43,6 +43,7 @@ class ThreatModelingClient {
   processAIResponse(aiResponse, systemType) {
     // Esta função agora será chamada do servidor TypeScript
     // Mantida aqui para compatibilidade com o frontend existente
+    console.log('🔍 Processando resposta da IA no cliente:', typeof aiResponse === 'string' ? aiResponse.substring(0, 200) + '...' : aiResponse);
     return this.parseThreatsFromResponse(aiResponse, systemType);
   }
 
@@ -56,14 +57,40 @@ class ThreatModelingClient {
       // Tentar parsear JSON
       try {
         const directParse = JSON.parse(aiResponse);
-        threats = directParse.threats || directParse.ameacas || [];
+        
+        // Verificar formato cenarios_risco do Ollama
+        if (directParse.cenarios_risco && Array.isArray(directParse.cenarios_risco)) {
+          console.log('🎯 Formato Ollama (cenarios_risco) detectado no frontend!');
+          threats = this.convertCenariosRiscoToThreats(directParse.cenarios_risco);
+        } else if (directParse.cenarios_de_risco && Array.isArray(directParse.cenarios_de_risco)) {
+          console.log('🎯 Formato OpenRouter (cenarios_de_risco) detectado no frontend!');
+          threats = this.convertCenariosDeRiscoToThreats(directParse.cenarios_de_risco);
+        } else if (directParse.cenariosDeRisco && Array.isArray(directParse.cenariosDeRisco)) {
+          console.log('🎯 Formato OpenRouter (cenariosDeRisco) detectado no frontend!');
+          threats = this.convertCenariosDeRiscoToThreats(directParse.cenariosDeRisco);
+        } else {
+          threats = directParse.threats || directParse.ameacas || [];
+        }
       } catch (e) {
         // Procurar JSON em blocos de código
         const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
         if (jsonBlockMatch) {
           try {
             const parsed = JSON.parse(jsonBlockMatch[1]);
-            threats = parsed.threats || parsed.ameacas || [];
+            
+            // Verificar formato cenarios_risco do Ollama
+            if (parsed.cenarios_risco && Array.isArray(parsed.cenarios_risco)) {
+              console.log('🎯 Formato Ollama (cenarios_risco) detectado em bloco!');
+              threats = this.convertCenariosRiscoToThreats(parsed.cenarios_risco);
+            } else if (parsed.cenarios_de_risco && Array.isArray(parsed.cenarios_de_risco)) {
+              console.log('🎯 Formato OpenRouter (cenarios_de_risco) detectado em bloco!');
+              threats = this.convertCenariosDeRiscoToThreats(parsed.cenarios_de_risco);
+            } else if (parsed.cenariosDeRisco && Array.isArray(parsed.cenariosDeRisco)) {
+              console.log('🎯 Formato OpenRouter (cenariosDeRisco) detectado em bloco!');
+              threats = this.convertCenariosDeRiscoToThreats(parsed.cenariosDeRisco);
+            } else {
+              threats = parsed.threats || parsed.ameacas || [];
+            }
           } catch (parseError) {
             console.log('❌ Erro ao parsear JSON do bloco:', parseError);
           }
@@ -80,6 +107,222 @@ class ThreatModelingClient {
       console.error('❌ Erro ao processar resposta da IA:', error);
       return this.getMockThreatsForSystem(systemType);
     }
+  }
+
+  /**
+   * Converte formato cenarios_de_risco do OpenRouter para formato de ameaças
+   */
+  convertCenariosDeRiscoToThreats(cenarios) {
+    const threats = [];
+    
+    cenarios.forEach((cenario, index) => {
+      try {
+        // Extrair informações do cenário (suporta múltiplos formatos)
+        const tipo = cenario.tipo || '';
+        const descricao = cenario.descricao || '';
+        const probabilidade = cenario.probabilidade || 'Média';
+        const impacto = cenario.impacto || 'Médio';
+        const exemplo = cenario.exemplo || '';
+        const exemplos = Array.isArray(cenario.exemplos) 
+          ? cenario.exemplos.join('; ') 
+          : exemplo;
+        
+        // Determinar categorias STRIDE baseadas no tipo
+        const strideCategories = this.determineStrideCategories(tipo + ' ' + descricao);
+        
+        // Extrair nome da ameaça do tipo (remover categorias STRIDE se presentes)
+        let ameaca = tipo;
+        if (ameaca.includes('(') && ameaca.includes(')')) {
+          // Remover categorias STRIDE do nome (ex: "S (Spoofing)" -> "Spoofing")
+          ameaca = ameaca.replace(/^[A-Z]\s*\(/, '').replace(/\)$/, '').trim();
+        }
+        
+        // Mapear nomes específicos
+        if (ameaca === 'Information Disclosure') ameaca = 'Exposição de Informações';
+        else if (ameaca === 'Denial of Service') ameaca = 'Negação de Serviço';
+        else if (ameaca === 'Elevation of Privilege') ameaca = 'Escalação de Privilégios';
+        else if (ameaca === 'Repudiation') ameaca = 'Repúdio de Transações';
+        
+        // Determinar categoria baseada no tipo
+        const categoria = this.extractCategory(tipo + ' ' + descricao);
+        
+        // Mapear severidade do OpenRouter
+        let severidade = 'Média';
+        if (impacto === 'Crítico') severidade = 'Crítica';
+        else if (impacto === 'Alto') severidade = 'Alta';
+        else if (impacto === 'Médio') severidade = 'Média';
+        else if (impacto === 'Baixo') severidade = 'Baixa';
+        
+        // Mapear probabilidade do OpenRouter
+        let probabilidadeNormalizada = 'Média';
+        if (probabilidade === 'Alta') probabilidadeNormalizada = 'Alta';
+        else if (probabilidade === 'Média') probabilidadeNormalizada = 'Média';
+        else if (probabilidade === 'Baixa') probabilidadeNormalizada = 'Baixa';
+        
+        // Gerar mitigação baseada no tipo
+        let mitigacao = 'Implementar controles de segurança apropriados';
+        if (tipo.includes('Spoofing')) mitigacao = 'Autenticação multifator, validação rigorosa de identidade, auditoria de acessos';
+        else if (tipo.includes('Tampering')) mitigacao = 'Controle de integridade, assinaturas digitais, validação de dados';
+        else if (tipo.includes('Information Disclosure')) mitigacao = 'Criptografia, controle de acesso, classificação de dados';
+        else if (tipo.includes('Denial of Service')) mitigacao = 'Rate limiting, WAF, monitoramento de tráfego, redundância';
+        else if (tipo.includes('Elevation of Privilege')) mitigacao = 'Princípio do menor privilégio, auditoria de permissões, controle de acesso';
+        else if (tipo.includes('Repudiation')) mitigacao = 'Logs imutáveis, assinaturas digitais, auditoria completa';
+        
+        const threat = {
+          id: `T${String(index + 1).padStart(3, '0')}`,
+          stride: strideCategories,
+          categoria: categoria,
+          ameaca: ameaca,
+          descricao: descricao,
+          impacto: exemplos ? `Exemplo: ${exemplos}. Impacto: ${impacto}` : `Impacto: ${impacto}`,
+          probabilidade: probabilidadeNormalizada,
+          severidade: severidade,
+          mitigacao: mitigacao,
+          capec: this.extractCapec(tipo + ' ' + descricao),
+          deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+        };
+        
+        threats.push(threat);
+        
+        console.log(`🔍 Convertido cenário OpenRouter ${index + 1}:`, {
+          ameaca: threat.ameaca,
+          categoria: threat.categoria,
+          stride: threat.stride,
+          severidade: threat.severidade
+        });
+        
+      } catch (error) {
+        console.warn(`⚠️ Erro ao converter cenário OpenRouter ${index + 1}:`, error);
+      }
+    });
+    
+    return threats;
+  }
+
+  /**
+   * Converte formato cenarios_risco do Ollama para formato de ameaças
+   */
+  convertCenariosRiscoToThreats(cenarios) {
+    const threats = [];
+    
+    cenarios.forEach((cenario, index) => {
+      try {
+        // Extrair informações do cenário
+        const cenarioText = cenario.cenario || '';
+        const resumo = cenario.resumo || '';
+        const impacto = cenario.impacto || '';
+        const mitigacao = Array.isArray(cenario.mitigacao) 
+          ? cenario.mitigacao.join('; ') 
+          : cenario.mitigacao || '';
+        
+        // Determinar categorias STRIDE baseadas no nome do cenário
+        const strideCategories = this.determineStrideCategories(cenarioText + ' ' + resumo);
+        
+        // Extrair nome da ameaça do cenário
+        let ameaca = cenarioText;
+        if (ameaca.includes('(') && ameaca.includes(')')) {
+          // Remover categorias STRIDE do nome (ex: "Spoofing (S)" -> "Spoofing")
+          ameaca = ameaca.replace(/\s*\([^)]+\)\s*$/, '').trim();
+        }
+        
+        // Determinar categoria baseada no conteúdo
+        const categoria = this.extractCategory(resumo + ' ' + impacto);
+        
+        // Determinar severidade baseada no impacto
+        let severidade = 'Média';
+        if (impacto.toLowerCase().includes('crítica') || impacto.toLowerCase().includes('critical')) {
+          severidade = 'Crítica';
+        } else if (impacto.toLowerCase().includes('alta') || impacto.toLowerCase().includes('high')) {
+          severidade = 'Alta';
+        } else if (impacto.toLowerCase().includes('baixa') || impacto.toLowerCase().includes('low')) {
+          severidade = 'Baixa';
+        }
+        
+        // Determinar probabilidade baseada no tipo de ameaça
+        let probabilidade = 'Média';
+        if (cenarioText.toLowerCase().includes('injection') || cenarioText.toLowerCase().includes('xss')) {
+          probabilidade = 'Alta';
+        } else if (cenarioText.toLowerCase().includes('spoofing') || cenarioText.toLowerCase().includes('dos')) {
+          probabilidade = 'Alta';
+        }
+        
+        const threat = {
+          id: `T${String(index + 1).padStart(3, '0')}`,
+          stride: strideCategories,
+          categoria: categoria,
+          ameaca: ameaca,
+          descricao: resumo,
+          impacto: impacto,
+          probabilidade: probabilidade,
+          severidade: severidade,
+          mitigacao: mitigacao,
+          capec: this.extractCapec(resumo + ' ' + impacto),
+          deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+        };
+        
+        threats.push(threat);
+        
+        console.log(`🔍 Convertido cenário ${index + 1}:`, {
+          ameaca: threat.ameaca,
+          categoria: threat.categoria,
+          stride: threat.stride,
+          severidade: threat.severidade
+        });
+        
+      } catch (error) {
+        console.warn(`⚠️ Erro ao converter cenário ${index + 1}:`, error);
+      }
+    });
+    
+    return threats;
+  }
+
+  /**
+   * Determina categorias STRIDE baseadas no conteúdo
+   */
+  determineStrideCategories(text) {
+    const detectedCategories = [];
+    const lowerText = text.toLowerCase();
+    
+    const strideKeywords = {
+      'S': ['spoofing', 'impersonation', 'falsificação', 'identity', 'autenticação', 'login', 'authentication', 'credential'],
+      'T': ['tampering', 'modification', 'alteração', 'manipulation', 'manipulação', 'integridade', 'integrity', 'modify'],
+      'R': ['repudiation', 'denial', 'negação', 'repúdio', 'auditoria', 'logs', 'logging', 'accountability'],
+      'I': ['information', 'disclosure', 'exposição', 'vazamento', 'dados', 'sensível', 'privacy', 'confidential'],
+      'D': ['denial', 'service', 'negação', 'serviço', 'ddos', 'sobrecarga', 'availability', 'downtime'],
+      'E': ['elevation', 'privilege', 'escalação', 'privilégio', 'administrativo', 'bypass', 'unauthorized access']
+    };
+    
+    for (const [stride, keywords] of Object.entries(strideKeywords)) {
+      if (keywords.some(keyword => lowerText.includes(keyword))) {
+        detectedCategories.push(stride);
+      }
+    }
+    
+    return detectedCategories.length > 0 ? detectedCategories : ['T'];
+  }
+
+  /**
+   * Extrai categoria baseada no conteúdo
+   */
+  extractCategory(text) {
+    const lowerText = text.toLowerCase();
+    if (/authentication|autenticação|login|senha|password/i.test(lowerText)) return 'Autenticação';
+    if (/data|dados|integrity|integridade|manipulação|manipulation/i.test(lowerText)) return 'Integridade de Dados';
+    if (/information|informação|disclosure|exposição|leak|vazamento|privacidade/i.test(lowerText)) return 'Exposição de Dados';
+    if (/denial|negação|service|serviço|ddos|dos|sobrecarga/i.test(lowerText)) return 'Negação de Serviço';
+    if (/privilege|privilégio|elevation|escalação|acesso/i.test(lowerText)) return 'Escalação de Privilégios';
+    if (/injection|injeção|sql|code|código/i.test(lowerText)) return 'Injeção de Código';
+    if (/tokenização|tokenization|cartão|card/i.test(lowerText)) return 'Tokenização de Dados';
+    return 'Segurança Geral';
+  }
+
+  /**
+   * Extrai CAPEC do texto
+   */
+  extractCapec(text) {
+    const capecMatch = text.match(/CAPEC-\d+/gi);
+    return capecMatch ? capecMatch[0] : `CAPEC-${Math.floor(Math.random() * 900) + 100}`;
   }
 
   /**

@@ -57,8 +57,8 @@ flowchart TB
     
     %% LLM Processing
     VS --> LLM{🤖 LLM Selection}
-    LLM -->|Local| OLL[🦙 Ollama<br/>Mistral]
-    LLM -->|Remote| OR[☁️ OpenRouter<br/>DeepSeek]
+    LLM -->|Local| OLL[🦙 Ollama<br/>A sua escolha]
+    LLM -->|Remote| OR[☁️ OpenRouter<br/>A sua escolha]
     
     %% Document Processing
     DOC[📄 Security Document Upload] --> SEC[🔒 Security Check]
