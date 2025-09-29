@@ -4,9 +4,13 @@
   "description": "Sistema RAG com suporte ao Ollama em TypeScript",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "tsc",
+    "build:frontend": "cd src/client && npm install && npm run build",
     "start": "node dist/cli/main.js",
-    "dev": "ts-node src/cli/main.ts",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "ts-node src/web/server.ts",
+    "dev:frontend": "cd src/client && npm install && npm run dev",
     "web": "ts-node src/web/server.ts",
     "create-neo4j": "ts-node src/cli/managers/criarNeo4j.ts",
     "sync-neo4j": "ts-node src/cli/managers/criarNeo4j.ts",
@@ -19,7 +23,7 @@
     "test-capec": "ts-node src/test/testCAPECSearch.ts",
     "test-formatted": "ts-node src/test/testFormattedResponse.ts",
     "test-neo4j": "ts-node src/test/testNeo4j.ts",
-    "install-deps": "npm install"
+    "install-deps": "npm install && cd src/client && npm install"
   },
   "dependencies": {
     "@langchain/community": "^0.3.49",
@@ -43,6 +47,7 @@
   "devDependencies": {
     "@types/node": "^20.19.9",
     "@types/xml2js": "^0.4.14",
+    "concurrently": "^8.2.2",
     "ts-node": "^10.9.0",
     "typescript": "^5.3.0"
   },
