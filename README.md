@@ -440,13 +440,4 @@ O sistema gera logs detalhados para facilitar o debugging:
 
 ## 📄 Licença
 
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
-## 🙏 Agradecimentos
-
-- **LangChain** para o framework RAG que possibilita análise avançada de ameaças
-- **Neo4j** para a base de dados vetorial e de grafos moderna para threat modeling
-- **Ollama** para modelos locais de análise de segurança
-- **OpenRouter** para modelos remotos de threat modeling
-- **Comunidade de segurança cibernética** open source
-- **Pesquisadores de threat modeling** que contribuem com conhecimento e dados de segurança 
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes. 
