@@ -55,6 +55,7 @@ jspm_packages/
 *.swp
 *.swo
 *.qwen
+.qwen/
 
 # OS
 .DS_Store
