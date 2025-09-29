@@ -700,6 +700,22 @@ app.post('/api/threat-modeling', async (req, res) => {
   }
 });
 
+// Endpoint raiz da API
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'Z4l1nux AI Threat Lab API',
+    version: '1.0.0',
+    endpoints: {
+      'GET /api/status': 'Status do sistema',
+      'GET /api/knowledge-base-status': 'Status da base de conhecimento',
+      'GET /api/models': 'Modelos disponíveis',
+      'POST /api/perguntar': 'Fazer pergunta ao sistema RAG',
+      'POST /api/threat-modeling': 'Análise de threat modeling',
+      'POST /api/upload-documents': 'Upload de documentos'
+    }
+  });
+});
+
 app.get('/api/status', async (req, res) => {
   try {
     const hasDatabase = semanticSearch ? await semanticSearch.verificarCache() : false;
