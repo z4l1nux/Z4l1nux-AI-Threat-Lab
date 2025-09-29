@@ -135,12 +135,12 @@ nano .env
 ```bash
 # Configurações do Ollama (para modelos locais)
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-MODEL_OLLAMA=mistral
+MODEL_OLLAMA=qwen2.5-coder:7b
 EMBEDDING_MODEL=nomic-embed-text:latest
 
 # Configurações do OpenRouter (para modelos remotos)
 OPENROUTER_API_KEY=sua_chave_openrouter_aqui
-MODEL_OPENROUTER=deepseek/deepseek-r1:free
+MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
 
 # Configurações do Neo4j
 NEO4J_URI=bolt://localhost:7687
@@ -165,7 +165,7 @@ SEARCH_MODE=neo4j
 2. Baixe os modelos necessários:
 ```bash
 # Modelo de chat
-ollama pull mistral
+ollama pull qwen2.5-coder:7b
 
 # Modelo de embeddings
 ollama pull nomic-embed-text
@@ -308,7 +308,7 @@ http://localhost:3000
 ```
 
 3. **Usar a interface web para análise de ameaças:**
-   - Escolha entre Ollama (local) ou DeepSeek (OpenRouter)
+   - Escolha entre Ollama (Qwen2.5-Coder:7b) ou OpenRouter (Llama-3.3-70b-Instruct)
    - Digite sua pergunta sobre threat modeling ou vulnerabilidades
    - Veja a resposta de análise de ameaças e logs em tempo real
    - Visualize estatísticas dos resultados de segurança
@@ -321,8 +321,8 @@ npm run dev
 ```
 
 2. **Escolher o modelo para análise de threat modeling:**
-   - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama para análise de segurança
-   - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter para threat modeling
+   - **1 - Ollama (Local)**: Usa o modelo Qwen2.5-Coder:7b local via Ollama para análise de segurança
+   - **2 - OpenRouter (Cloud)**: Usa o modelo Llama-3.3-70b-Instruct via OpenRouter para threat modeling
 
 ## 🏗️ Arquitetura do Z4l1nux AI Threat Lab
 
@@ -481,7 +481,7 @@ ollama serve
 ollama list
 
 # Se necessário, baixe os modelos
-ollama pull mistral
+ollama pull qwen2.5-coder:7b
 ollama pull nomic-embed-text
 ```
 

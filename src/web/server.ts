@@ -25,6 +25,9 @@ app.use(express.json());
 // Servir arquivos estáticos do React
 app.use(express.static(path.join(__dirname, '../../public/react')));
 
+// Servir outros arquivos estáticos da pasta public
+app.use(express.static(path.join(__dirname, '../../public')));
+
 // Configuração segura do multer - usa memória em vez de disco
 const upload = multer({ 
   storage: multer.memoryStorage(), // Armazenar em memória para processamento seguro

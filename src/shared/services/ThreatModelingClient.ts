@@ -71,8 +71,8 @@ export class ThreatModelingClient {
       try {
         parsedResponse = JSON.parse(aiResponse);
       } catch (e) {
-        // Procurar JSON em blocos de código
-        const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+        // Procurar JSON em blocos de código - suporte para array e objeto
+        const jsonBlockMatch = aiResponse.match(/```(?:json)?\s*(\[[\s\S]*?\]|\{[\s\S]*?\})\s*```/i);
         if (jsonBlockMatch) {
           parsedResponse = JSON.parse(jsonBlockMatch[1]);
         } else {
@@ -144,8 +144,8 @@ export class ThreatModelingClient {
     cenarios.forEach((cenario, index) => {
       try {
         // Extrair informações do cenário - Suporte a múltiplos formatos
-        const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario.nome || cenario['Cenário de Risco'] || '';
-        const descritivo = cenario.descritivo || cenario.descricao || cenario.resumo || cenario['Descrição'] || '';
+        const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario.nome || cenario.tipo || cenario['Cenário de Risco'] || '';
+        const descritivo = cenario.descritivo || cenario.descricao || cenario.resumo || cenario.exemplo || cenario['Descrição'] || '';
         const impacto = cenario.impacto || cenario['Impacto'] || '';
         
         // Determinar categorias STRIDE primeiro
@@ -176,8 +176,9 @@ export class ThreatModelingClient {
         // Determinar categoria
         const categoria = this.extractCategory(descritivo + ' ' + impacto);
         
-        // Determinar severidade
-        const severidade = this.determineSeverity(impacto);
+        // Determinar severidade - usar descrição se impacto estiver vazio
+        const textoParaSeveridade = impacto || descritivo;
+        const severidade = this.determineSeverity(textoParaSeveridade);
         
         // Determinar probabilidade
         const probabilidade = this.determineProbability(tipoRisco);
@@ -361,21 +362,30 @@ export class ThreatModelingClient {
   private determineSeverity(impacto: string): SeverityLevel {
     const impactoLower = impacto.toLowerCase();
     
-    // Severidade Crítica
+    // Severidade Crítica - Contexto bancário
     if (impactoLower.includes('crítica') || impactoLower.includes('crítico') || impactoLower.includes('critical') ||
         impactoLower.includes('fraude financeira') || impactoLower.includes('financial fraud') ||
         impactoLower.includes('comprometimento total') || impactoLower.includes('total compromise') ||
-        impactoLower.includes('perda total') || impactoLower.includes('total loss')) {
+        impactoLower.includes('perda total') || impactoLower.includes('total loss') ||
+        impactoLower.includes('dados financeiros') || impactoLower.includes('financial data') ||
+        impactoLower.includes('transações') || impactoLower.includes('transactions') ||
+        impactoLower.includes('contas bancárias') || impactoLower.includes('bank accounts') ||
+        impactoLower.includes('pix') || impactoLower.includes('credenciais bancárias') ||
+        impactoLower.includes('danos à reputação') || impactoLower.includes('reputation damage')) {
       return 'Crítica';
     }
-    // Severidade Alta
+    // Severidade Alta - Contexto bancário
     else if (impactoLower.includes('alta') || impactoLower.includes('alto') || impactoLower.includes('high') ||
              impactoLower.includes('perda de dados') || impactoLower.includes('data loss') ||
              impactoLower.includes('violação de privacidade') || impactoLower.includes('privacy violation') ||
              impactoLower.includes('vazamento de dados') || impactoLower.includes('data breach') ||
              impactoLower.includes('acesso não autorizado') || impactoLower.includes('unauthorized access') ||
              impactoLower.includes('perda de negócios') || impactoLower.includes('business loss') ||
-             impactoLower.includes('compliance') || impactoLower.includes('regulatório')) {
+             impactoLower.includes('compliance') || impactoLower.includes('regulatório') ||
+             impactoLower.includes('clientes') || impactoLower.includes('customers') ||
+             impactoLower.includes('dados sensíveis') || impactoLower.includes('sensitive data') ||
+             impactoLower.includes('identidade') || impactoLower.includes('identity') ||
+             impactoLower.includes('falsificação') || impactoLower.includes('forgery')) {
       return 'Alta';
     }
     // Severidade Baixa
@@ -384,6 +394,13 @@ export class ThreatModelingClient {
              impactoLower.includes('inconveniente') || impactoLower.includes('inconvenience') ||
              impactoLower.includes('degradação') || impactoLower.includes('degradation')) {
       return 'Baixa';
+    }
+    
+    // Para contexto bancário, assumir Alta como padrão em vez de Média
+    if (impactoLower.includes('banco') || impactoLower.includes('bank') || 
+        impactoLower.includes('financeiro') || impactoLower.includes('financial') ||
+        impactoLower.includes('core banking') || impactoLower.includes('skybank')) {
+      return 'Alta';
     }
     
     return 'Média';

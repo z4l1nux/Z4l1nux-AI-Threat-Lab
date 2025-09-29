@@ -49,6 +49,8 @@ export interface CenarioRisco {
   tipo_de_risco?: string;  // Formato OpenRouter
   descricao?: string;      // Formato OpenRouter
   nome?: string;           // Formato OpenRouter novo
+  tipo?: string;           // Formato OpenRouter novo (ex: "S (Spoofing)")
+  exemplo?: string;        // Formato OpenRouter novo
   'Cenário de Risco'?: string;  // Formato OpenRouter novo
   'Descrição'?: string;         // Formato OpenRouter novo
   'Impacto'?: string;           // Formato OpenRouter novo

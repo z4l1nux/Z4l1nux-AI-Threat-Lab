@@ -20,7 +20,7 @@ export const ThreatModelingForm: React.FC<ThreatModelingFormProps> = ({ onSubmit
     systemType: 'web',
     sensitivity: 'alta',
     description: '',
-    assets: 'Não especificados',
+    assets: '',
     modelo: '1'
   });
 
