@@ -11,18 +11,6 @@ O **Z4l1nux AI Threat Lab** é um laboratório avançado de análise de ameaças
 - **Flexibilidade**: Suporte a vetores, grafos e metadados complexos de threat modeling
 - **Integração Nativa**: Compatível com LangChain e frameworks modernos de IA
 
-### 🔄 **Processamento Incremental de Dados de Segurança**
-- Detecta automaticamente documentos de threat modeling novos, modificados ou removidos
-- Processa apenas os documentos de segurança que mudaram
-- Economiza tempo e recursos de processamento de análises de ameaças
-- Mantém histórico de processamento de vulnerabilidades
-
-### 📊 **Controle de Versão de Documentos de Segurança**
-- Hash MD5 para detecção de mudanças em relatórios de segurança
-- Metadados completos de cada documento de threat modeling
-- Rastreamento de data de modificação e processamento de vulnerabilidades
-- Versionamento automático do cache de dados de segurança
-
 ### 💾 **Cache Inteligente com Neo4j para Dados de Segurança**
 - Armazenamento persistente de embeddings de documentos de segurança no Neo4j
 - Cache por documento com metadados flexíveis de threat modeling
@@ -82,22 +70,6 @@ flowchart TB
     class SEC security
     class QP,VS,PROC,RG processing
 ```
-
-### Sistema de Cache Inteligente
-
-O sistema implementa um cache inteligente que resolve os seguintes problemas:
-
-**Problemas Resolvidos:**
-- ❌ Sistema consulta base JSON diretamente a cada relatório
-- ❌ Sem cache, sempre gasta tokens para embeddings
-- ❌ Processamento lento e custoso
-- ❌ Sem otimização de performance
-
-**Soluções Implementadas:**
-- ✅ Cache inteligente com Neo4j
-- ✅ Processamento incremental de documentos
-- ✅ Busca semântica otimizada
-- ✅ Redução significativa de tokens e tempo
 
 ### Fluxo de Processamento
 
@@ -198,17 +170,6 @@ Após iniciar o container, acesse:
 - **Usuário**: neo4j
 - **Senha**: password
 
-## 📚 Preparando a Base de Conhecimento de Segurança
-
-1. Crie uma pasta chamada `base/` no diretório raiz do projeto
-2. Coloque seus documentos de threat modeling nesta pasta (PDF, XML, JSON, CSV)
-3. Execute o gerenciador de cache Neo4j para análise de ameaças:
-```bash
-npm run create-neo4j
-```
-
-**Nota**: O Z4l1nux AI Threat Lab usa Neo4j por padrão, que oferece performance muito superior para análise de vulnerabilidades e threat modeling.
-
 ### 📁 Tipos de Arquivo de Segurança Suportados
 
 O Z4l1nux AI Threat Lab suporta os seguintes tipos de arquivo para análise de ameaças:
@@ -302,35 +263,6 @@ npm run dev
 2. **Escolher o modelo para análise de threat modeling:**
    - **1 - Ollama (Local)**: Usa o modelo Mistral local via Ollama para análise de segurança
    - **2 - DeepSeek (OpenRouter)**: Usa o modelo DeepSeek via OpenRouter para threat modeling
-
-**Nota**: O Z4l1nux AI Threat Lab usa Neo4j por padrão para busca semântica de dados de segurança, oferecendo performance muito superior para análise de ameaças.
-
-## 📈 Vantagens do Z4l1nux AI Threat Lab
-
-### ⚡ **Performance para Análise de Ameaças**
-- Processamento incremental reduz tempo de atualização de dados de segurança
-- Neo4j oferece busca vetorial otimizada com índices nativos para threat modeling
-- Performance 10-100x superior ao sistema anterior de análise de ameaças
-- Cache local elimina dependências externas para dados de segurança
-- Busca otimizada com filtros de qualidade para vulnerabilidades
-
-### 🔒 **Confiabilidade de Dados de Segurança**
-- Controle de versão previne inconsistências em documentos de threat modeling
-- Hash MD5 garante integridade dos dados de segurança
-- Neo4j oferece backup automático e recuperação de dados críticos
-- Base de dados ACID garante consistência de análises de ameaças
-
-### 📊 **Monitoramento de Análises de Segurança**
-- Estatísticas detalhadas de uso do sistema de threat modeling
-- Logs de processamento de documentos de segurança
-- Rastreamento de performance de análises de ameaças
-
-### 🛠️ **Manutenibilidade do Sistema de Segurança**
-- Código modular e bem estruturado para análise de ameaças
-- Separação clara de responsabilidades de threat modeling
-- Fácil extensão de funcionalidades de segurança
-- Neo4j oferece APIs modernas e bem documentadas para dados de segurança
-- Suporte a múltiplos backends (Neo4j, JSON, otimizado) para análise de vulnerabilidades
 
 ## 🏗️ Arquitetura do Z4l1nux AI Threat Lab
 
