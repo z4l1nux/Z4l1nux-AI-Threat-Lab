@@ -1,122 +1,59 @@
-# 📜 Scripts de Automação - Threat Modeling
+## 🚀 Scripts de Automação
 
-Este diretório contém scripts para automatizar tarefas comuns do projeto.
+Este diretório contém scripts para facilitar o desenvolvimento e deploy da **Threat Modeling Platform**.
 
-## 🪟 **Windows (PowerShell)**
+### 📋 Scripts Disponíveis
 
-### **setup.ps1** - Configuração Inicial
-```powershell
+#### **Linux/macOS:**
+- `setup.sh` - Configuração inicial do projeto
+- `dev.sh` - Execução em modo desenvolvimento
+- `build.sh` - Build para produção
+
+#### **Windows:**
+- `setup.ps1` - Configuração inicial do projeto
+- `dev.ps1` - Execução em modo desenvolvimento  
+- `build.ps1` - Build para produção
+
+### 🔧 Como Usar
+
+#### **Setup Inicial:**
+```bash
+# Linux/macOS
+./scripts/setup.sh
+
+# Windows
 .\scripts\setup.ps1
 ```
-- Instala dependências do backend e frontend
-- Compila o projeto completo
-- Configura tudo para desenvolvimento
 
-### **dev.ps1** - Desenvolvimento
-```powershell
+#### **Desenvolvimento:**
+```bash
+# Linux/macOS
+./scripts/dev.sh
+
+# Windows
 .\scripts\dev.ps1
 ```
-- Inicia backend e frontend em modo desenvolvimento
-- Hot reload ativado
-- URLs disponíveis:
-  - Backend: http://localhost:3000
-  - Frontend: http://localhost:3001
-  - Legacy: http://localhost:3000/legacy
 
-### **build.ps1** - Build de Produção
-```powershell
+#### **Build de Produção:**
+```bash
+# Linux/macOS
+./scripts/build.sh
+
+# Windows
 .\scripts\build.ps1
 ```
-- Compila backend TypeScript
-- Build do frontend React
-- Gera arquivos otimizados para produção
 
-## 🐧 **Linux/Mac (Bash)**
+### 🌐 URLs de Acesso
 
-### **setup.sh** - Configuração Inicial
-```bash
-chmod +x scripts/setup.sh
-./scripts/setup.sh
-```
+Após executar os scripts, acesse:
 
-## 🔧 **Execução de Política PowerShell**
+- **Aplicação:** http://localhost:3000
+- **Frontend Dev:** http://localhost:3001 (apenas em desenvolvimento)
+- **Backend API:** http://localhost:3000/api
 
-Se você receber erro de política de execução no PowerShell:
+### 📝 Notas
 
-```powershell
-# Verificar política atual
-Get-ExecutionPolicy
-
-# Permitir execução de scripts (temporário)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
-# Ou executar com bypass
-PowerShell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-```
-
-## 📋 **Comandos NPM Alternativos**
-
-Se preferir usar comandos NPM diretamente:
-
-```bash
-# Instalar tudo
-npm run install-deps
-
-# Desenvolvimento
-npm run dev
-
-# Build
-npm run build
-
-# Apenas backend
-npm run dev:backend
-
-# Apenas frontend  
-npm run dev:frontend
-```
-
-## 🆘 **Troubleshooting**
-
-### **Erro: "npm não encontrado"**
-```powershell
-# Verificar se Node.js está instalado
-node --version
-npm --version
-
-# Se não estiver, instalar Node.js de: https://nodejs.org
-```
-
-### **Erro: "Dependências não encontradas"**
-```powershell
-# Limpar cache e reinstalar
-Remove-Item -Recurse -Force node_modules
-Remove-Item -Recurse -Force src/client/node_modules
-npm install
-```
-
-### **Erro: "Porta já em uso"**
-```powershell
-# Verificar processos na porta 3000
-netstat -ano | findstr :3000
-
-# Matar processo (substitua PID)
-taskkill /PID <PID> /F
-```
-
-## 🎯 **Fluxo Recomendado**
-
-1. **Primeira vez:**
-   ```powershell
-   .\scripts\setup.ps1
-   ```
-
-2. **Desenvolvimento diário:**
-   ```powershell
-   .\scripts\dev.ps1
-   ```
-
-3. **Deploy:**
-   ```powershell
-   .\scripts\build.ps1
-   npm start
-   ```
+- Os scripts verificam automaticamente as dependências
+- Em caso de erro, execute `npm install` manualmente
+- Para parar os servidores, pressione `Ctrl+C`
+- A aplicação agora é 100% React + TypeScript

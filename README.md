@@ -1,6 +1,14 @@
 # Z4l1nux AI Threat Lab
 
-O **Z4l1nux AI Threat Lab** é um laboratório avançado de análise de ameaças cibernéticas que implementa um sistema de Retrieval-Augmented Generation (RAG) em TypeScript com recursos avançados de controle de versão, cache inteligente e processamento incremental. O sistema é especializado em análise de threat modeling, detecção de vulnerabilidades e geração de relatórios de segurança automatizados, suportando modelos locais via Ollama e modelos remotos via OpenRouter (DeepSeek).
+O **Z4l1nux AI Threat Lab** é um laboratório avançado de análise de ameaças cibernéticas que implementa um sistema de Retrieval-Augmented Generation (RAG) em **TypeScript Full-Stack** com recursos avançados de controle de versão, cache inteligente e processamento incremental. O sistema é especializado em análise de threat modeling, detecção de vulnerabilidades e geração de relatórios de segurança automatizados, suportando modelos locais via Ollama e modelos remotos via OpenRouter (DeepSeek).
+
+## 🎯 **Nova Arquitetura Full-Stack TypeScript**
+
+- **Frontend:** React 18 + TypeScript + Vite
+- **Backend:** Node.js + Express + TypeScript  
+- **Database:** Neo4j com suporte vetorial
+- **IA:** Ollama (local) + OpenRouter (cloud)
+- **Build:** TypeScript compilado + Vite bundling
 
 ## ✨ Funcionalidades do Z4l1nux AI Threat Lab
 
@@ -88,12 +96,33 @@ flowchart TB
 
 ## 📦 Instalação
 
-1. Instale as dependências:
+### **🚀 Setup Automático (Recomendado)**
+
+#### **Linux/macOS:**
+```bash
+./scripts/setup.sh
+```
+
+#### **Windows:**
+```powershell
+.\scripts\setup.ps1
+```
+
+### **🔧 Setup Manual**
+
+1. Instale as dependências do backend:
 ```bash
 npm install
 ```
 
-2. Configure as variáveis de ambiente:
+2. Instale as dependências do frontend:
+```bash
+cd src/client
+npm install
+cd ../..
+```
+
+3. Configure as variáveis de ambiente:
 ```bash
 # Copie o arquivo de exemplo
 cp .env.example .env
@@ -192,7 +221,38 @@ Todos os loaders seguem o padrão LangChain e retornam documentos de segurança 
 
 ## 🎯 Uso
 
-### 🧪 Testes e Verificação do Threat Lab
+### **🚀 Execução em Desenvolvimento**
+
+#### **Linux/macOS:**
+```bash
+./scripts/dev.sh
+```
+
+#### **Windows:**
+```powershell
+.\scripts\dev.ps1
+```
+
+#### **Manual:**
+```bash
+# Executar aplicação completa
+npm run dev
+```
+
+### **🌐 Acesso à Aplicação**
+
+#### **Em Desenvolvimento:**
+- **Aplicação:** http://localhost:3000 (backend serve o React)
+- **Frontend Dev:** http://localhost:3001 (Vite - hot reload)
+- **Backend API:** http://localhost:3000/api
+
+#### **Em Produção:**
+- **Aplicação:** http://localhost:3000 (backend serve o build)
+- **Backend API:** http://localhost:3000/api
+
+**Nota:** Em desenvolvimento, use `http://localhost:3000` para acessar a aplicação. O Vite dev server (3001) é usado internamente para hot reload.
+
+### **🧪 Testes e Verificação do Threat Lab**
 
 Para testar os loaders de documentos de segurança e funcionalidades de análise de ameaças:
 
@@ -349,11 +409,15 @@ maxResults: 8
 # Interface CLI
 npm run dev
 
-# Interface Web
-npm run web
+# Aplicação Web (React + TypeScript)
+# Acesse: http://localhost:3000 (backend serve o React)
 
-# Build
+# Build de produção
 npm run build
+
+# Ou usar scripts automatizados
+./scripts/build.sh        # Linux/macOS
+.\scripts\build.ps1       # Windows
 ```
 
 ### Gerenciamento de Cache

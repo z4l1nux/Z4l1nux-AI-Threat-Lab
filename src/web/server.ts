@@ -22,11 +22,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Servir arquivos estáticos do React (quando buildado)
+// Servir arquivos estáticos do React
 app.use(express.static(path.join(__dirname, '../../public/react')));
-
-// Servir arquivos estáticos originais como fallback
-app.use('/legacy', express.static(path.join(__dirname, '../../public')));
 
 // Configuração segura do multer - usa memória em vez de disco
 const upload = multer({ 
@@ -545,20 +542,9 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
 
 // Rotas
 app.get('/', (req, res) => {
-  // Tentar servir o React build primeiro, fallback para HTML original
+  // Servir o React build
   const reactIndex = path.join(__dirname, '../../public/react/index.html');
-  const legacyIndex = path.join(__dirname, '../../public/index.html');
-  
-  if (require('fs').existsSync(reactIndex)) {
-    res.sendFile(reactIndex);
-  } else {
-    res.sendFile(legacyIndex);
-  }
-});
-
-// Rota para acessar a versão legacy
-app.get('/legacy', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../public/index.html'));
+  res.sendFile(reactIndex);
 });
 
 app.post('/api/perguntar', async (req, res) => {

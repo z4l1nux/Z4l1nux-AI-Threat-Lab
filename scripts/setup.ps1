@@ -48,14 +48,5 @@ Write-Host ""
 Write-Host "Para executar em desenvolvimento:" -ForegroundColor Cyan
 Write-Host "  npm run dev" -ForegroundColor White
 Write-Host ""
-Write-Host "Para executar apenas o backend:" -ForegroundColor Cyan
-Write-Host "  npm run dev:backend" -ForegroundColor White
-Write-Host ""
-Write-Host "Para executar apenas o frontend:" -ForegroundColor Cyan
-Write-Host "  npm run dev:frontend" -ForegroundColor White
-Write-Host ""
-Write-Host "Para acessar a versão legacy:" -ForegroundColor Cyan
-Write-Host "  http://localhost:3000/legacy" -ForegroundColor White
-Write-Host ""
-Write-Host "Para acessar a nova versão React:" -ForegroundColor Cyan
+Write-Host "Para acessar a aplicação:" -ForegroundColor Cyan
 Write-Host "  http://localhost:3000" -ForegroundColor White

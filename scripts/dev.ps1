@@ -17,10 +17,10 @@ if (-not (Test-Path "src/client/node_modules")) {
 }
 
 # Executar em modo desenvolvimento
-Write-Host "🔧 Iniciando backend e frontend..." -ForegroundColor Yellow
-Write-Host "Backend: http://localhost:3000" -ForegroundColor Cyan
-Write-Host "Frontend: http://localhost:3001" -ForegroundColor Cyan
-Write-Host "Legacy: http://localhost:3000/legacy" -ForegroundColor Cyan
+Write-Host "🔧 Iniciando aplicação..." -ForegroundColor Yellow
+Write-Host "Aplicação: http://localhost:3000" -ForegroundColor Green
+Write-Host "Frontend Dev: http://localhost:3001" -ForegroundColor Cyan
+Write-Host "Backend API: http://localhost:3000/api" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Pressione Ctrl+C para parar" -ForegroundColor Yellow
 
