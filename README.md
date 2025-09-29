@@ -199,6 +199,30 @@ Após iniciar o container, acesse:
 - **Usuário**: neo4j
 - **Senha**: password
 
+### 📚 **Documentos CAPEC-STRIDE Recomendados (Importar Primeiro)**
+
+Para obter os melhores resultados de threat modeling, **importe primeiro** os seguintes documentos CAPEC-STRIDE na base de conhecimento:
+
+#### **1. Mapeamento CAPEC-STRIDE (Obrigatório)**
+- **Fonte**: [CAPEC S.T.R.I.D.E. Mapping](https://www.ostering.com/media/files/docs/capec-stride-mapping.md)
+- **Conteúdo**: Mapeamento completo de padrões de ataque CAPEC para categorias STRIDE
+- **Benefício**: Permite ao sistema identificar automaticamente CAPECs relevantes para cada tipo de ameaça STRIDE
+
+#### **2. Base Oficial CAPEC do MITRE (Recomendado)**
+- **Fonte**: [CAPEC Downloads](https://capec.mitre.org/data/downloads.html)
+- **Documentos sugeridos**:
+  - **Mechanisms of Attack**: `Booklet.html`, `CSV.zip`, `XML.zip`
+  - **Domains of Attack**: `Booklet.html`, `CSV.zip`, `XML.zip`
+- **Benefício**: Base completa e atualizada de padrões de ataque oficiais
+
+#### **3. Como Importar**
+1. Baixe os documentos das fontes acima
+2. Use a interface web para fazer upload dos arquivos
+3. Aguarde o processamento e indexação
+4. Verifique o status da base de conhecimento
+
+**Importante**: Estes documentos devem ser importados **antes** dos documentos específicos do sistema que será modelado, pois fornecem o contexto fundamental de padrões de ataque e metodologia STRIDE.
+
 ### 📁 Tipos de Arquivo de Segurança Suportados
 
 O Z4l1nux AI Threat Lab suporta os seguintes tipos de arquivo para análise de ameaças:
