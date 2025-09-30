@@ -111,11 +111,11 @@ RESPOSTA:`;
   }
 
   /**
-   * Template para threat modeling que força JSON
+   * Template para threat modeling com structured outputs
    */
   static getThreatModelingTemplate(): string {
     return `
-Você é um especialista em análise de ameaças e threat modeling. Sua tarefa é analisar o sistema descrito e gerar um relatório de ameaças em formato JSON estruturado.
+Você é um especialista em análise de ameaças e threat modeling. Sua tarefa é analisar o sistema descrito e gerar um relatório de ameaças.
 
 PERGUNTA DO USUÁRIO:
 {pergunta}
@@ -125,39 +125,19 @@ BASE DE CONHECIMENTO (use APENAS estas informações):
 
 INSTRUÇÕES OBRIGATÓRIAS:
 1. Responda APENAS com base nas informações fornecidas na base de conhecimento
-2. SEMPRE retorne um JSON válido com a estrutura especificada abaixo
-3. Identifique ameaças específicas baseadas na metodologia STRIDE
-4. Para cada ameaça, forneça CAPECs relevantes quando possível
-5. Se não encontrar informações suficientes, crie pelo menos 3 ameaças genéricas baseadas no contexto
-
-FORMATO DE RESPOSTA OBRIGATÓRIO (JSON):
-\`\`\`json
-{
-  "threats": [
-    {
-      "id": "T001",
-      "stride": ["S"],
-      "categoria": "Nome da Categoria",
-      "ameaca": "Nome da ameaça",
-      "descricao": "Descrição detalhada da ameaça",
-      "impacto": "Impacto da ameaça",
-      "probabilidade": "Alta|Média|Baixa",
-      "severidade": "Crítica|Alta|Média|Baixa",
-      "mitigacao": "Medidas de mitigação",
-      "capec": "CAPEC-XXX",
-      "deteccao": "Como detectar esta ameaça"
-    }
-  ]
-}
-\`\`\`
+2. Identifique ameaças específicas baseadas na metodologia STRIDE
+3. Para cada ameaça, forneça CAPECs relevantes quando possível
+4. Se não encontrar informações suficientes, crie pelo menos 3 ameaças genéricas baseadas no contexto
+5. Use códigos STRIDE: S (Spoofing), T (Tampering), R (Repudiation), I (Information Disclosure), D (Denial of Service), E (Elevation of Privilege)
+6. Seja específico e técnico nas descrições
+7. Inclua pelo menos 3-6 ameaças
 
 IMPORTANTE: 
-- SEMPRE retorne JSON válido dentro de blocos de código
-- Inclua pelo menos 3-6 ameaças
-- Use códigos STRIDE: S (Spoofing), T (Tampering), R (Repudiation), I (Information Disclosure), D (Denial of Service), E (Elevation of Privilege)
-- Seja específico e técnico nas descrições
+- Retorne como JSON estruturado conforme o schema definido
+- Cada ameaça deve ter todos os campos obrigatórios preenchidos
+- Use valores válidos para probabilidade (Alta, Média, Baixa) e severidade (Crítica, Alta, Média, Baixa)
 
-RESPOSTA (JSON obrigatório):`;
+Análise de ameaças:`;
   }
 
   /**

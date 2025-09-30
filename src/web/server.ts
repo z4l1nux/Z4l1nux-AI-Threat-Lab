@@ -523,28 +523,38 @@ async function processarThreatModeling(request: ThreatModelingRequest, modelo: s
         
         // Tentar primeiro com structured outputs
         try {
-          logs.push(`🔧 Usando structured outputs com JSON Schema...`);
+          logs.push(`🔧 Usando structured outputs com JSON Schema (biblioteca direta)...`);
           
-          // Usar o método structured outputs do Ollama
-          if ((modeloAI as any).invoke) {
-            resposta = await (modeloAI as any).invoke(textoPrompt, {
-              format: schema
-            });
-          } else {
-            // Fallback para método antigo se structured outputs não estiver disponível
-            resposta = await (modeloAI as any).call(textoPrompt, {
-              format: schema
-            });
-          }
+          // Usar biblioteca Ollama diretamente para garantir structured outputs
+          const ollama = require('ollama');
           
-          logs.push(`✅ Structured output recebido`);
+          const response = await ollama.chat({
+            model: process.env.MODEL_OLLAMA || "mistral",
+            messages: [
+              {
+                role: 'user',
+                content: textoPrompt
+              }
+            ],
+            format: schema,
+            options: {
+              temperature: 0.1
+            }
+          });
+          
+          // Converter resposta do Ollama para formato LangChain
+          resposta = {
+            content: response.message.content
+          };
+          
+          logs.push(`✅ Structured output recebido via biblioteca direta`);
           
         } catch (error) {
-          logs.push(`⚠️ Erro com structured outputs: ${error}`);
+          logs.push(`⚠️ Structured outputs direto falhou, usando LangChain: ${error}`);
           
           // Fallback: tentar sem structured outputs
           try {
-            logs.push(`🔄 Tentando sem structured outputs...`);
+            logs.push(`🔄 Tentando com LangChain sem structured outputs...`);
             resposta = (modeloAI as any).invoke
               ? await (modeloAI as any).invoke(textoPrompt as any)
               : await (modeloAI as any).call({ input: textoPrompt });

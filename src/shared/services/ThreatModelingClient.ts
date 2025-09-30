@@ -16,7 +16,7 @@ import {
 export class ThreatModelingClient {
   private baseUrl: string;
 
-  constructor(baseUrl: string = window.location.origin) {
+  constructor(baseUrl: string = 'http://localhost:3000') {
     this.baseUrl = baseUrl;
   }
 
@@ -39,7 +39,7 @@ export class ThreatModelingClient {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const result = await response.json() as any;
       console.log('📡 Resposta recebida:', result);
       
       return this.processAIResponse(result.resposta, request.systemType);
@@ -58,6 +58,37 @@ export class ThreatModelingClient {
       
       if (!aiResponse || aiResponse.trim() === '') {
         console.log('⚠️ Resposta da IA vazia, usando mock');
+        return {
+          success: false,
+          threats: this.getMockThreatsForSystem(systemType),
+          source: 'mock',
+          confidence: 0
+        };
+      }
+
+      // Verificar se a resposta contém padrões de recusa ou erro
+      const refusalPatterns = [
+        "I'm sorry, but I can't assist",
+        "I cannot help",
+        "I'm not able to",
+        "I can't provide",
+        "I'm unable to",
+        "I don't have the ability",
+        "I'm not programmed to",
+        "I cannot generate",
+        "I'm not designed to",
+        "does not contain any explicit or implicit questions",
+        "no explicit or implicit questions",
+        "result\": null",
+        "message\": \"The provided text"
+      ];
+      
+      const isRefusal = refusalPatterns.some(pattern => 
+        aiResponse.toLowerCase().includes(pattern.toLowerCase())
+      );
+      
+      if (isRefusal) {
+        console.log('⚠️ IA recusou a solicitação ou não entendeu, usando mock');
         return {
           success: false,
           threats: this.getMockThreatsForSystem(systemType),
@@ -96,15 +127,29 @@ export class ThreatModelingClient {
         }
       }
 
-      // Verificar formato cenarios_risco (Ollama)
-      if (parsedResponse.cenarios_risco && Array.isArray(parsedResponse.cenarios_risco)) {
-        console.log('🎯 Formato Ollama (cenarios_risco) detectado!');
-        const threats = this.convertCenariosRiscoToThreats(parsedResponse.cenarios_risco);
+      // Verificar formato structured outputs (Ollama) - FORMATO CORRETO
+      if (parsedResponse.threats && Array.isArray(parsedResponse.threats)) {
+        console.log('🎯 Structured Outputs (threats) detectado!');
+        const threats = this.validateAndNormalizeThreats(parsedResponse.threats);
+        console.log(`✅ Processados ${threats.length} ameaças via structured outputs`);
         return {
-          success: true,
+          success: threats.length > 0,
           threats,
           source: 'ai',
-          confidence: 0.9
+          confidence: 0.95 // Alta confiança para structured outputs
+        };
+      }
+
+      // Fallback: Verificar formato cenarios_risco (Ollama antigo)
+      if (parsedResponse.cenarios_risco && Array.isArray(parsedResponse.cenarios_risco)) {
+        console.log('🎯 Formato Ollama antigo (cenarios_risco) detectado!');
+        const threats = this.convertCenariosRiscoToThreats(parsedResponse.cenarios_risco);
+        console.log(`✅ Convertidos ${threats.length} cenários para ameaças`);
+        return {
+          success: threats.length > 0,
+          threats,
+          source: 'ai',
+          confidence: threats.length > 0 ? 0.8 : 0.1
         };
       }
 
@@ -163,24 +208,89 @@ export class ThreatModelingClient {
   }
 
   /**
+   * Valida e normaliza ameaças vindas de structured outputs
+   */
+  private validateAndNormalizeThreats(threats: any[]): Threat[] {
+    const normalizedThreats: Threat[] = [];
+    
+    threats.forEach((threat, index) => {
+      try {
+        // Validar campos obrigatórios
+        if (!threat.id || !threat.ameaca || !threat.descricao) {
+          console.warn(`⚠️ Ameaça ${index + 1} com campos obrigatórios faltando, pulando...`);
+          return;
+        }
+
+        const normalizedThreat: Threat = {
+          id: threat.id || `T${String(index + 1).padStart(3, '0')}`,
+          stride: Array.isArray(threat.stride) ? threat.stride : ['T'],
+          categoria: threat.categoria || 'Segurança Geral',
+          ameaca: threat.ameaca,
+          descricao: threat.descricao,
+          impacto: threat.impacto || 'Impacto não especificado',
+          probabilidade: threat.probabilidade || 'Média',
+          severidade: threat.severidade || 'Média',
+          mitigacao: threat.mitigacao || 'Implementar controles de segurança apropriados',
+          capec: threat.capec || `CAPEC-${Math.floor(Math.random() * 900) + 100}`,
+          deteccao: threat.deteccao || 'Monitoramento baseado em logs e métricas de segurança'
+        };
+
+        normalizedThreats.push(normalizedThreat);
+        console.log(`✅ Ameaça ${index + 1} normalizada: ${normalizedThreat.ameaca}`);
+        
+      } catch (error) {
+        console.warn(`⚠️ Erro ao normalizar ameaça ${index + 1}:`, error);
+      }
+    });
+
+    return normalizedThreats;
+  }
+
+  /**
    * Converte formato cenarios_risco do Ollama para formato de ameaças
    */
   private convertCenariosRiscoToThreats(cenarios: CenarioRisco[]): Threat[] {
     const threats: Threat[] = [];
     
+    console.log(`🔄 Convertendo ${cenarios.length} cenários...`);
+    
     cenarios.forEach((cenario, index) => {
       try {
+        console.log(`📋 Processando cenário ${index + 1}:`, cenario);
+        
         // Extrair informações do cenário - Suporte a múltiplos formatos
         const tipoRisco = cenario.tipo_risco || cenario.tipo_de_risco || cenario.cenario || cenario.nome || cenario.tipo || cenario['Cenário de Risco'] || '';
         const descritivo = cenario.descritivo || cenario.descricao || cenario.resumo || cenario.exemplo || cenario['Descrição'] || '';
         const impacto = cenario.impacto || cenario['Impacto'] || '';
         
+        // Verificar se temos informações mínimas
+        if (!tipoRisco && !descritivo) {
+          console.warn(`⚠️ Cenário ${index + 1} sem informações válidas, pulando...`);
+          return;
+        }
+        
         // Determinar categorias STRIDE primeiro
         const strideCategories = this.determineStrideCategories(tipoRisco + ' ' + descritivo);
         
-        let mitigacao = Array.isArray(cenario.mitigacao) 
-          ? cenario.mitigacao.join('; ') 
-          : cenario.mitigacao || cenario.mitigação || cenario['Mitigação'] || '';
+        let mitigacao = '';
+        
+        // Processar mitigação - pode ser array de objetos ou string
+        if (Array.isArray(cenario.mitigacao)) {
+          if (cenario.mitigacao.length > 0 && typeof cenario.mitigacao[0] === 'object') {
+            // Array de objetos com 'medida' e 'detalhes'
+            mitigacao = cenario.mitigacao.map((m: any) => {
+              if (typeof m === 'object' && m.medida) {
+                return m.detalhes ? `${m.medida}: ${m.detalhes}` : m.medida;
+              }
+              return String(m);
+            }).join('; ');
+          } else {
+            // Array de strings
+            mitigacao = cenario.mitigacao.join('; ');
+          }
+        } else {
+          mitigacao = cenario.mitigacao || cenario.mitigação || cenario['Mitigação'] || '';
+        }
         
         // Se mitigação estiver vazia, gerar uma baseada no tipo de ameaça
         if (!mitigacao || mitigacao.trim() === '') {
@@ -235,9 +345,25 @@ export class ThreatModelingClient {
         
       } catch (error) {
         console.warn(`⚠️ Erro ao converter cenário ${index + 1}:`, error);
+        // Criar uma ameaça básica como fallback
+        const fallbackThreat: Threat = {
+          id: `T${String(index + 1).padStart(3, '0')}`,
+          stride: ['T'],
+          categoria: 'Segurança Geral',
+          ameaca: `Ameaça ${index + 1} - Formato não reconhecido`,
+          descricao: `Cenário de risco detectado mas não foi possível processar completamente: ${JSON.stringify(cenario).substring(0, 100)}...`,
+          impacto: 'Impacto não especificado',
+          probabilidade: 'Média',
+          severidade: 'Média',
+          mitigacao: 'Implementar controles de segurança apropriados',
+          capec: `CAPEC-${Math.floor(Math.random() * 900) + 100}`,
+          deteccao: 'Monitoramento baseado em logs e métricas de segurança'
+        };
+        threats.push(fallbackThreat);
       }
     });
     
+    console.log(`✅ Conversão concluída: ${threats.length} ameaças geradas de ${cenarios.length} cenários`);
     return threats;
   }
 

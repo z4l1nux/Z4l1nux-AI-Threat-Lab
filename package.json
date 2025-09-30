@@ -41,6 +41,7 @@
     "marked": "^16.1.2",
     "multer": "^2.0.2",
     "neo4j-driver": "^5.26.0",
+    "ollama": "^0.6.0",
     "pdf-parse": "^1.1.1",
     "xml2js": "^0.6.2"
   },
