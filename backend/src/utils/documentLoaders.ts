@@ -208,7 +208,9 @@ export class DocumentLoaderFactory {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${originalName}`);
+    // Sanitizar originalName para prevenir path traversal
+    const sanitizedName = path.basename(originalName).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const tempFilePath = path.join(tempDir, `temp_${Date.now()}_${sanitizedName}`);
     
     try {
       // Escrever buffer para arquivo temporário
