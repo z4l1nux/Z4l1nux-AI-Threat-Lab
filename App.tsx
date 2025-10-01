@@ -1,8 +1,9 @@
 import React from 'react';
-import SystemInputForm from './components/SystemInputForm';
-import ReportDisplay from './components/ReportDisplay';
-import LoadingSpinner from './components/LoadingSpinner';
-import { useThreatModeler } from './hooks/useThreatModeler';
+import SystemInputForm from './src/components/SystemInputForm';
+import ReportDisplay from './src/components/ReportDisplay';
+import LoadingSpinner from './src/components/LoadingSpinner';
+import RAGPanel from './src/components/RAGPanel';
+import { useThreatModeler } from './src/hooks/useThreatModeler';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { APP_TITLE, INITIAL_SYSTEM_INFO, GEMINI_API_KEY_CHECK_MSG } from './constants';
 import { SystemInfo } from './types';
@@ -17,7 +18,7 @@ const App: React.FC = () => {
     refineThreatModel
   } = useThreatModeler();
 
-  const handleFormSubmit = (data: { fullDescription: string, systemVersion?: string }) => {
+  const handleFormSubmit = (data: { fullDescription: string }) => {
     // Extrair nome do sistema da descrição completa
     let systemName = 'Sistema Informado';
     const match = data.fullDescription.match(/Nome do Sistema\s*[:\-–]?\s*(.+)/i);
@@ -30,7 +31,7 @@ const App: React.FC = () => {
     }
     const fakeSystemInfo = {
       systemName,
-      systemVersion: data.systemVersion || 'Não informado',
+      systemVersion: new Date().toISOString().split('T')[0], // Data atual como versão interna
       generalDescription: data.fullDescription,
       components: '',
       sensitiveData: '',
@@ -65,8 +66,15 @@ const App: React.FC = () => {
       </header>
 
       <main className="w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4">
-        <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8">
+        <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8 space-y-4">
           <h2 id="system-input-heading" className="sr-only">Entrada de Informações do Sistema</h2>
+          
+          {/* Painel RAG */}
+          <div className="bg-gray-900 rounded-lg p-4">
+            <RAGPanel />
+          </div>
+          
+          {/* Formulário do Sistema */}
           <SystemInputForm
             onSubmit={handleFormSubmit}
             isLoading={isLoading}

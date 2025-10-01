@@ -47,7 +47,6 @@ const generateMarkdownReport = (data: ReportData): string => {
   return `
 # Relatório de Modelagem de Ameaças: ${data.systemInfo.systemName}
 
-**Versão:** ${data.systemInfo.systemVersion}
 **Gerado em:** ${new Date(data.generatedAt).toLocaleString('pt-BR')}
 
 ## 1. Visão Geral do Sistema
@@ -155,7 +154,7 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
     // Informações do sistema
     doc.setFontSize(12);
     doc.setTextColor(black); // Texto em preto
-    doc.text(`Versão: ${reportData.systemInfo.systemVersion}`, 14, 32, { maxWidth: 180 });
+    doc.text(`Gerado em: ${new Date(reportData.generatedAt).toLocaleString('pt-BR')}`, 14, 32, { maxWidth: 180 });
     // Descrição e campos do resumo
     let y = 40;
     const addField = (label: string, value: any) => {

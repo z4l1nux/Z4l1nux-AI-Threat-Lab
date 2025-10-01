@@ -1,13 +1,35 @@
-# Threat Modeling Co-Pilot
+# Threat Modeling Co-Pilot com RAG
 
-## Objetivo do Sistema
+## Descrição
 
-O **Threat Modeling Co-Pilot** é uma plataforma inteligente para modelagem de ameaças, que utiliza IA (Google Gemini) para analisar sistemas, gerar relatórios de ameaças STRIDE, mapear para CAPEC, sugerir mitigações e exportar relatórios completos em PDF. O objetivo é facilitar e acelerar o processo de modelagem de ameaças para desenvolvedores, arquitetos e equipes de segurança.
+Plataforma de modelagem de ameaças que utiliza IA (Google Gemini) e RAG (Retrieval-Augmented Generation) para:
+- Analisar sistemas e identificar ameaças STRIDE
+- Mapear ameaças para padrões CAPEC
+- Sugerir mitigações e avaliar impactos
+- Gerar relatórios completos em PDF
+- Criar árvores de ataque interativas
+
+## Arquitetura
+
+### Stack Tecnológica
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Node.js + Express + TypeScript
+- **IA**: Google Gemini (embeddings 768D + geração de conteúdo)
+- **Banco de Dados**: Neo4j (armazenamento vetorial)
+- **RAG**: Busca semântica automática com embeddings Gemini
+
+### Sistema RAG
+- **Processamento Automático**: Sistema envia informações ao backend automaticamente
+- **Busca Vetorial**: Embeddings Gemini (768 dimensões) + Neo4j
+- **Mapeamento Dinâmico**: STRIDE-CAPEC carregado via upload de documentos
+- **Contexto Inteligente**: Análise enriquecida com base de conhecimento
+- **Formatos Suportados**: PDF, DOCX, DOC, TXT, MD, XML, JSON, CSV
 
 ## Pré-requisitos
 
 - Node.js 18+
 - npm ou yarn
+- Docker e Docker Compose
 - Conta e chave de API do Google Gemini (https://aistudio.google.com/app/apikey)
 
 ## Instalação
@@ -25,55 +47,181 @@ O **Threat Modeling Co-Pilot** é uma plataforma inteligente para modelagem de a
    yarn install
    ```
 
-3. Configure a chave da API Gemini:
-   - Renomeie o arquivo `.env.local.example` para `.env.local`:
+3. Configure as variáveis de ambiente:
+   - Copie o arquivo de exemplo:
      ```bash
-     mv .env.local.example .env.local
+     cp .env.example .env.local
      ```
-   - Edite o arquivo `.env.local` e adicione sua chave:
+   - Edite o arquivo `.env.local` e configure suas chaves:
      ```env
-     GEMINI_API_KEY=coloque_sua_chave_aqui
+     # Obrigatório - Chave da API Gemini
+     GEMINI_API_KEY=sua_chave_gemini_aqui
+     
+     # Opcional - URL do backend (padrão: http://localhost:3001)
+     VITE_BACKEND_URL=http://localhost:3001
+     
+     # Configurações Neo4j (usar padrões se não alterado)
+     NEO4J_URI=bolt://localhost:7687
+     NEO4J_USER=neo4j
+     NEO4J_PASSWORD=s3nh4forte
      ```
+
+4. Iniciar o Neo4j com Docker:
+   ```bash
+   docker-compose up -d
+   ```
+
+5. Inicializar o sistema RAG:
+   ```bash
+   npm run create-neo4j
+   ```
 
 ## Uso
 
-1. Inicie o servidor de desenvolvimento:
-   ```bash
-   npm run dev
-   # ou
-   yarn dev
-   ```
+### Iniciar o Sistema
 
-2. Acesse no navegador:
-   ```
-   http://localhost:5173
-   ```
+**Opção 1: Tudo junto (Recomendado)**
+```bash
+npm run dev:full
+```
 
-3. Preencha as informações do sistema, incluindo a versão, descrição completa, e clique em "Gerar Modelo de Ameaças".
+**Opção 2: Separadamente**
+```bash
+# Terminal 1 - Backend
+npm run dev:backend
 
-4. Analise o relatório web, visualize a **Árvore de Ataque Interativa**, exporte para PDF e refine com IA conforme necessário.
+# Terminal 2 - Frontend  
+npm run dev
+```
 
-### 🌳 Árvore de Ataque Interativa
+### Fluxo de Uso
 
-Após gerar o relatório, você pode visualizar uma **Árvore de Ataque Interativa** que organiza as ameaças por categoria STRIDE:
+1. **Acesse**: `http://localhost:5173`
 
-- **🔍 Zoom e Pan** - Navegue pelo diagrama com controles intuitivos
-- **📷 Exportação PNG/SVG** - Salve imagens de alta qualidade
-- **🎨 Cores Diferenciadas** - Elementos organizados por tipo e categoria
-- **📐 Auto-ajuste** - Diagrama se adapta automaticamente à tela
-- **💾 Download** - Exporte para uso em apresentações e documentação
+2. **Inicialize o RAG**: Painel esquerdo → "Inicializar Sistema RAG"
+
+3. **Upload de Mapeamento STRIDE-CAPEC** (obrigatório):
+   - Faça upload do arquivo de mapeamento (MD, JSON, PDF, etc.)
+   - Nome sugerido: `capec-stride-mapping.md`
+
+4. **Modelar Ameaças**:
+   - Insira a descrição completa do sistema
+   - Clique em "Gerar Modelo de Ameaças"
+   - O sistema buscará automaticamente CAPECs relevantes via RAG
+
+5. **Visualizar Resultados**:
+   - Árvore de Ataque Interativa (Mermaid com zoom/pan)
+   - Exportar relatório PDF
+   - Refinar análise com IA
 
 ## Funcionalidades
-- Entrada detalhada do sistema (componentes, dados sensíveis, tecnologias, integrações, etc.)
-- Análise automática de ameaças STRIDE + CAPEC
-- Sugestão de mitigação, impacto e mapeamento OWASP Top 10
-- **🌳 Árvore de Ataque Interativa** - Visualização Mermaid com zoom, pan e exportação
-- Exportação de relatório em PDF
-- Refinamento do relatório com IA Gemini
 
-## Observações
-- É obrigatório configurar a chave da API Gemini para uso das funcionalidades de IA.
-- O arquivo de mapeamento STRIDE-CAPEC está em `public/data/mapeamento-stride-capec-pt.json`.
+### Análise de Ameaças
+- Análise STRIDE automática com mapeamento CAPEC
+- Sugestão de mitigações práticas
+- Avaliação de impacto (CRITICAL, HIGH, MEDIUM, LOW)
+- Mapeamento OWASP Top 10
+- Árvore de Ataque Interativa (Mermaid)
+- Exportação de relatório PDF
+- Refinamento com IA
+
+### Sistema RAG
+- Upload de documentos (PDF, DOCX, TXT, MD, XML, JSON, CSV)
+- Busca semântica vetorial (Gemini embeddings 768D)
+- Mapeamento STRIDE-CAPEC dinâmico (via upload)
+- Contexto automático para análise de ameaças
+- Armazenamento persistente no Neo4j
+- Sem duplicação de documentos (atualização inteligente)
+
+## Testes
+
+### Testes Unitários (TypeScript)
+
+Testes unitários isolados usando **Vitest** com mocks:
+
+```bash
+# Instalar dependências
+npm install
+
+# Executar testes unitários
+npm test
+
+# Executar com interface UI
+npm run test:ui
+
+# Gerar relatório de cobertura
+npm run test:coverage
+```
+
+**Cobertura de Testes:**
+- ✅ `geminiService.ts` - Funções de IA isoladas
+- ✅ `useThreatModeler.ts` - Hook de modelagem de ameaças
+- ✅ `SystemInputForm.tsx` - Componente de entrada
+- ✅ Validação de remoção do campo "Versão"
+
+### Testes de Integração (Shell Script)
+
+Testes E2E do sistema completo:
+
+```bash
+# Executar testes de integração
+npm run test:integration
+
+# Ou diretamente:
+chmod +x test-rag.sh
+./test-rag.sh
+```
+
+**Validações:**
+- Conectividade do backend
+- Inicialização do RAG
+- Busca semântica (todas categorias STRIDE)
+- Mapeamento STRIDE-CAPEC
+- Confiança da busca (>= 70%)
+- Upload de documentos
+
+## Documentação
+
+- **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes unitários e integração
+- **[QUERIES_NEO4J.md](src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis para Neo4j
+- **[GUIA_RAPIDO_NEO4J.md](src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
+- **[VALIDACAO_RAG.md](src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
+
+## Estrutura do Projeto
+
+```
+threat-modeling-co-pilot-with-ai-3/
+├── src/                          # Frontend React
+│   ├── __tests__/               # 🧪 Testes unitários centralizados
+│   │   ├── setup.ts
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── services/
+│   ├── components/              # Componentes React
+│   │   ├── SystemInputForm.tsx
+│   │   ├── ReportDisplay.tsx
+│   │   ├── RAGPanel.tsx
+│   │   └── LoadingSpinner.tsx
+│   ├── hooks/                   # Custom React Hooks
+│   │   ├── useThreatModeler.ts
+│   │   └── useRAGSystem.ts
+│   └── services/                # Serviços
+│       ├── geminiService.ts
+│       └── ragService.ts
+├── backend/                     # Backend Node.js
+│   └── src/
+│       ├── server.ts           # Express server
+│       ├── core/               # Sistema RAG
+│       │   ├── graph/          # Neo4j client
+│       │   ├── cache/          # Cache manager
+│       │   └── search/         # Busca semântica
+│       └── utils/              # Utilidades
+│           └── documentLoaders.ts
+├── test-rag.sh                 # Testes automatizados
+├── QUERIES_NEO4J.md           # Queries úteis Neo4j
+├── GUIA_RAPIDO_NEO4J.md       # Guia rápido Neo4j
+└── VALIDACAO_RAG.md           # Validação do RAG
+```
 
 ## Criando um Gem no Gemini para Facilitar a Modelagem
 

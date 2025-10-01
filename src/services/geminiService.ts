@@ -1,5 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { SystemInfo, IdentifiedThreat, StrideCapecMapType } from '../types';
+// import { ragService, RAGContext } from '../src/services/ragService';
 
 const API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Support common env var names
 
@@ -166,17 +167,88 @@ const parseJsonFromText = (text: string | undefined): any => {
   }
 };
 
+// Função para buscar contexto RAG relevante
+const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => {
+  try {
+    const BACKEND_URL = 'http://localhost:3001';
+    
+    // Construir query de busca baseada nas informações do sistema
+    const searchQueries = [
+      `threat modeling ${systemInfo.systemName}`,
+      `security threats ${systemInfo.technologies}`,
+      `STRIDE analysis ${systemInfo.components}`,
+      `vulnerabilities ${systemInfo.authentication}`,
+      systemInfo.generalDescription
+    ].filter(q => q && q.trim().length > 0);
+
+    // Buscar contexto para a query mais relevante
+    const mainQuery = searchQueries[0] || 'threat modeling security analysis';
+    console.log(`🔍 Buscando contexto RAG para: "${mainQuery.substring(0, 50)}..."`);
+    
+    const response = await fetch(`${BACKEND_URL}/api/search/context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: mainQuery, limit: 5 })
+    });
+
+    if (!response.ok) {
+      console.warn('⚠️ Backend RAG não disponível, continuando sem contexto');
+      return null;
+    }
+
+    const context = await response.json();
+    
+    if (context.sources && context.sources.length > 0) {
+      console.log(`✅ Contexto RAG encontrado: ${context.sources.length} fontes, confiança: ${context.confidence.toFixed(1)}%`);
+      return context;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Erro ao buscar contexto RAG, continuando sem contexto:', error);
+    return null;
+  }
+};
+
 export const analyzeThreatsAndMitigations = async (
   systemInfo: SystemInfo,
   strideCapecMap: StrideCapecMapType
 ): Promise<IdentifiedThreat[]> => {
   if (!ai) throw new Error("Chave da API Gemini não configurada.");
   
+  // Buscar contexto RAG relevante
+  const ragContext = await searchRAGContext(systemInfo);
+  
   // Calcular complexidade da tarefa
   const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(strideCapecMap));
   console.log(`[Gemini Service] Complexidade da análise detectada: ${complexity}`);
   
-  const prompt = `
+  // Construir contexto RAG para o prompt
+  const ragContextSection = ragContext ? `
+
+CONTEXTO ADICIONAL DE CONHECIMENTO (RAG):
+${ragContext.context}
+
+FONTES DE REFERÊNCIA:
+${(ragContext.sources as any[]).map((source: any, index: number) => 
+  `${index + 1}. ${source.documento.metadata.documentName || 'Documento'} (Score: ${source.score.toFixed(3)})`
+).join('\n')}
+
+CONFIANÇA DO CONTEXTO: ${ragContext.confidence.toFixed(1)}%
+
+INSTRUÇÕES PARA USO DO CONTEXTO:
+- Use as informações do contexto acima para enriquecer sua análise de ameaças
+- Referencie práticas e padrões mencionados no contexto quando relevantes
+- Adapte as mitigações sugeridas com base no conhecimento contextual
+- Mantenha consistência com as melhores práticas identificadas no contexto
+
+` : `
+
+NOTA: Nenhum contexto RAG adicional disponível. Baseie a análise apenas no conhecimento interno.
+
+`;
+  
+  const prompt = `${ragContextSection}
 Informações do Sistema (em Português):
 ${JSON.stringify(systemInfo, null, 2)}
 
@@ -581,41 +653,62 @@ export const summarizeSystemDescription = async (fullDescription: string): Promi
   console.log(`[Gemini Service] Executando resumo do sistema com complexidade: ${complexity}`);
   
   const prompt = `
-Você é um assistente de segurança da informação. Leia a descrição completa do sistema abaixo e extraia de forma clara e objetiva os seguintes campos, preenchendo cada um deles (mesmo que seja 'Não informado' se não houver dado):
+Você é um assistente de segurança da informação especializado em análise de sistemas. 
 
-- generalDescription: Resuma o objetivo e funcionamento geral do sistema em até 4 linhas.
-- components: Liste os principais componentes do sistema.
-- sensitiveData: Liste os dados sensíveis tratados pelo sistema.
-- technologies: Liste as principais tecnologias utilizadas.
-- authentication: Descreva os mecanismos de autenticação/autorização.
-- userProfiles: Liste os perfis de usuário existentes.
-- externalIntegrations: Liste as integrações externas relevantes.
+Leia a descrição completa do sistema abaixo e extraia/resuma de forma clara e objetiva os seguintes campos:
 
-IMPORTANTE - IDIOMA:
+1. **generalDescription**: Resuma o objetivo e funcionamento geral do sistema em até 5-6 linhas, destacando os aspectos principais.
+
+2. **components**: Liste os principais componentes/módulos do sistema de forma organizada (ex: frontend, backend, bancos de dados, serviços).
+
+3. **sensitiveData**: Liste os tipos de dados sensíveis tratados pelo sistema (ex: dados pessoais, dados de saúde, financeiros, credenciais).
+
+4. **technologies**: Liste as principais tecnologias, frameworks, linguagens e ferramentas utilizadas.
+
+5. **authentication**: Descreva os mecanismos de autenticação e autorização implementados no sistema.
+
+6. **userProfiles**: Liste os perfis/tipos de usuário que interagem com o sistema.
+
+7. **externalIntegrations**: Liste as integrações externas, APIs de terceiros e sistemas conectados.
+
+INSTRUÇÕES IMPORTANTES:
 - TODOS OS TEXTOS DEVEM ESTAR EM PORTUGUÊS DO BRASIL
-- Use linguagem clara e objetiva
-- Se não houver informação disponível, use "Não informado"
+- Seja conciso mas informativo
+- Se a descrição não mencionar explicitamente algum campo, tente inferir a partir do contexto
+- Se realmente não houver informação disponível, use "Não informado" ou "Não especificado"
+- Mantenha formatação clara com quebras de linha quando apropriado
 - ESCREVA TUDO EM PORTUGUÊS DO BRASIL
 
-Responda APENAS com um objeto JSON com as chaves exatamente como acima, sem explicações ou texto extra.
+Responda APENAS com um objeto JSON com as chaves exatamente como especificado, sem explicações ou texto extra fora do JSON.
 
 Descrição completa do sistema:
 """
 ${fullDescription}
 """
 
-Saída esperada:
+Saída esperada (exemplo de estrutura):
 {
-  "generalDescription": "...",
-  "components": "...",
-  "sensitiveData": "...",
-  "technologies": "...",
-  "authentication": "...",
-  "userProfiles": "...",
-  "externalIntegrations": "..."
+  "generalDescription": "Sistema de gestão...",
+  "components": "Frontend: React, Angular\nBackend: Node.js, Python\nBanco de Dados: MySQL, MongoDB",
+  "sensitiveData": "Dados pessoais (CPF, nome, endereço)\nDados de saúde (prescrições)\nDados financeiros",
+  "technologies": "Node.js, Python, MySQL, Redis, Docker",
+  "authentication": "JWT, OAuth 2.0, Certificação Digital ICP-Brasil",
+  "userProfiles": "Administrador, Farmacêutico, Cliente, Gerente",
+  "externalIntegrations": "ANVISA (SNGPC), Operadoras de Saúde, APIs de Delivery"
 }
 `;
 
   const response = await executeWithIntelligentRetry(prompt, 'SUMMARY', complexity);
-  return parseJsonFromText(response.text);
+  const result = parseJsonFromText(response.text);
+  
+  // Garantir que todos os campos existam
+  return {
+    generalDescription: result.generalDescription || "Não informado",
+    components: result.components || "Não informado",
+    sensitiveData: result.sensitiveData || "Não informado",
+    technologies: result.technologies || "Não informado",
+    authentication: result.authentication || "Não informado",
+    userProfiles: result.userProfiles || "Não informado",
+    externalIntegrations: result.externalIntegrations || "Não informado"
+  };
 };
