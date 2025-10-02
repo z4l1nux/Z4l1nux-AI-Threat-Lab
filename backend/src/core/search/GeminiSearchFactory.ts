@@ -13,10 +13,21 @@ export class GeminiSearchFactory {
   }
 
   async initialize(): Promise<void> {
+    // Validar variáveis de ambiente obrigatórias
+    if (!process.env.NEO4J_URI) {
+      throw new Error("❌ NEO4J_URI não configurado nas variáveis de ambiente");
+    }
+    if (!process.env.NEO4J_USER) {
+      throw new Error("❌ NEO4J_USER não configurado nas variáveis de ambiente");
+    }
+    if (!process.env.NEO4J_PASSWORD) {
+      throw new Error("❌ NEO4J_PASSWORD não configurado nas variáveis de ambiente");
+    }
+
     this.cacheManager = new Neo4jCacheManager(
-      process.env.NEO4J_URI || "bolt://localhost:7687",
-      process.env.NEO4J_USER || "neo4j",
-      process.env.NEO4J_PASSWORD || "s3nh4forte"
+      process.env.NEO4J_URI,
+      process.env.NEO4J_USER,
+      process.env.NEO4J_PASSWORD
     );
 
     await this.cacheManager.initialize();

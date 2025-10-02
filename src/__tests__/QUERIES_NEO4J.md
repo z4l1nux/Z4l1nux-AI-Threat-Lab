@@ -245,7 +245,7 @@ LIMIT 10
 2. Conecte com:
    - **Bolt URL**: `bolt://localhost:7687`
    - **Usuário**: `neo4j`
-   - **Senha**: `s3nh4forte`
+   - **Senha**: [use a senha configurada no seu .env.local]
 3. Cole a query no campo de texto
 4. Pressione **Ctrl+Enter** ou clique no botão ▶️
 

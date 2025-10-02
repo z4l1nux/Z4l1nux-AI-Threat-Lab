@@ -11,10 +11,21 @@ export class Neo4jCacheManager {
   private splitter: RecursiveCharacterTextSplitter;
 
   constructor(
-    neo4jUri: string = process.env.NEO4J_URI || "bolt://localhost:7687",
-    neo4jUser: string = process.env.NEO4J_USER || "neo4j", 
-    neo4jPassword: string = process.env.NEO4J_PASSWORD || "s3nh4forte"
+    neo4jUri: string,
+    neo4jUser: string, 
+    neo4jPassword: string
   ) {
+    // Validar parâmetros obrigatórios
+    if (!neo4jUri) {
+      throw new Error("❌ Neo4j URI é obrigatório");
+    }
+    if (!neo4jUser) {
+      throw new Error("❌ Neo4j USER é obrigatório");
+    }
+    if (!neo4jPassword) {
+      throw new Error("❌ Neo4j PASSWORD é obrigatório");
+    }
+
     this.driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
     
     // Configurar embeddings do Gemini
@@ -48,18 +59,20 @@ export class Neo4jCacheManager {
       `);
 
       // Criar índices vetoriais para busca semântica
+      // Gemini embeddings (text-embedding-004) usa 768 dimensões
+      // Gemini embeddings (text-embedding-005 / gemini-embedding-001 atualizado) usa 3072 dimensões
       try {
         await session.run(`
           CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS
           FOR (c:Chunk) ON (c.embedding)
           OPTIONS {
             indexConfig: {
-              \`vector.dimensions\`: 768,
+              \`vector.dimensions\`: 3072,
               \`vector.similarity_function\`: 'cosine'
             }
           }
         `);
-        console.log("✅ Índice vetorial criado para chunks (Gemini embeddings)");
+        console.log("✅ Índice vetorial criado para chunks (Gemini embeddings, 3072 dimensões)");
       } catch (error: any) {
         if (!error.message.includes("already exists")) {
           console.log("⚠️ Índice vetorial já existe ou versão Neo4j não suporta");

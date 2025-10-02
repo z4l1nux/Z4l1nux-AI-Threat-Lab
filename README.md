@@ -60,11 +60,13 @@ Plataforma de modelagem de ameaças que utiliza IA (Google Gemini) e RAG (Retrie
      # Opcional - URL do backend (padrão: http://localhost:3001)
      VITE_BACKEND_URL=http://localhost:3001
      
-     # Configurações Neo4j (usar padrões se não alterado)
+     # Configurações Neo4j (OBRIGATÓRIO - defina suas próprias credenciais)
      NEO4J_URI=bolt://localhost:7687
      NEO4J_USER=neo4j
-     NEO4J_PASSWORD=s3nh4forte
+     NEO4J_PASSWORD=sua_senha_segura_aqui
      ```
+     
+     ⚠️ **IMPORTANTE:** Substitua `sua_senha_segura_aqui` por uma senha forte!
 
 4. Iniciar o Neo4j com Docker:
    ```bash

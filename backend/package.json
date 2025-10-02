@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "init-neo4j": "ts-node src/scripts/initNeo4j.ts",
-    "test-rag": "ts-node src/scripts/testRAG.ts"
+    "test-rag": "ts-node src/scripts/testRAG.ts",
+    "fix-vector-index": "ts-node src/scripts/fixVectorIndex.ts"
   },
   "dependencies": {
     "@langchain/community": "0.3.57",

@@ -6,8 +6,10 @@
 ```
 URL: http://localhost:7474
 Usuário: neo4j
-Senha: s3nh4forte
+Senha: [configure sua senha no .env.local]
 ```
+
+⚠️ **IMPORTANTE:** Use a senha configurada em seu arquivo `.env.local` (variável `NEO4J_PASSWORD`)
 
 ---
 

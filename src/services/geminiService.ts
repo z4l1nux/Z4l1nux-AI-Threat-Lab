@@ -332,7 +332,8 @@ const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => 
     console.log(`\n✅ Busca RAG concluída:`);
     console.log(`   - ${validResults.length} aspectos com resultados`);
     console.log(`   - ${topSources.length} fontes únicas encontradas`);
-    console.log(`   - Confiança média: ${avgConfidence.toFixed(1)}%`);
+    const confidenceDisplay = (!isNaN(avgConfidence) && avgConfidence != null) ? avgConfidence.toFixed(1) : '0.0';
+    console.log(`   - Confiança média: ${confidenceDisplay}%`);
     
     // Agrupar por documento para logging
     const docGroups = new Map<string, number>();
@@ -383,7 +384,7 @@ CONTEXTO ADICIONAL DE CONHECIMENTO (RAG) - BUSCA SEMÂNTICA
 📊 ESTATÍSTICAS DA BUSCA:
 - Total de fontes encontradas: ${ragContext.sources.length}
 - Documentos únicos consultados: ${ragContext.totalDocuments}
-- Confiança média da busca: ${ragContext.confidence.toFixed(1)}%
+- Confiança média da busca: ${(!isNaN(ragContext.confidence) && ragContext.confidence != null) ? ragContext.confidence.toFixed(1) : '0.0'}%
 
 🎯 ASPECTOS DO SISTEMA COBERTOS PELA BUSCA:
 ${ragContext.aspectsCovered ? ragContext.aspectsCovered.map((aspect: string, i: number) => `${i + 1}. ${aspect}`).join('\n') : 'N/A'}
@@ -393,7 +394,8 @@ ${(ragContext.sources as any[]).map((source: any, index: number) => {
   const docName = source.documento.metadata.documentName || 'Documento';
   const aspect = source.searchAspect || 'Geral';
   const chunkIndex = source.documento.metadata.chunkIndex || 0;
-  return `${index + 1}. ${docName} (Chunk #${chunkIndex}, Score: ${source.score.toFixed(3)}) - Aspecto: ${aspect}`;
+  const score = (source.score != null && !isNaN(source.score)) ? source.score.toFixed(3) : 'N/A';
+  return `${index + 1}. ${docName} (Chunk #${chunkIndex}, Score: ${score}) - Aspecto: ${aspect}`;
 }).join('\n')}
 
 📖 CONTEÚDO RELEVANTE ENCONTRADO:
