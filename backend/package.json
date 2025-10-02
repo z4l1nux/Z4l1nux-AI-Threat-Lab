@@ -18,7 +18,7 @@
     "csv-parser": "3.2.0",
     "dotenv": "16.6.1",
     "express": "4.21.2",
-    "langchain": "0.1.37",
+    "langchain": "0.3.35",
     "multer": "2.0.2",
     "neo4j-driver": "5.28.2",
     "pdf-parse": "1.1.1",
