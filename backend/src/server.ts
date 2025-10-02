@@ -254,7 +254,7 @@ app.post('/api/search', requireInitialized, async (req, res) => {
 // Busca com contexto RAG para threat modeling
 app.post('/api/search/context', requireInitialized, async (req, res) => {
   try {
-    const { query, limit = 5 } = req.body;
+    const { query, limit = 5, systemContext } = req.body;
     
     if (!query) {
       return res.status(400).json({
@@ -263,11 +263,15 @@ app.post('/api/search/context', requireInitialized, async (req, res) => {
     }
 
     console.log(`🎯 Buscando contexto RAG para threat modeling: "${query.substring(0, 50)}..."`);
+    if (systemContext) {
+      console.log(`🔍 Filtro de contexto aplicado: Sistema "${systemContext}"`);
+    }
 
-    const contextData = await searchFactory!.buscarContextoRAG(query, limit);
+    const contextData = await searchFactory!.buscarContextoRAG(query, limit, systemContext);
 
     res.json({
       query,
+      systemContext,
       ...contextData,
       timestamp: new Date().toISOString()
     });
@@ -299,6 +303,50 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
 
     // Buscar documentos que contenham mapeamento STRIDE-CAPEC
     const results = await searchFactory.buscar('STRIDE CAPEC mapping categoria', 50);
+
+    // ===== LOGS DETALHADOS STRIDE-CAPEC =====
+    console.log('\n📚 ===== BUSCA DE MAPEAMENTO STRIDE-CAPEC =====');
+    console.log(`📈 Total de chunks encontrados: ${results.length}`);
+    
+    // Agrupar por documento
+    const docsMap = new Map<string, any>();
+    results.forEach((result) => {
+      const docId = result.documento.metadata.documentId || 'unknown';
+      const docName = result.documento.metadata.documentName || 'Documento desconhecido';
+      
+      if (!docsMap.has(docId)) {
+        docsMap.set(docId, {
+          documentName: docName,
+          documentId: docId,
+          chunks: []
+        });
+      }
+      
+      docsMap.get(docId)!.chunks.push({
+        chunkIndex: result.documento.metadata.chunkIndex || 0,
+        score: result.score,
+        contentPreview: result.documento.pageContent.substring(0, 80).replace(/\n/g, ' ')
+      });
+    });
+    
+    console.log(`📚 Total de documentos CAPEC utilizados: ${docsMap.size}`);
+    console.log('\n📄 Documentos STRIDE-CAPEC consultados:');
+    
+    let counter = 1;
+    docsMap.forEach((doc) => {
+      console.log(`\n  ${counter}. 📄 "${doc.documentName}"`);
+      console.log(`     🆔 ID: ${doc.documentId}`);
+      console.log(`     📦 Chunks: ${doc.chunks.length}`);
+      doc.chunks.slice(0, 3).forEach((chunk: any, idx: number) => {
+        console.log(`       ${idx + 1}. Chunk #${chunk.chunkIndex} - Score: ${chunk.score.toFixed(4)}`);
+        console.log(`          "${chunk.contentPreview}..."`);
+      });
+      if (doc.chunks.length > 3) {
+        console.log(`       ... e mais ${doc.chunks.length - 3} chunks`);
+      }
+      counter++;
+    });
+    console.log('===============================================\n');
 
     if (!results || results.length === 0) {
       console.warn('⚠️ Nenhum documento de mapeamento encontrado no RAG');

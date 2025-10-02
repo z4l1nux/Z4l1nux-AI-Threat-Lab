@@ -183,12 +183,16 @@ const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => 
 
     // Buscar contexto para a query mais relevante
     const mainQuery = searchQueries[0] || 'threat modeling security analysis';
-    console.log(`🔍 Buscando contexto RAG para: "${mainQuery.substring(0, 50)}..."`);
+    console.log(`🔍 Buscando contexto RAG para: "${mainQuery.substring(0, 50)}..." (Sistema: "${systemInfo.systemName}")`);
     
     const response = await fetch(`${BACKEND_URL}/api/search/context`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: mainQuery, limit: 5 })
+      body: JSON.stringify({ 
+        query: mainQuery, 
+        limit: 5,
+        systemContext: systemInfo.systemName // Filtro por sistema
+      })
     });
 
     if (!response.ok) {

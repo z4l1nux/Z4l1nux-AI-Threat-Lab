@@ -115,7 +115,61 @@ LIMIT 5
 
 ## 🧹 **Queries de Manutenção**
 
-### 10. Identificar documentos duplicados (mesmo nome)
+### 10. Deletar um documento específico e seus chunks
+```cypher
+// Deletar um documento específico pelo nome exato
+MATCH (d:Document {name: "nome-do-documento.md"})
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN "Documento deletado" as Status
+```
+
+**Exemplo prático:**
+```cypher
+// Deletar documento do SuperMax
+MATCH (d:Document {name: "Sistema_SuperMax Retail Management Platform (v3.2.1)_2025-10-01"})
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN "Documento SuperMax deletado" as Status
+```
+
+### 10b. Deletar todos os documentos que contêm um termo no nome
+```cypher
+// CUIDADO: Deleta TODOS os documentos cujo nome contenha o termo
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN count(d) as DocumentosDeletados
+```
+
+### 10c. Deletar versões antigas de um sistema (manter só a mais recente)
+```cypher
+// Deletar todas as versões antigas de um sistema, mantendo apenas a mais recente
+MATCH (d:Document)
+WHERE d.name CONTAINS "Sistema_Growth Campaigns"
+WITH d ORDER BY d.uploadedAt DESC
+WITH collect(d) as docs
+WITH docs[1..] as oldDocs  // Pega todos exceto o primeiro (mais recente)
+UNWIND oldDocs as doc
+OPTIONAL MATCH (doc)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, doc
+RETURN count(doc) as VersõesAntigasDeletadas
+```
+
+### 10d. ⚠️ Visualizar o que será deletado ANTES de deletar
+```cypher
+// SEMPRE execute esta query PRIMEIRO para confirmar o que será deletado!
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+RETURN d.name as Documento,
+       d.uploadedAt as DataUpload,
+       count(c) as TotalChunks,
+       d.size as TamanhoBytes
+```
+
+### 11. Identificar documentos duplicados (mesmo nome)
 ```cypher
 MATCH (d:Document)
 WITH d.name as NomeDoc, collect(d) as docs, count(d) as total
@@ -123,7 +177,7 @@ WHERE total > 1
 RETURN NomeDoc, total, [doc IN docs | doc.uploadedAt] as Datas
 ```
 
-### 11. Limpar documentos antigos (CUIDADO!)
+### 12. Limpar documentos antigos (CUIDADO!)
 ```cypher
 // ATENÇÃO: Esta query DELETA dados!
 // Deleta versões antigas de documentos duplicados (mantém a mais recente)
@@ -139,7 +193,7 @@ DETACH DELETE c, doc
 RETURN count(doc) as DocumentosDeletados
 ```
 
-### 12. Ver tamanho de embeddings (validar vetorização)
+### 13. Ver tamanho de embeddings (validar vetorização)
 ```cypher
 MATCH (c:Chunk)
 WHERE c.embedding IS NOT NULL
@@ -150,7 +204,7 @@ LIMIT 1
 
 ## 🔬 **Queries Avançadas para Debugging**
 
-### 13. Ver metadata dos chunks
+### 14. Ver metadata dos chunks
 ```cypher
 MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
 RETURN d.name as Documento,
@@ -159,7 +213,7 @@ RETURN d.name as Documento,
 LIMIT 10
 ```
 
-### 14. Verificar documentos sem chunks (problema!)
+### 15. Verificar documentos sem chunks (problema!)
 ```cypher
 MATCH (d:Document)
 WHERE NOT (d)-[:CONTAINS]->(:Chunk)
@@ -168,12 +222,12 @@ RETURN d.name as DocumentoSemChunks,
        d.size as Tamanho
 ```
 
-### 15. Ver estrutura completa do grafo
+### 16. Ver estrutura completa do grafo
 ```cypher
 CALL db.schema.visualization()
 ```
 
-### 16. Busca vetorial manual (simular RAG)
+### 17. Busca vetorial manual (simular RAG)
 ```cypher
 // Esta query NÃO funciona diretamente no Neo4j Browser
 // Use o endpoint /api/search do backend para busca vetorial real
@@ -236,5 +290,125 @@ curl -X POST http://localhost:3001/api/search/context \
 
 # Estatísticas do sistema
 curl http://localhost:3001/api/statistics
+```
+
+---
+
+## 🎯 **Exemplos Práticos de Limpeza**
+
+### 🗑️ **Limpar documentos de teste do SuperMax:**
+```cypher
+// 1. Ver o que será deletado
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+RETURN d.name as Documento, 
+       d.uploadedAt as Data,
+       count(c) as Chunks
+ORDER BY d.uploadedAt DESC
+
+// 2. Confirmar e deletar
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN "SuperMax removido" as Status
+```
+
+### 🔄 **Manter apenas a versão mais recente de cada sistema:**
+```cypher
+// Para Growth Campaigns - manter só a última versão
+MATCH (d:Document)
+WHERE d.name CONTAINS "Sistema_Growth Campaigns"
+WITH d ORDER BY d.uploadedAt DESC
+WITH collect(d) as docs
+WITH docs[1..] as oldDocs
+UNWIND oldDocs as doc
+OPTIONAL MATCH (doc)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, doc
+RETURN count(doc) as VersõesAntigasDeletadas
+```
+
+### 🧹 **Limpeza completa (resetar TODA a base):**
+```cypher
+// ⚠️ ATENÇÃO: Remove TODOS os documentos e chunks da base!
+// Use apenas se tiver certeza absoluta
+MATCH (d:Document)
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN count(d) as DocumentosDeletados
+```
+
+### 📊 **Listar todos os sistemas processados:**
+```cypher
+MATCH (d:Document)
+WHERE d.name STARTS WITH "Sistema_"
+RETURN d.name as Sistema, 
+       d.uploadedAt as Processado,
+       count{(d)-[:CONTAINS]->(:Chunk)} as Chunks
+ORDER BY d.uploadedAt DESC
+```
+
+### 🔍 **Deletar por ID específico:**
+```cypher
+// Útil quando você sabe o ID exato do documento
+MATCH (d:Document {id: "c8600e0ac3fb6b247a522154657e4248"})
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN "Documento deletado por ID" as Status
+```
+
+### 🎯 **Deletar documentos mais antigos que uma data:**
+```cypher
+// Deletar documentos anteriores a uma data específica
+MATCH (d:Document)
+WHERE d.uploadedAt < "2025-10-01"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+RETURN count(d) as DocumentosAntigosDeletados
+```
+
+---
+
+## ⚠️ **Dicas de Segurança para Deleção**
+
+✅ **SEMPRE visualize antes de deletar** - Use a query 10d  
+✅ **Use nomes exatos** quando possível - `{name: "exato.md"}`  
+✅ **Teste com RETURN primeiro** - Troque DELETE por RETURN para ver o que pegaria  
+✅ **Faça backup** - Se possível, exporte antes de operações destrutivas  
+❌ **Cuidado com CONTAINS** - Pode pegar mais documentos que o esperado  
+❌ **Não use DETACH DELETE sem MATCH** - Pode deletar tudo!
+
+---
+
+## 🔄 **Workflow Recomendado de Limpeza**
+
+1. **📋 Listar** - Veja o que existe
+```cypher
+MATCH (d:Document)
+RETURN d.name, d.uploadedAt, count{(d)-[:CONTAINS]->(:Chunk)} as Chunks
+ORDER BY d.uploadedAt DESC
+```
+
+2. **🔍 Visualizar** - Veja o que será deletado
+```cypher
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+RETURN d.name, count{(d)-[:CONTAINS]->(:Chunk)} as Chunks
+```
+
+3. **🗑️ Deletar** - Execute a deleção
+```cypher
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+DETACH DELETE c, d
+```
+
+4. **✅ Confirmar** - Verifique se foi deletado
+```cypher
+MATCH (d:Document)
+WHERE d.name CONTAINS "SuperMax"
+RETURN count(d) as Restantes  // Deve retornar 0
 ```
 
