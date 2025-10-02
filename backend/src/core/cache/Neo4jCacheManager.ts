@@ -1,7 +1,7 @@
 import neo4j, { Driver, Session, Node, Integer } from 'neo4j-driver';
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { Document } from "langchain/document";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { Document } from "@langchain/core/documents";
 import * as crypto from 'crypto';
 import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '../../types/index';
 

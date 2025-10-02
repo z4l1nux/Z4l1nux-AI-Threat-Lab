@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@langchain/community": "0.3.57",
+    "@langchain/core": "0.3.78",
     "@langchain/google-genai": "0.1.12",
+    "@langchain/textsplitters": "0.1.0",
     "cors": "2.8.5",
     "csv-parser": "3.2.0",
     "dotenv": "16.6.1",

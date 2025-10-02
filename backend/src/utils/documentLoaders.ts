@@ -1,12 +1,31 @@
-import { Document } from "langchain/document";
-import { BaseDocumentLoader } from "langchain/document_loaders/base";
-import { PDFLoader } from "langchain/document_loaders/fs/pdf";
-import { TextLoader } from "langchain/document_loaders/fs/text";
-import { DocxLoader } from "langchain/document_loaders/fs/docx";
+import { Document } from "@langchain/core/documents";
+import { BaseDocumentLoader } from "@langchain/core/document_loaders/base";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
 import * as fs from "fs";
 import * as path from "path";
 import * as xml2js from "xml2js";
 import csv from "csv-parser";
+
+// TextLoader simples para arquivos de texto
+export class TextLoader extends BaseDocumentLoader {
+  constructor(public filePath: string) {
+    super();
+  }
+
+  async load(): Promise<Document[]> {
+    const content = fs.readFileSync(this.filePath, "utf-8");
+    return [
+      new Document({
+        pageContent: content,
+        metadata: {
+          source: this.filePath,
+          type: "text",
+        },
+      }),
+    ];
+  }
+}
 
 export class MarkdownLoader extends BaseDocumentLoader {
   constructor(public filePath: string) {
