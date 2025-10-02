@@ -167,47 +167,193 @@ const parseJsonFromText = (text: string | undefined): any => {
   }
 };
 
-// Função para buscar contexto RAG relevante
+// Função para buscar contexto RAG relevante com múltiplas queries específicas
 const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => {
   try {
     const BACKEND_URL = 'http://localhost:3001';
     
-    // Construir query de busca baseada nas informações do sistema
-    const searchQueries = [
-      `threat modeling ${systemInfo.systemName}`,
-      `security threats ${systemInfo.technologies}`,
-      `STRIDE analysis ${systemInfo.components}`,
-      `vulnerabilities ${systemInfo.authentication}`,
-      systemInfo.generalDescription
-    ].filter(q => q && q.trim().length > 0);
-
-    // Buscar contexto para a query mais relevante
-    const mainQuery = searchQueries[0] || 'threat modeling security analysis';
-    console.log(`🔍 Buscando contexto RAG para: "${mainQuery.substring(0, 50)}..." (Sistema: "${systemInfo.systemName}")`);
+    // Construir múltiplas queries específicas baseadas nas características do sistema
+    // Cada query foca em um aspecto diferente para capturar documentos relevantes
+    const searchQueries: Array<{ query: string; aspect: string }> = [];
     
-    const response = await fetch(`${BACKEND_URL}/api/search/context`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        query: mainQuery, 
-        limit: 5,
-        systemContext: systemInfo.systemName // Filtro por sistema
-      })
+    // 1. Query sobre o nome e objetivo do sistema
+    if (systemInfo.systemName && systemInfo.systemName.trim()) {
+      searchQueries.push({
+        query: `${systemInfo.systemName} sistema objetivo funcionalidade propósito`,
+        aspect: 'Nome e Objetivo do Sistema'
+      });
+    }
+    
+    // 2. Query sobre componentes chave e arquitetura
+    if (systemInfo.components && systemInfo.components.trim()) {
+      searchQueries.push({
+        query: `componentes arquitetura ${systemInfo.components} ${systemInfo.systemName}`,
+        aspect: 'Componentes Chave'
+      });
+    }
+    
+    // 3. Query sobre dados críticos e sensíveis
+    if (systemInfo.sensitiveData && systemInfo.sensitiveData.trim()) {
+      searchQueries.push({
+        query: `dados sensíveis confidenciais ${systemInfo.sensitiveData} proteção segurança`,
+        aspect: 'Dados Críticos'
+      });
+    }
+    
+    // 4. Query sobre tecnologias e infraestrutura
+    if (systemInfo.technologies && systemInfo.technologies.trim()) {
+      searchQueries.push({
+        query: `tecnologias stack infraestrutura ${systemInfo.technologies} vulnerabilidades`,
+        aspect: 'Tecnologias e Infraestrutura'
+      });
+    }
+    
+    // 5. Query sobre autenticação e controle de acesso
+    if (systemInfo.authentication && systemInfo.authentication.trim()) {
+      searchQueries.push({
+        query: `autenticação autorização ${systemInfo.authentication} controle acesso segurança`,
+        aspect: 'Autenticação'
+      });
+    }
+    
+    // 6. Query sobre perfis de usuário e fluxos
+    if (systemInfo.userProfiles && systemInfo.userProfiles.trim()) {
+      searchQueries.push({
+        query: `usuários perfis fluxos processos ${systemInfo.userProfiles} interações`,
+        aspect: 'Fluxos de Usuário'
+      });
+    }
+    
+    // 7. Query sobre integrações externas
+    if (systemInfo.externalIntegrations && systemInfo.externalIntegrations.trim()) {
+      searchQueries.push({
+        query: `integrações externas APIs ${systemInfo.externalIntegrations} comunicação`,
+        aspect: 'Integrações Externas'
+      });
+    }
+    
+    // 8. Query geral baseada na descrição completa do sistema
+    if (systemInfo.generalDescription && systemInfo.generalDescription.trim()) {
+      const descriptionWords = systemInfo.generalDescription
+        .split(/\s+/)
+        .slice(0, 50) // Primeiras 50 palavras
+        .join(' ');
+      searchQueries.push({
+        query: `threat modeling STRIDE ${descriptionWords}`,
+        aspect: 'Descrição Geral'
+      });
+    }
+    
+    // Fallback se nenhuma query específica foi criada
+    if (searchQueries.length === 0) {
+      searchQueries.push({
+        query: 'threat modeling security analysis STRIDE vulnerabilities',
+        aspect: 'Análise Geral de Ameaças'
+      });
+    }
+    
+    console.log(`🔍 Realizando busca RAG com ${searchQueries.length} queries específicas para diferentes aspectos do sistema "${systemInfo.systemName}"`);
+    
+    // Realizar múltiplas buscas em paralelo
+    const searchPromises = searchQueries.map(async ({ query, aspect }, index) => {
+      console.log(`  ${index + 1}. Buscando: "${aspect}" - Query: "${query.substring(0, 60)}..."`);
+      
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/search/context`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            query, 
+            limit: 3, // Menos resultados por query, mas mais queries
+            systemContext: systemInfo.systemName
+          })
+        });
+        
+        if (!response.ok) {
+          console.warn(`  ⚠️ Busca falhou para aspecto "${aspect}"`);
+          return null;
+        }
+        
+        const context = await response.json();
+        console.log(`  ✓ ${aspect}: ${context.sources?.length || 0} fontes encontradas`);
+        
+        return {
+          aspect,
+          context: context.context || '',
+          sources: context.sources || [],
+          confidence: context.confidence || 0
+        };
+      } catch (error) {
+        console.warn(`  ⚠️ Erro na busca para "${aspect}":`, error);
+        return null;
+      }
     });
-
-    if (!response.ok) {
-      console.warn('⚠️ Backend RAG não disponível, continuando sem contexto');
+    
+    // Aguardar todas as buscas
+    const results = await Promise.all(searchPromises);
+    const validResults = results.filter(r => r !== null && r.sources.length > 0);
+    
+    if (validResults.length === 0) {
+      console.warn('⚠️ Nenhum contexto RAG encontrado em nenhuma das buscas');
       return null;
     }
-
-    const context = await response.json();
     
-    if (context.sources && context.sources.length > 0) {
-      console.log(`✅ Contexto RAG encontrado: ${context.sources.length} fontes, confiança: ${context.confidence.toFixed(1)}%`);
-      return context;
-    }
+    // Combinar resultados de todas as buscas
+    const allSources: any[] = [];
+    const seenSourceIds = new Set<string>();
     
-    return null;
+    validResults.forEach(result => {
+      result.sources.forEach((source: any) => {
+        const sourceId = `${source.documento.metadata.documentId}-${source.documento.metadata.chunkIndex}`;
+        if (!seenSourceIds.has(sourceId)) {
+          seenSourceIds.add(sourceId);
+          allSources.push({
+            ...source,
+            searchAspect: result.aspect // Adicionar informação sobre qual aspecto encontrou este chunk
+          });
+        }
+      });
+    });
+    
+    // Ordenar por score (relevância)
+    allSources.sort((a, b) => b.score - a.score);
+    
+    // Limitar a um número razoável de fontes (top 15)
+    const topSources = allSources.slice(0, 15);
+    
+    // Combinar contextos
+    const combinedContext = validResults
+      .map(result => `\n## ${result.aspect}\n${result.context}`)
+      .join('\n\n---\n');
+    
+    // Calcular confiança média ponderada
+    const avgConfidence = validResults.reduce((sum, r) => sum + r.confidence, 0) / validResults.length;
+    
+    console.log(`\n✅ Busca RAG concluída:`);
+    console.log(`   - ${validResults.length} aspectos com resultados`);
+    console.log(`   - ${topSources.length} fontes únicas encontradas`);
+    console.log(`   - Confiança média: ${avgConfidence.toFixed(1)}%`);
+    
+    // Agrupar por documento para logging
+    const docGroups = new Map<string, number>();
+    topSources.forEach(source => {
+      const docName = source.documento.metadata.documentName || 'Desconhecido';
+      docGroups.set(docName, (docGroups.get(docName) || 0) + 1);
+    });
+    
+    console.log(`\n📚 Documentos utilizados:`);
+    docGroups.forEach((count, docName) => {
+      console.log(`   - ${docName}: ${count} chunks`);
+    });
+    
+    return {
+      context: combinedContext,
+      sources: topSources,
+      totalDocuments: docGroups.size,
+      confidence: avgConfidence,
+      aspectsCovered: validResults.map(r => r.aspect)
+    };
+    
   } catch (error) {
     console.warn('⚠️ Erro ao buscar contexto RAG, continuando sem contexto:', error);
     return null;
@@ -230,25 +376,52 @@ export const analyzeThreatsAndMitigations = async (
   // Construir contexto RAG para o prompt
   const ragContextSection = ragContext ? `
 
-CONTEXTO ADICIONAL DE CONHECIMENTO (RAG):
+═══════════════════════════════════════════════════════════════════
+CONTEXTO ADICIONAL DE CONHECIMENTO (RAG) - BUSCA SEMÂNTICA
+═══════════════════════════════════════════════════════════════════
+
+📊 ESTATÍSTICAS DA BUSCA:
+- Total de fontes encontradas: ${ragContext.sources.length}
+- Documentos únicos consultados: ${ragContext.totalDocuments}
+- Confiança média da busca: ${ragContext.confidence.toFixed(1)}%
+
+🎯 ASPECTOS DO SISTEMA COBERTOS PELA BUSCA:
+${ragContext.aspectsCovered ? ragContext.aspectsCovered.map((aspect: string, i: number) => `${i + 1}. ${aspect}`).join('\n') : 'N/A'}
+
+📚 DOCUMENTOS E CHUNKS UTILIZADOS:
+${(ragContext.sources as any[]).map((source: any, index: number) => {
+  const docName = source.documento.metadata.documentName || 'Documento';
+  const aspect = source.searchAspect || 'Geral';
+  const chunkIndex = source.documento.metadata.chunkIndex || 0;
+  return `${index + 1}. ${docName} (Chunk #${chunkIndex}, Score: ${source.score.toFixed(3)}) - Aspecto: ${aspect}`;
+}).join('\n')}
+
+📖 CONTEÚDO RELEVANTE ENCONTRADO:
 ${ragContext.context}
 
-FONTES DE REFERÊNCIA:
-${(ragContext.sources as any[]).map((source: any, index: number) => 
-  `${index + 1}. ${source.documento.metadata.documentName || 'Documento'} (Score: ${source.score.toFixed(3)})`
-).join('\n')}
+═══════════════════════════════════════════════════════════════════
 
-CONFIANÇA DO CONTEXTO: ${ragContext.confidence.toFixed(1)}%
-
-INSTRUÇÕES PARA USO DO CONTEXTO:
-- Use as informações do contexto acima para enriquecer sua análise de ameaças
-- Referencie práticas e padrões mencionados no contexto quando relevantes
-- Adapte as mitigações sugeridas com base no conhecimento contextual
-- Mantenha consistência com as melhores práticas identificadas no contexto
+📋 INSTRUÇÕES PARA USO DO CONTEXTO RAG:
+✓ Use as informações do contexto acima para enriquecer sua análise de ameaças
+✓ Dê atenção especial aos aspectos específicos do sistema que foram encontrados
+✓ Referencie práticas, vulnerabilidades e padrões mencionados no contexto quando relevantes
+✓ Adapte as mitigações sugeridas com base no conhecimento contextual específico do sistema
+✓ Priorize ameaças relacionadas aos componentes, tecnologias e dados mencionados no contexto
+✓ Mantenha consistência com as melhores práticas identificadas no contexto
+✓ Se o contexto mencionar vulnerabilidades específicas das tecnologias usadas, inclua-as na análise
 
 ` : `
 
-NOTA: Nenhum contexto RAG adicional disponível. Baseie a análise apenas no conhecimento interno.
+═══════════════════════════════════════════════════════════════════
+⚠️  NOTA: Nenhum contexto RAG adicional disponível
+═══════════════════════════════════════════════════════════════════
+
+O sistema de busca semântica não encontrou documentos específicos sobre este sistema
+na base de conhecimento. A análise será baseada apenas no conhecimento interno da IA
+e no mapeamento STRIDE-CAPEC fornecido.
+
+Recomendação: Para análises mais precisas, considere fazer upload de documentação
+técnica, especificações de segurança ou análises anteriores relacionadas a este sistema.
 
 `;
   

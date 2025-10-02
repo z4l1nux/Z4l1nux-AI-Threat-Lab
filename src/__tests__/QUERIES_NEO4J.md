@@ -274,7 +274,7 @@ WHERE c.embedding IS NOT NULL
 RETURN count(c) as ChunksVetorizados,
        size(head(collect(c.embedding))) as DimensaoVetor
 ```
-**Esperado**: DimensaoVetor = 768 (Gemini text-embedding-004)
+**Esperado**: DimensaoVetor = 768 (Gemini gemini-embedding-001)
 
 ---
 

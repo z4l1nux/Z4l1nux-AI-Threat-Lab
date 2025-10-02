@@ -20,7 +20,7 @@ export class Neo4jCacheManager {
     // Configurar embeddings do Gemini
     this.embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GEMINI_API_KEY!,
-      model: process.env.EMBEDDING_MODEL || "text-embedding-004"
+      model: process.env.EMBEDDING_MODEL || "gemini-embedding-001"
     });
     
     this.splitter = new RecursiveCharacterTextSplitter({
@@ -196,7 +196,7 @@ export class Neo4jCacheManager {
               ...document.metadata,
               chunkIndex: i,
               source: 'memory_upload',
-              embeddingModel: 'gemini-text-embedding-004'
+              embeddingModel: 'gemini-embedding-001'
             })
           });
 

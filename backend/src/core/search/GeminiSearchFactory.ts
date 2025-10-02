@@ -41,7 +41,7 @@ export class GeminiSearchFactory {
           chunkIndex: result.chunk.index,
           uploadedAt: result.document.uploadedAt,
           processedSecurely: result.document.processedSecurely,
-          embeddingModel: 'gemini-text-embedding-004',
+          embeddingModel: 'gemini-embedding-001',
           searchScore: result.score
         }
       },
