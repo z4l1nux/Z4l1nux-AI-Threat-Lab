@@ -190,7 +190,7 @@ export class Neo4jCacheManager {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  model: modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+                  model: modelConfig?.embeddingProvider === 'ollama' ? 'nomic-embed-text:latest' : (modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest'),
                   prompt: chunks[i].pageContent
                 })
               });
@@ -323,7 +323,7 @@ export class Neo4jCacheManager {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+              model: modelConfig?.embeddingProvider === 'ollama' ? 'nomic-embed-text:latest' : (modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest'),
               prompt: query
             })
           });

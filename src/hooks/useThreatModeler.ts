@@ -84,6 +84,9 @@ export const useThreatModeler = () => {
     setError(null);
 
     try {
+      // Obter configuração do modelo
+      const modelConfig = getModelConfig();
+      
       // 0. Enviar descrição do sistema ao backend RAG para processamento automático
       try {
         const BACKEND_URL = 'http://localhost:3001';
@@ -115,7 +118,6 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
 
         console.log(`📤 Enviando informações do sistema ao RAG: ${systemDocumentName}`);
         
-        const modelConfig = getModelConfig();
         const ragResponse = await fetch(`${BACKEND_URL}/api/documents/text`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
