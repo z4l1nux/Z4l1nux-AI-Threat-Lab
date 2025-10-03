@@ -3,7 +3,9 @@ import SystemInputForm from './src/components/SystemInputForm';
 import ReportDisplay from './src/components/ReportDisplay';
 import LoadingSpinner from './src/components/LoadingSpinner';
 import RAGPanel from './src/components/RAGPanel';
+import ModelSelector from './src/components/ModelSelector';
 import { useThreatModeler } from './src/hooks/useThreatModeler';
+import { useModelSelection } from './src/hooks/useModelSelection';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { APP_TITLE, INITIAL_SYSTEM_INFO, GEMINI_API_KEY_CHECK_MSG } from './constants';
 import { SystemInfo } from './types';
@@ -17,6 +19,13 @@ const App: React.FC = () => {
     updateReportMarkdown,
     refineThreatModel
   } = useThreatModeler();
+
+  const {
+    selection,
+    updateModel,
+    updateEmbedding,
+    getModelConfig
+  } = useModelSelection();
 
   const handleFormSubmit = (data: { fullDescription: string }) => {
     // Extrair nome do sistema da descrição completa
@@ -52,10 +61,10 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-custom-black text-custom-yellow flex flex-col items-center p-4 md:p-8 selection:bg-custom-yellow selection:text-custom-black">
       <header className="w-full mb-8 text-center">
-        <h1 className="text-4xl md:text-5xl font-bold text-custom-yellow py-2">
+        <h1 className="text-4xl md:text-5xl font-bold py-2 text-z4l1nux-primary">
           {APP_TITLE}
         </h1>
-        <p className="text-custom-yellow mt-2 text-sm md:text-base">
+        <p className="text-z4l1nux-primary mt-2 text-sm md:text-base">
           Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
         </p>
         {isApiKeyMissing && (
@@ -68,6 +77,14 @@ const App: React.FC = () => {
       <main className="w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4">
         <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8 space-y-4">
           <h2 id="system-input-heading" className="sr-only">Entrada de Informações do Sistema</h2>
+          
+          {/* Seletor de Modelos */}
+          <ModelSelector
+            onModelChange={updateModel}
+            onEmbeddingChange={updateEmbedding}
+            selectedModel={selection.model}
+            selectedEmbedding={selection.embedding}
+          />
           
           {/* Painel RAG */}
           <div className="bg-gray-900 rounded-lg p-4">
@@ -115,9 +132,9 @@ const App: React.FC = () => {
         </section>
       </main>
 
-      <footer className="w-full mt-12 pt-8 border-t border-custom-yellow/30 text-center text-custom-yellow text-sm">
+      <footer className="w-full mt-12 pt-8 border-t border-z4l1nux-primary/30 text-center text-z4l1nux-primary text-sm">
         <p>&copy; {new Date().getFullYear()} {APP_TITLE}. Análise de segurança aprimorada por IA.</p>
-        <p className="mt-1 text-custom-yellow">Esta é uma ferramenta conceitual. Sempre valide o conteúdo gerado por IA com especialistas em segurança.</p>
+        <p className="mt-1 text-z4l1nux-primary">Esta é uma ferramenta conceitual. Sempre valide o conteúdo gerado por IA com especialistas em segurança.</p>
       </footer>
     </div>
   );

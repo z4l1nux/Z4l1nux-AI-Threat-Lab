@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '../types';
 import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/geminiService';
+import { useModelSelection } from './useModelSelection';
 
 
 export const useThreatModeler = () => {
@@ -10,6 +11,8 @@ export const useThreatModeler = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [strideCapecMap, setStrideCapecMap] = useState<StrideCapecMapType | null>(null);
+  
+  const { getModelConfig } = useModelSelection();
 
   useEffect(() => {
     const fetchMapping = async () => {
@@ -112,12 +115,14 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
 
         console.log(`📤 Enviando informações do sistema ao RAG: ${systemDocumentName}`);
         
+        const modelConfig = getModelConfig();
         const ragResponse = await fetch(`${BACKEND_URL}/api/documents/text`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             name: systemDocumentName, 
-            content: systemDocumentContent 
+            content: systemDocumentContent,
+            modelConfig: modelConfig
           })
         });
 
@@ -132,7 +137,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
 
       // 1. Modelagem de ameaças com a descrição COMPLETA
       setSystemInfo(currentSystemInfo);
-      const identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap);
+      const identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap, modelConfig);
       setThreats(identifiedThreats);
       
       // 2. Resumir e estruturar informações do sistema via IA para exibição

@@ -8,20 +8,10 @@ export class Neo4jClient {
 
   static getDriver(): Driver {
     if (!this.driver) {
-      const uri = process.env.NEO4J_URI;
-      const user = process.env.NEO4J_USER;
-      const password = process.env.NEO4J_PASSWORD;
-      
-      // Validar variáveis de ambiente obrigatórias
-      if (!uri) {
-        throw new Error("❌ NEO4J_URI não configurado nas variáveis de ambiente");
-      }
-      if (!user) {
-        throw new Error("❌ NEO4J_USER não configurado nas variáveis de ambiente");
-      }
-      if (!password) {
-        throw new Error("❌ NEO4J_PASSWORD não configurado nas variáveis de ambiente");
-      }
+      // Configurações fixas para desenvolvimento local
+      const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
+      const user = process.env.NEO4J_USER || "neo4j";
+      const password = process.env.NEO4J_PASSWORD || "!2NS£A82p5Y";
       
       console.log(`🔗 Conectando ao Neo4j: ${uri}`);
       this.driver = neo4j.driver(uri, neo4j.auth.basic(user, password));

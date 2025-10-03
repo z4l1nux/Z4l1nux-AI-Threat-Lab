@@ -34,13 +34,14 @@ export class GeminiSearchFactory {
     console.log("🚀 Sistema de busca Gemini + Neo4j inicializado");
   }
 
-  async buscar(query: string, limit: number = 8): Promise<SearchResult[]> {
+  async buscar(query: string, limit: number = 8, modelConfig?: any): Promise<SearchResult[]> {
     if (!this.cacheManager) {
       throw new Error("Sistema de busca não foi inicializado. Chame initialize() primeiro.");
     }
 
-    console.log(`🔍 Buscando com Gemini: "${query.substring(0, 50)}..." (limite: ${limit})`);
-    const results = await this.cacheManager.hybridSearch(query, limit);
+    const provider = modelConfig?.provider || 'gemini';
+    console.log(`🔍 Buscando com ${provider}: "${query.substring(0, 50)}..." (limite: ${limit})`);
+    const results = await this.cacheManager.hybridSearch(query, limit, modelConfig);
     
     return results.map(result => ({
       documento: {
@@ -60,7 +61,7 @@ export class GeminiSearchFactory {
     }));
   }
 
-  async buscarContextoRAG(query: string, limit: number = 5, systemContext?: string): Promise<{
+  async buscarContextoRAG(query: string, limit: number = 5, systemContext?: string, modelConfig?: any): Promise<{
     context: string;
     sources: SearchResult[];
     totalDocuments: number;
@@ -68,7 +69,7 @@ export class GeminiSearchFactory {
   }> {
     // Buscar mais resultados para filtrar depois se há contexto de sistema
     const searchLimit = systemContext ? limit * 3 : limit;
-    let results = await this.buscar(query, searchLimit);
+    let results = await this.buscar(query, searchLimit, modelConfig);
     
     // Filtrar por contexto de sistema se fornecido
     if (systemContext && systemContext.trim().length > 0) {
@@ -207,6 +208,7 @@ export class GeminiSearchFactory {
       throw new Error("Sistema de busca não foi inicializado.");
     }
 
+    const modelConfig = document.metadata?.modelConfig;
     await this.cacheManager.processDocumentFromMemory({
       name: document.name,
       content: document.content,
@@ -215,7 +217,7 @@ export class GeminiSearchFactory {
         uploadedAt: new Date().toISOString(),
         source: 'api_upload'
       }
-    });
+    }, modelConfig);
   }
 
   async limparCache(): Promise<void> {

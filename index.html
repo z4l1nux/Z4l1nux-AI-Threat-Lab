@@ -4,15 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Threat Modeling Co-Pilot</title>
+    <title>Z4l1nux AI Threat Lab</title>
 <script src="/tailwindcss.js"></script>
 <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'custom-yellow': '#FBC02D',
-              'custom-black': '#000000',
+              'custom-yellow': '#ff8c00',
+              'custom-black': '#1a1a2e',
+              'custom-blue': '#2c2c4a',
+              'z4l1nux-primary': '#ff6b35',
+              'z4l1nux-secondary': '#004e89',
+              'z4l1nux-accent': '#ffd23f',
+              'threat-critical': '#dc2626',
+              'threat-high': '#ea580c',
+              'threat-medium': '#d97706',
+              'threat-low': '#059669'
             }
           }
         }
@@ -48,7 +56,7 @@
 }
 </script>
 </head>
-  <body class="bg-black text-yellow-400">
+  <body class="bg-custom-black text-custom-yellow">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

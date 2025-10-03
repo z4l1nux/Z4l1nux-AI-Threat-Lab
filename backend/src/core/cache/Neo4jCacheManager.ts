@@ -4,6 +4,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Document } from "@langchain/core/documents";
 import * as crypto from 'crypto';
 import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '../../types/index';
+// import { ModelFactory } from '../models/ModelFactory';
 
 export class Neo4jCacheManager {
   private driver: Driver;
@@ -31,7 +32,7 @@ export class Neo4jCacheManager {
     // Configurar embeddings do Gemini
     this.embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: process.env.GEMINI_API_KEY!,
-      model: process.env.EMBEDDING_MODEL || "gemini-embedding-001"
+      model: "gemini-embedding-001" // Sempre usar modelo Gemini para embeddings
     });
     
     this.splitter = new RecursiveCharacterTextSplitter({
@@ -41,70 +42,101 @@ export class Neo4jCacheManager {
     });
   }
 
+  // Método para obter labels baseados no provedor de embedding
+  private getEmbeddingLabels(embeddingProvider: string): { documentLabel: string; chunkLabel: string } {
+    switch (embeddingProvider) {
+      case 'ollama':
+        return { documentLabel: 'Document:Ollama', chunkLabel: 'Chunk:Ollama' };
+      case 'openrouter':
+        return { documentLabel: 'Document:OpenRouter', chunkLabel: 'Chunk:OpenRouter' };
+      case 'gemini':
+      default:
+        return { documentLabel: 'Document:Gemini', chunkLabel: 'Chunk:Gemini' };
+    }
+  }
+
+  // Método para obter dimensões do embedding baseado no provedor
+  private getEmbeddingDimensions(embeddingProvider: string): number {
+    switch (embeddingProvider) {
+      case 'ollama':
+        return 768;
+      case 'openrouter':
+        return 1536;
+      case 'gemini':
+      default:
+        return 3072;
+    }
+  }
+
   async initialize(): Promise<void> {
     const session = this.driver.session();
     
     try {
-      console.log("🔧 Inicializando Neo4j Cache Manager com Gemini embeddings...");
+      console.log("🔧 Inicializando Neo4j Cache Manager com labels por provedor...");
       
-      // Criar constraints únicos
-      await session.run(`
-        CREATE CONSTRAINT document_id_unique IF NOT EXISTS
-        FOR (d:Document) REQUIRE d.id IS UNIQUE
-      `);
+      // Criar constraints únicos para cada tipo de documento
+      const providers = ['Gemini', 'Ollama', 'OpenRouter'];
       
-      await session.run(`
-        CREATE CONSTRAINT chunk_id_unique IF NOT EXISTS  
-        FOR (c:Chunk) REQUIRE c.id IS UNIQUE
-      `);
-
-      // Criar índices vetoriais para busca semântica
-      // Gemini embeddings (text-embedding-004) usa 768 dimensões
-      // Gemini embeddings (text-embedding-005 / gemini-embedding-001 atualizado) usa 3072 dimensões
-      try {
+      for (const provider of providers) {
         await session.run(`
-          CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS
-          FOR (c:Chunk) ON (c.embedding)
-          OPTIONS {
-            indexConfig: {
-              \`vector.dimensions\`: 3072,
-              \`vector.similarity_function\`: 'cosine'
-            }
-          }
+          CREATE CONSTRAINT document_${provider.toLowerCase()}_id_unique IF NOT EXISTS
+          FOR (d:Document) REQUIRE d.id IS UNIQUE
         `);
-        console.log("✅ Índice vetorial criado para chunks (Gemini embeddings, 3072 dimensões)");
-      } catch (error: any) {
-        if (!error.message.includes("already exists")) {
-          console.log("⚠️ Índice vetorial já existe ou versão Neo4j não suporta");
+        
+        await session.run(`
+          CREATE CONSTRAINT chunk_${provider.toLowerCase()}_id_unique IF NOT EXISTS
+          FOR (c:Chunk) REQUIRE c.id IS UNIQUE
+        `);
+      }
+      
+      // Criar índices vetoriais para cada provedor
+      const embeddingDimensions = {
+        'Gemini': 3072,
+        'Ollama': 768,
+        'OpenRouter': 1536
+      };
+      
+      for (const [provider, dimensions] of Object.entries(embeddingDimensions)) {
+        try {
+          await session.run(`
+            CREATE VECTOR INDEX chunk_${provider.toLowerCase()}_embeddings IF NOT EXISTS
+            FOR (c:Chunk) ON (c.embedding)
+            OPTIONS {indexConfig: {
+              \`vector.dimensions\`: ${dimensions},
+              \`vector.similarity_function\`: 'cosine'
+            }}
+          `);
+          console.log(`✅ Índice vetorial criado para ${provider} (${dimensions} dimensões)`);
+        } catch (error) {
+          console.warn(`⚠️ Erro ao criar índice vetorial para ${provider}:`, error);
         }
       }
-
-      // Criar índices de texto para busca híbrida
-      await session.run(`
-        CREATE TEXT INDEX document_name_text IF NOT EXISTS
-        FOR (d:Document) ON (d.name)
-      `);
       
-      await session.run(`
-        CREATE TEXT INDEX chunk_content_text IF NOT EXISTS  
-        FOR (c:Chunk) ON (c.content)
-      `);
-
-      console.log("✅ Neo4j Cache Manager inicializado com Gemini");
+      console.log("✅ Neo4j Cache Manager inicializado com labels por provedor");
       
-    } catch (error) {
-      console.error("❌ Erro ao inicializar Neo4j:", error);
-      throw error;
     } finally {
       await session.close();
     }
   }
 
-  async processDocumentFromMemory(document: DocumentUpload): Promise<void> {
+  async processDocumentFromMemory(document: DocumentUpload, modelConfig?: any): Promise<void> {
+    // Determinar labels baseados no provedor de embedding
+    // Se não há modelConfig ou se Gemini falhar, usar Ollama como padrão
+    let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
+    
+    // Se Gemini não estiver disponível, forçar Ollama
+    if (embeddingProvider === 'gemini' && !process.env.GEMINI_API_KEY?.includes('AIza')) {
+      console.log('⚠️ Gemini não disponível, usando Ollama como padrão');
+      embeddingProvider = 'ollama';
+    }
+    
+    const labels = this.getEmbeddingLabels(embeddingProvider);
+    
     const session = this.driver.session();
     
     try {
-      console.log(`🧠 Processando documento com Gemini: ${document.name}`);
+      const provider = modelConfig?.provider || 'ollama';
+      console.log(`🧠 Processando documento com ${provider} usando labels ${labels.documentLabel}: ${document.name}`);
       
       // Gerar hash do conteúdo (para detectar mudanças)
       const documentHash = crypto.createHash('sha256').update(document.content).digest('hex');
@@ -114,7 +146,7 @@ export class Neo4jCacheManager {
       
       // Verificar se documento já existe
       const existingDoc = await session.run(`
-        MATCH (d:Document {id: $documentId})
+        MATCH (d:${labels.documentLabel} {id: $documentId})
         RETURN d.hash as hash
       `, { documentId });
 
@@ -125,10 +157,10 @@ export class Neo4jCacheManager {
         if (shouldUpdate) {
           console.log(`🔄 Documento existente encontrado, atualizando: ${document.name}`);
           // Deletar chunks antigos
-          await session.run(`
-            MATCH (d:Document {id: $documentId})-[:CONTAINS]->(c:Chunk)
-            DETACH DELETE c
-          `, { documentId });
+        await session.run(`
+          MATCH (d:${labels.documentLabel} {id: $documentId})-[:CONTAINS]->(c:${labels.chunkLabel})
+          DETACH DELETE c
+        `, { documentId });
         } else {
           console.log(`⏭️ Documento idêntico já existe, pulando: ${document.name}`);
           return;
@@ -142,13 +174,41 @@ export class Neo4jCacheManager {
         throw new Error(`Nenhum chunk gerado para: ${document.name}`);
       }
 
-      console.log(`📄 Gerando embeddings Gemini para ${chunks.length} chunks...`);
+      console.log(`📄 Gerando embeddings ${provider} para ${chunks.length} chunks...`);
       
-      // Gerar embeddings para todos os chunks usando Gemini
+      // Gerar embeddings para todos os chunks
       const embeddings: number[][] = [];
       for (let i = 0; i < chunks.length; i++) {
         try {
-          const embedding = await this.embeddings.embedQuery(chunks[i].pageContent);
+          let embedding: number[];
+          
+          if (embeddingProvider === 'ollama') {
+            // Usar Ollama para embeddings
+            console.log(`🔗 Usando Ollama para embedding do chunk ${i + 1}`);
+            try {
+              const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  model: modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+                  prompt: chunks[i].pageContent
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json() as { embedding: number[] };
+                embedding = data.embedding;
+              } else {
+                throw new Error(`Ollama embedding failed: ${response.statusText}`);
+              }
+            } catch (error) {
+              console.error(`❌ Erro com Ollama embedding:`, error);
+              throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+          } else {
+            // Usar Gemini para embeddings
+            embedding = await this.embeddings.embedQuery(chunks[i].pageContent);
+          }
           embeddings.push(embedding);
           
           // Log de progresso
@@ -165,7 +225,7 @@ export class Neo4jCacheManager {
       await session.executeWrite(async (tx) => {
         // Inserir/atualizar documento
         await tx.run(`
-          MERGE (d:Document {id: $documentId})
+          MERGE (d:${labels.documentLabel} {id: $documentId})
           SET d.name = $name,
               d.hash = $hash,
               d.content = $content,
@@ -189,7 +249,7 @@ export class Neo4jCacheManager {
           const chunkId = `${documentId}_chunk_${i}`;
           
           await tx.run(`
-            CREATE (c:Chunk {
+            CREATE (c:${labels.chunkLabel} {
               id: $chunkId,
               documentId: $documentId,
               content: $content,
@@ -233,20 +293,62 @@ export class Neo4jCacheManager {
     }
   }
 
-  async search(query: string, limit: number = 8): Promise<Neo4jSearchResult[]> {
+  async search(query: string, limit: number = 8, modelConfig?: any): Promise<Neo4jSearchResult[]> {
+    // Determinar labels baseados no provedor de embedding
+    // Se não há modelConfig ou se Gemini falhar, usar Ollama como padrão
+    let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
+    
+    // Se Gemini não estiver disponível, forçar Ollama
+    if (embeddingProvider === 'gemini' && !process.env.GEMINI_API_KEY?.includes('AIza')) {
+      console.log('⚠️ Gemini não disponível, usando Ollama como padrão');
+      embeddingProvider = 'ollama';
+    }
+    
+    const labels = this.getEmbeddingLabels(embeddingProvider);
+    
     const session = this.driver.session();
     
     try {
-      // Gerar embedding da query usando Gemini
-      console.log(`🔍 Gerando embedding Gemini para query: "${query.substring(0, 50)}..."`);
-      const queryEmbedding = await this.embeddings.embedQuery(query);
+      // Gerar embedding da query
+      const provider = embeddingProvider;
+      console.log(`🔍 Gerando embedding ${provider} para query usando labels ${labels.chunkLabel}: "${query.substring(0, 50)}..."`);
+      
+      let queryEmbedding: number[];
+      
+      if (embeddingProvider === 'ollama') {
+        // Usar Ollama para embeddings
+        console.log(`🔗 Usando Ollama para embedding da query`);
+        try {
+          const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
+              prompt: query
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json() as { embedding: number[] };
+            queryEmbedding = data.embedding;
+          } else {
+            throw new Error(`Ollama embedding failed: ${response.statusText}`);
+          }
+        } catch (error) {
+          console.error(`❌ Erro com Ollama embedding:`, error);
+          throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      } else {
+        // Usar Gemini para embeddings
+        queryEmbedding = await this.embeddings.embedQuery(query);
+      }
       
       // Tentar busca vetorial primeiro
       try {
         const result = await session.run(`
-          CALL db.index.vector.queryNodes('chunk_embeddings', $k, $queryEmbedding)
+          CALL db.index.vector.queryNodes('chunk_${embeddingProvider.toLowerCase()}_embeddings', $k, $queryEmbedding)
           YIELD node AS chunk, score
-          MATCH (d:Document)-[:CONTAINS]->(chunk)
+          MATCH (d:${labels.documentLabel})-[:CONTAINS]->(chunk)
           RETURN chunk, d AS document, score
           ORDER BY score DESC
           LIMIT $limit
@@ -263,7 +365,7 @@ export class Neo4jCacheManager {
         console.warn("⚠️ Índice vetorial não disponível, usando busca por similaridade manual:", vectorError.message);
         
         // Fallback: busca manual por similaridade
-        return await this.manualSimilaritySearch(queryEmbedding, limit, session);
+        return await this.manualSimilaritySearch(queryEmbedding, limit, session, labels);
       }
       
     } catch (error: any) {
@@ -274,10 +376,10 @@ export class Neo4jCacheManager {
     }
   }
 
-  private async manualSimilaritySearch(queryEmbedding: number[], limit: number, session: any): Promise<Neo4jSearchResult[]> {
+  private async manualSimilaritySearch(queryEmbedding: number[], limit: number, session: any, labels: { documentLabel: string; chunkLabel: string }): Promise<Neo4jSearchResult[]> {
     // Buscar todos os chunks e calcular similaridade manualmente
     const result = await session.run(`
-      MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
+      MATCH (d:${labels.documentLabel})-[:CONTAINS]->(c:${labels.chunkLabel})
       RETURN c AS chunk, d AS document
       LIMIT 100
     `);
@@ -376,36 +478,9 @@ export class Neo4jCacheManager {
     return results;
   }
 
-  async hybridSearch(query: string, limit: number = 8): Promise<Neo4jSearchResult[]> {
-    try {
-      // Tentar busca vetorial primeiro
-      return await this.search(query, limit);
-    } catch (error: any) {
-      console.warn("⚠️ Busca híbrida falhou, usando fallback:", error.message);
-      
-      // Fallback para busca textual simples
-      const session = this.driver.session();
-      try {
-        const result = await session.run(`
-          MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
-          WHERE c.content CONTAINS $query
-          RETURN c AS chunk, d AS document, 1.0 AS score
-          ORDER BY c.index
-          LIMIT $limit
-        `, {
-          query: query.toLowerCase(),
-          limit: neo4j.int(limit)
-        });
-
-        return this.parseSearchResults(result);
-        
-      } catch (textError: any) {
-        console.warn("⚠️ Busca textual falhou:", textError.message);
-        throw textError;
-      } finally {
-        await session.close();
-      }
-    }
+  async hybridSearch(query: string, limit: number = 8, modelConfig?: any): Promise<Neo4jSearchResult[]> {
+    // Usar apenas busca Neo4j (sem híbrido)
+    return await this.search(query, limit, modelConfig);
   }
 
   async verificarCache(): Promise<boolean> {
@@ -431,15 +506,31 @@ export class Neo4jCacheManager {
     const session = this.driver.session();
     
     try {
-      const result = await session.run(`
-        MATCH (d:Document)
-        OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
-        RETURN count(DISTINCT d) AS totalDocumentos, count(c) AS totalChunks
-      `);
+      // Contar documentos e chunks de todos os provedores
+      const providers = ['Gemini', 'Ollama', 'OpenRouter'];
+      let totalDocumentos = 0;
+      let totalChunks = 0;
       
-      const record = result.records[0];
-      const totalDocumentos = (record?.get('totalDocumentos') as Integer)?.toNumber() || 0;
-      const totalChunks = (record?.get('totalChunks') as Integer)?.toNumber() || 0;
+      for (const provider of providers) {
+        try {
+          const result = await session.run(`
+            MATCH (d:Document:${provider})
+            OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk:${provider})
+            RETURN count(DISTINCT d) AS totalDocumentos, count(c) AS totalChunks
+          `);
+          
+          const record = result.records[0];
+          const docCount = (record?.get('totalDocumentos') as Integer)?.toNumber() || 0;
+          const chunkCount = (record?.get('totalChunks') as Integer)?.toNumber() || 0;
+          
+          totalDocumentos += docCount;
+          totalChunks += chunkCount;
+          
+          console.log(`📊 ${provider}: ${docCount} documentos, ${chunkCount} chunks`);
+        } catch (error) {
+          console.warn(`⚠️ Erro ao contar estatísticas para ${provider}:`, error);
+        }
+      }
       
       return { totalChunks, totalDocumentos };
       

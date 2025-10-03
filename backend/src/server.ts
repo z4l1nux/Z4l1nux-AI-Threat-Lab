@@ -2,10 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import * as dotenv from 'dotenv';
+import neo4j from 'neo4j-driver';
 import { GeminiSearchFactory } from './core/search/GeminiSearchFactory';
 import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
 import { SearchResult, RAGContext } from './types/index';
+import { ModelFactory } from './core/models/ModelFactory';
 
 // Carregar variáveis de ambiente
 dotenv.config({ path: '../.env.local' });
@@ -77,10 +79,113 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Listar modelos disponíveis
+app.get('/api/models/available', (req, res) => {
+  try {
+    console.log('🔍 Verificando variáveis de ambiente:');
+    console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurado' : 'Não configurado');
+    console.log('OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL || 'Não configurado');
+    console.log('MODEL_OLLAMA:', process.env.MODEL_OLLAMA || 'Não configurado');
+    console.log('EMBEDDING_MODEL:', process.env.EMBEDDING_MODEL || 'Não configurado');
+    console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
+    console.log('MODEL_OPENROUTER:', process.env.MODEL_OPENROUTER || 'Não configurado');
+    
+    const models = [];
+    const embeddings = [];
+
+    // Gemini models
+    // Gemini models - só incluir se a API key estiver configurada e válida
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const isGeminiValid = geminiApiKey && geminiApiKey.includes('AIza') && geminiApiKey.length > 20;
+    
+    if (isGeminiValid) {
+      models.push({
+        id: 'gemini-1.5-pro',
+        name: 'Gemini 1.5 Pro',
+        provider: 'gemini',
+        available: true
+      });
+      models.push({
+        id: 'gemini-1.5-flash',
+        name: 'Gemini 1.5 Flash',
+        provider: 'gemini',
+        available: true
+      });
+      
+      embeddings.push({
+        id: 'gemini-embedding-001',
+        name: 'Gemini Embedding 001',
+        provider: 'gemini',
+        available: true
+      });
+    } else {
+      console.log('⚠️ Gemini API key inválida ou não configurada, desabilitando Gemini');
+    }
+
+    // Ollama models - sempre incluir se as variáveis estiverem definidas
+    const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434';
+    const ollamaModel = process.env.MODEL_OLLAMA || 'granite3.3:8b';
+    const ollamaEmbedding = process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
+    
+    if (ollamaBaseUrl && ollamaModel) {
+      models.push({
+        id: ollamaModel,
+        name: `Ollama: ${ollamaModel}`,
+        provider: 'ollama',
+        available: true
+      });
+    }
+
+    if (ollamaBaseUrl && ollamaEmbedding) {
+      embeddings.push({
+        id: ollamaEmbedding,
+        name: `Ollama: ${ollamaEmbedding}`,
+        provider: 'ollama',
+        available: true
+      });
+    }
+
+    // OpenRouter models - sempre incluir se as variáveis estiverem definidas
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY || 'sk-or-my-api-key';
+    const openrouterModel = process.env.MODEL_OPENROUTER || 'meta-llama/llama-3.3-70b-instruct:free';
+    
+    if (openrouterApiKey && openrouterModel) {
+      models.push({
+        id: openrouterModel,
+        name: `OpenRouter: ${openrouterModel.split('/').pop()}`,
+        provider: 'openrouter',
+        available: true
+      });
+    }
+
+    const response = {
+      models,
+      embeddings,
+      providers: {
+        gemini: isGeminiValid,
+        ollama: !!(ollamaBaseUrl && ollamaModel),
+        openrouter: !!(openrouterApiKey && openrouterModel)
+      }
+    };
+    
+    console.log('📤 Resposta enviada:', JSON.stringify(response, null, 2));
+    
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({
+      error: 'Erro ao listar modelos disponíveis',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Inicializar sistema RAG
 app.post('/api/initialize', async (req, res) => {
   try {
     console.log('🚀 Inicializando sistema RAG...');
+    
+    // Inicializar ModelFactory primeiro
+    await ModelFactory.initialize();
     
     // Testar conexão Neo4j primeiro
     const neo4jConnected = await Neo4jClient.testConnection();
@@ -176,7 +281,7 @@ app.post('/api/documents/upload', requireInitialized, upload.single('document'),
 // Upload de texto direto
 app.post('/api/documents/text', requireInitialized, async (req, res) => {
   try {
-    const { name, content } = req.body;
+    const { name, content, modelConfig } = req.body;
     
     if (!name || !content) {
       return res.status(400).json({
@@ -185,6 +290,10 @@ app.post('/api/documents/text', requireInitialized, async (req, res) => {
     }
 
     console.log(`📝 Processando texto: ${name}`);
+    if (modelConfig) {
+      console.log(`🤖 Usando modelo: ${modelConfig.model} (${modelConfig.provider})`);
+      console.log(`🔗 Usando embedding: ${modelConfig.embedding} (${modelConfig.embeddingProvider})`);
+    }
 
     // Processar documento no sistema RAG
     await searchFactory!.processarDocumento({
@@ -195,7 +304,8 @@ app.post('/api/documents/text', requireInitialized, async (req, res) => {
         mimeType: 'text/plain',
         size: content.length,
         uploadedAt: new Date().toISOString(),
-        source: 'text_input'
+        source: 'text_input',
+        modelConfig: modelConfig || null
       }
     });
 
@@ -254,7 +364,7 @@ app.post('/api/search', requireInitialized, async (req, res) => {
 // Busca com contexto RAG para threat modeling
 app.post('/api/search/context', requireInitialized, async (req, res) => {
   try {
-    const { query, limit = 5, systemContext } = req.body;
+    const { query, limit = 5, systemContext, modelConfig } = req.body;
     
     if (!query) {
       return res.status(400).json({
@@ -266,8 +376,12 @@ app.post('/api/search/context', requireInitialized, async (req, res) => {
     if (systemContext) {
       console.log(`🔍 Filtro de contexto aplicado: Sistema "${systemContext}"`);
     }
+    if (modelConfig) {
+      console.log(`🤖 Usando modelo: ${modelConfig.model} (${modelConfig.provider})`);
+      console.log(`🔗 Usando embedding: ${modelConfig.embedding} (${modelConfig.embeddingProvider})`);
+    }
 
-    const contextData = await searchFactory!.buscarContextoRAG(query, limit, systemContext);
+    const contextData = await searchFactory!.buscarContextoRAG(query, limit, systemContext, modelConfig);
 
     res.json({
       query,
@@ -302,7 +416,44 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
     console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
 
     // Buscar documentos que contenham mapeamento STRIDE-CAPEC
-    const results = await searchFactory.buscar('STRIDE CAPEC mapping categoria', 50);
+    let results;
+    try {
+      results = await searchFactory.buscar('STRIDE CAPEC mapping categoria', 50);
+    } catch (error) {
+      console.warn('⚠️ Busca semântica falhou, tentando busca textual direta:', error);
+      
+      // Fallback: busca textual direta no Neo4j
+      const session = Neo4jClient.getSession();
+      try {
+        const neo4jResult = await session.run(`
+          MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
+          WHERE toLower(c.content) CONTAINS toLower($query)
+          RETURN c AS chunk, d AS document, 1.0 AS score
+          ORDER BY c.index
+          LIMIT $limit
+        `, {
+          query: 'STRIDE CAPEC',
+          limit: neo4j.int(50)
+        });
+
+        results = neo4jResult.records.map(record => ({
+          documento: {
+            pageContent: record.get('chunk').properties.content,
+            metadata: {
+              documentId: record.get('document').properties.id,
+              documentName: record.get('document').properties.name,
+              chunkIndex: record.get('chunk').properties.index,
+              uploadedAt: record.get('document').properties.uploadedAt
+            }
+          },
+          score: record.get('score')
+        }));
+        
+        console.log(`📄 Busca textual encontrou ${results.length} resultados`);
+      } finally {
+        await session.close();
+      }
+    }
 
     // ===== LOGS DETALHADOS STRIDE-CAPEC =====
     console.log('\n📚 ===== BUSCA DE MAPEAMENTO STRIDE-CAPEC =====');
@@ -503,6 +654,47 @@ app.get('/api/statistics', requireInitialized, async (req, res) => {
     console.error('❌ Erro ao obter estatísticas:', error);
     res.status(500).json({
       error: 'Falha ao obter estatísticas',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Mapeamento STRIDE-CAPEC
+app.get('/api/stride-capec-mapping', requireInitialized, async (req, res) => {
+  try {
+    console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
+    
+    // Buscar documentos relacionados a STRIDE-CAPEC
+    const results = await searchFactory!.buscar('STRIDE CAPEC mapping categoria', 50);
+    
+    console.log(`📈 Total de chunks encontrados: ${results.length}`);
+    
+    // Filtrar apenas documentos CAPEC
+    const capecDocs = results.filter((result: any) => 
+      result.document && (
+        result.document.toLowerCase().includes('capec') ||
+        result.document.toLowerCase().includes('stride') ||
+        result.document.toLowerCase().includes('mapping')
+      )
+    );
+    
+    console.log(`📚 Total de documentos CAPEC utilizados: ${capecDocs.length}`);
+    
+    const documents = [...new Set(capecDocs.map((r: any) => r.document))];
+    console.log(`📄 Documentos STRIDE-CAPEC consultados: ${documents.join(', ')}`);
+    
+    res.json({
+      success: true,
+      totalChunks: results.length,
+      capecDocuments: capecDocs.length,
+      documents: documents,
+      results: capecDocs
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro ao buscar mapeamento STRIDE-CAPEC:', error);
+    res.status(500).json({
+      error: 'Falha ao buscar mapeamento STRIDE-CAPEC',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

@@ -1,6 +1,6 @@
 import { StrideCategory } from './types';
 
-export const APP_TITLE = "Seu Co-Piloto para Modelagem de Ameaças";
+export const APP_TITLE = "Z4l1nux AI Threat Lab";
 export const STRIDE_CATEGORIES_LIST = Object.values(StrideCategory);
 
 export const INITIAL_SYSTEM_INFO = {

@@ -168,7 +168,7 @@ const parseJsonFromText = (text: string | undefined): any => {
 };
 
 // Função para buscar contexto RAG relevante com múltiplas queries específicas
-const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => {
+const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Promise<any | null> => {
   try {
     const BACKEND_URL = 'http://localhost:3001';
     
@@ -265,7 +265,8 @@ const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => 
           body: JSON.stringify({ 
             query, 
             limit: 3, // Menos resultados por query, mas mais queries
-            systemContext: systemInfo.systemName
+            systemContext: systemInfo.systemName,
+            modelConfig: modelConfig
           })
         });
         
@@ -363,12 +364,13 @@ const searchRAGContext = async (systemInfo: SystemInfo): Promise<any | null> => 
 
 export const analyzeThreatsAndMitigations = async (
   systemInfo: SystemInfo,
-  strideCapecMap: StrideCapecMapType
+  strideCapecMap: StrideCapecMapType,
+  modelConfig?: any
 ): Promise<IdentifiedThreat[]> => {
   if (!ai) throw new Error("Chave da API Gemini não configurada.");
   
   // Buscar contexto RAG relevante
-  const ragContext = await searchRAGContext(systemInfo);
+  const ragContext = await searchRAGContext(systemInfo, modelConfig);
   
   // Calcular complexidade da tarefa
   const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(strideCapecMap));
