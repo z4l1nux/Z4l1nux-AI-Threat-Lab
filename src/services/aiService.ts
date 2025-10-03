@@ -1,33 +1,9 @@
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { SystemInfo, IdentifiedThreat, StrideCapecMapType } from '../types';
-// import { ragService, RAGContext } from '../src/services/ragService';
 
-const API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY; // Support common env var names
-
-if (!API_KEY) {
-  console.warn(
-    "A chave da API Gemini não está configurada em process.env.GEMINI_API_KEY ou process.env.API_KEY. As funcionalidades de IA não funcionarão."
-  );
-}
-
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-
-// Configuração inteligente de modelos
-const MODEL_CONFIG = {
-  // Modelos disponíveis ordenados por capacidade/custo
-  MODELS: {
-    LITE: 'gemini-2.5-flash-lite-preview-06-17',      // Mais barato, tarefas simples
-    FLASH: 'gemini-2.5-flash',                         // Equilibrado, uso geral
-    FLASH_LEGACY: 'gemini-1.5-flash-latest',          // Fallback confiável
-    PRO: 'gemini-2.5-pro'                             // Mais caro, tarefas complexas
-  },
-  
-  // Limites para decisão automática de modelo
-  THRESHOLDS: {
-    SIMPLE_TASK_TOKENS: 5000,        // < 5k tokens = tarefa simples
-    COMPLEX_TASK_TOKENS: 50000,      // > 50k tokens = tarefa complexa
-    MAX_RETRIES: 2                   // Máximo de tentativas com modelos alternativos
-  }
+// Configuração para análise de complexidade
+const COMPLEXITY_THRESHOLDS = {
+  SIMPLE_TASK_TOKENS: 5000,        // < 5k tokens = tarefa simples
+  COMPLEX_TASK_TOKENS: 50000,      // > 50k tokens = tarefa complexa
 };
 
 // Função para calcular complexidade aproximada da tarefa
@@ -49,8 +25,8 @@ const calculateTaskComplexity = (
   let complexityScore = 0;
   
   // Tamanho do conteúdo
-  if (totalLength > MODEL_CONFIG.THRESHOLDS.COMPLEX_TASK_TOKENS) complexityScore += 3;
-  else if (totalLength > MODEL_CONFIG.THRESHOLDS.SIMPLE_TASK_TOKENS) complexityScore += 1;
+  if (totalLength > COMPLEXITY_THRESHOLDS.COMPLEX_TASK_TOKENS) complexityScore += 3;
+  else if (totalLength > COMPLEXITY_THRESHOLDS.SIMPLE_TASK_TOKENS) complexityScore += 1;
   
   // Número de componentes
   if (componentCount > 10) complexityScore += 2;
@@ -68,88 +44,8 @@ const calculateTaskComplexity = (
   return 'SIMPLE';
 };
 
-// Função para selecionar o modelo ideal baseado na tarefa
-const selectOptimalModel = (
-  taskType: 'ANALYSIS' | 'REFINEMENT' | 'SUMMARY',
-  complexity: 'SIMPLE' | 'MEDIUM' | 'COMPLEX',
-  retryCount: number = 0
-): string => {
-  // Estratégia de seleção baseada em tipo de tarefa e complexidade
-  switch (taskType) {
-    case 'SUMMARY':
-      // Resumos são geralmente tarefas simples
-      return retryCount === 0 ? MODEL_CONFIG.MODELS.LITE : MODEL_CONFIG.MODELS.FLASH;
-      
-    case 'ANALYSIS': {
-      // Para árvore de ataque, forçar PRO
-      if (currentGenerationContext.currentTask === 'ATTACK_TREE') {
-        return MODEL_CONFIG.MODELS.PRO;
-      }
-      // Análise de ameaças requer mais capacidade
-      if (complexity === 'COMPLEX') {
-        return retryCount === 0 ? MODEL_CONFIG.MODELS.PRO : MODEL_CONFIG.MODELS.FLASH;
-      } else if (complexity === 'MEDIUM') {
-        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.FLASH_LEGACY;
-      } else {
-        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.LITE;
-      }
-    }
-    case 'REFINEMENT':
-      // Refinamento requer capacidade de raciocínio
-      if (complexity === 'COMPLEX') {
-        return retryCount === 0 ? MODEL_CONFIG.MODELS.PRO : MODEL_CONFIG.MODELS.FLASH;
-      } else {
-        return retryCount === 0 ? MODEL_CONFIG.MODELS.FLASH : MODEL_CONFIG.MODELS.FLASH_LEGACY;
-      }
-      
-    default:
-      return MODEL_CONFIG.MODELS.FLASH;
-  }
-};
-
-// Contexto simples para sinalizar tipo de tarefa atual durante seleção de modelo
+// Contexto simples para sinalizar tipo de tarefa atual
 const currentGenerationContext: { currentTask: 'DEFAULT' | 'ATTACK_TREE' } = { currentTask: 'DEFAULT' };
-
-// Função para executar geração de conteúdo com retry inteligente
-const executeWithIntelligentRetry = async (
-  prompt: string,
-  taskType: 'ANALYSIS' | 'REFINEMENT' | 'SUMMARY',
-  complexity: 'SIMPLE' | 'MEDIUM' | 'COMPLEX',
-  maxRetries: number = MODEL_CONFIG.THRESHOLDS.MAX_RETRIES
-): Promise<GenerateContentResponse> => {
-  let lastError: Error | null = null;
-  
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      const selectedModel = selectOptimalModel(taskType, complexity, attempt);
-      
-      console.log(`[Gemini Service] Tentativa ${attempt + 1}/${maxRetries + 1} usando modelo: ${selectedModel} (Complexidade: ${complexity})`);
-      
-      const response = await ai!.models.generateContent({
-        model: selectedModel,
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
-      });
-      
-      console.log(`[Gemini Service] Sucesso com modelo: ${selectedModel}`);
-      return response;
-      
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(`[Gemini Service] Erro com modelo (tentativa ${attempt + 1}):`, error);
-      
-      // Se é a última tentativa, lança o erro
-      if (attempt === maxRetries) {
-        break;
-      }
-      
-      // Aguarda um pouco antes da próxima tentativa
-      await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
-    }
-  }
-  
-  throw new Error(`Falha em todas as tentativas de geração de conteúdo. Último erro: ${lastError?.message}`);
-};
 
 const parseJsonFromText = (text: string | undefined): any => {
   if (!text) throw new Error("Texto da resposta da IA está indefinido.");
@@ -367,14 +263,14 @@ export const analyzeThreatsAndMitigations = async (
   strideCapecMap: StrideCapecMapType,
   modelConfig?: any
 ): Promise<IdentifiedThreat[]> => {
-  if (!ai) throw new Error("Chave da API Gemini não configurada.");
+  // Usar endpoint do backend para geração de conteúdo
   
   // Buscar contexto RAG relevante
   const ragContext = await searchRAGContext(systemInfo, modelConfig);
   
   // Calcular complexidade da tarefa
   const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(strideCapecMap));
-  console.log(`[Gemini Service] Complexidade da análise detectada: ${complexity}`);
+  console.log(`[AI Service] Complexidade da análise detectada: ${complexity}`);
   
   // Construir contexto RAG para o prompt
   const ragContextSection = ragContext ? `
@@ -491,8 +387,25 @@ Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento 
 ]
 `;
   
-  const response = await executeWithIntelligentRetry(prompt, 'ANALYSIS', complexity);
-  const parsedThreatsData = parseJsonFromText(response.text);
+  // Usar endpoint do backend para geração de conteúdo
+  const backendResponse = await fetch('http://localhost:3001/api/generate-content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      modelConfig
+    })
+  });
+
+  if (!backendResponse.ok) {
+    throw new Error(`Erro na geração de conteúdo: ${backendResponse.statusText}`);
+  }
+
+  const result = await backendResponse.json();
+  const response = result.content;
+  const parsedThreatsData = parseJsonFromText(response.response.text());
 
   if (!Array.isArray(parsedThreatsData)) {
     console.error("Resposta da IA para ameaças não foi um array:", parsedThreatsData);
@@ -519,20 +432,15 @@ Exemplo (Ilustrativo - adapte aos elementos reais do sistema e use o mapeamento 
  * Retorna apenas o texto Mermaid válido.
  */
 export const generateAttackTreeMermaid = async (
-  systemInfo: SystemInfo,
-  threats: IdentifiedThreat[]
+  threats: IdentifiedThreat[],
+  modelConfig?: any
 ): Promise<string> => {
-  if (!ai) throw new Error("Chave da API Gemini não configurada.");
-
-  const complexity = calculateTaskComplexity(systemInfo, JSON.stringify(threats));
+  const complexity = calculateTaskComplexity({ generalDescription: JSON.stringify(threats) }, "");
 
   try {
     // Prompt melhorado baseado na abordagem Python
     const prompt = `
-Você é um especialista em modelagem de ameaças. Analise o sistema e as ameaças fornecidas e crie uma Árvore de Ataque estruturada.
-
-Sistema:
-${JSON.stringify(systemInfo, null, 2)}
+Você é um especialista em modelagem de ameaças. Analise as ameaças fornecidas e crie uma Árvore de Ataque estruturada.
 
 Ameaças Identificadas:
 ${JSON.stringify(threats, null, 2)}
@@ -564,12 +472,29 @@ flowchart TD
 
 Retorne APENAS o código Mermaid, sem explicações ou markdown.`;
 
-    const response = await executeWithIntelligentRetry(prompt, 'ANALYSIS', complexity, 0);
-    let text = (response.text || '').trim();
+    // Usar endpoint do backend para geração de conteúdo
+    const backendResponse = await fetch('http://localhost:3001/api/generate-content', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        modelConfig
+      })
+    });
+
+    if (!backendResponse.ok) {
+      throw new Error(`Erro na geração de conteúdo: ${backendResponse.statusText}`);
+    }
+
+    const result = await backendResponse.json();
+    const response = result.content;
+    let text = response.response.text().trim();
     
     // Validação e limpeza robusta
     if (!/^(flowchart|graph)\s+(TD|LR|BT|RL)/i.test(text) || /^mindmap/i.test(text)) {
-      return buildFlowchartFromThreats(systemInfo, threats);
+      return buildFlowchartFromThreats(threats);
     }
 
     // Sanitização avançada baseada na abordagem Python
@@ -580,12 +505,12 @@ Retorne APENAS o código Mermaid, sem explicações ou markdown.`;
       return text;
     }
     
-    return buildFlowchartFromThreats(systemInfo, threats);
+    return buildFlowchartFromThreats(threats);
   } catch (e) {
     console.debug('IA retornou diagrama não padronizado, usando fallback.');
   }
 
-  return buildFlowchartFromThreats(systemInfo, threats);
+  return buildFlowchartFromThreats(threats);
 }
 
 // Função de sanitização robusta baseada na abordagem Python
@@ -619,8 +544,8 @@ function isValidMermaidFlowchart(text: string): boolean {
 }
 
 // Função de fallback melhorada baseada na estrutura JSON Python
-function buildFlowchartFromThreats(systemInfo: SystemInfo, threats: IdentifiedThreat[]): string {
-  const rootTitle = `Ataques ao ${systemInfo.systemName || 'Sistema'}`;
+function buildFlowchartFromThreats(threats: IdentifiedThreat[]): string {
+  const rootTitle = `Ataques ao Sistema`;
   
   // Funções de sanitização
   const normalize = (s: string) => (s || 'N/D').replace(/\s+/g, ' ').trim();
@@ -724,24 +649,15 @@ function buildFlowchartFromThreats(systemInfo: SystemInfo, threats: IdentifiedTh
 }
 
 export const refineAnalysis = async (
-  systemInfo: SystemInfo,
   currentReportMarkdown: string,
-  strideCapecMap: StrideCapecMapType
-): Promise<{ threats: IdentifiedThreat[] }> => {
-  if (!ai) throw new Error("Chave da API Gemini não configurada.");
-
+  modelConfig?: any
+): Promise<string> => {
   // Calcular complexidade da tarefa de refinamento
-  const complexity = calculateTaskComplexity(systemInfo, currentReportMarkdown);
-  console.log(`[Gemini Service] Complexidade do refinamento detectada: ${complexity}`);
+  const complexity = calculateTaskComplexity({ generalDescription: currentReportMarkdown }, "");
+  console.log(`[AI Service] Complexidade do refinamento detectada: ${complexity}`);
 
   const prompt = `
-Contexto: Você é um especialista sênior em segurança cibernética revisando e refinando um relatório de modelagem de ameaças existente. O usuário forneceu uma versão inicial do relatório (em Markdown) que pode ter sido editada.
-
-Informações Originais do Sistema (para referência):
-${JSON.stringify(systemInfo, null, 2)}
-
-Mapeamento STRIDE para CAPEC (para referência ao adicionar novas ameaças):
-${JSON.stringify(strideCapecMap, null, 2)}
+Você é um especialista sênior em segurança cibernética revisando e refinando um relatório de modelagem de ameaças existente.
 
 Relatório Atual (Markdown) para Refinar:
 ---
@@ -749,89 +665,56 @@ ${currentReportMarkdown}
 ---
 
 Tarefa (Responda em Português do Brasil):
-Sua tarefa é refinar o relatório de modelagem de ameaças fornecido. Analise o conteúdo do Markdown, incluindo a descrição do sistema e as ameaças.
+Sua tarefa é refinar o relatório de modelagem de ameaças fornecido. Analise o conteúdo do Markdown e melhore:
 
-1.  **Refinar a Análise de Ameaças:**
-    *   Revise a lista de ameaças existente no contexto do relatório.
-    *   Mantenha as ameaças que ainda são válidas.
-    *   Corrija quaisquer imprecisões nas ameaças existentes (cenários, mapeamentos CAPEC, etc.).
-    *   Adicione **novas ameaças** que você identificar com base em sua experiência e no relatório atualizado. Garanta uma cobertura STRIDE abrangente.
-    *   Remova ameaças que não são mais relevantes devido às mudanças.
-
-2.  **Gerar Saída Estruturada:**
-    - Com base em sua análise refinada, gere um objeto JSON contendo uma chave chamada 'threats', que deve ser um array JSON de objetos de ameaças, seguindo a mesma estrutura da análise original. Este array deve ser a lista completa e refinada de ameaças.
+1. **Clareza e Coerência**: Melhore a linguagem para torná-la mais clara e concisa.
+2. **Detalhes Técnicos**: Adicione mais detalhes técnicos onde for apropriado, especialmente nas descrições das ameaças e mitigações.
+3. **Formato**: Mantenha o formato Markdown, mas melhore a estrutura e a apresentação.
+4. **Abrangência**: Verifique se todas as seções estão completas e bem elaboradas.
+5. **Ação**: As mitigações devem ser acionáveis e específicas.
 
 IMPORTANTE - IDIOMA:
 - TODOS OS TEXTOS DEVEM ESTAR EM PORTUGUÊS DO BRASIL
-- APENAS as categorias STRIDE devem permanecer em inglês (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
-- Nomes CAPEC podem permanecer em inglês, MAS suas descrições devem ser em português
-- Classificações OWASP TOP 10 podem permanecer em inglês, mas qualquer texto explicativo deve ser em português
-- Cenários de ameaça, descrições CAPEC e recomendações de mitigação DEVEM SER ESCRITOS EM PORTUGUÊS DO BRASIL
-- REPITO: ESCREVA EM PORTUGUÊS DO BRASIL - apenas categorias STRIDE em inglês!
-
-Estrutura do Objeto de Ameaça (mantenha as chaves em inglês):
-{
-  "elementName": "string",
-  "strideCategory": "string",
-  "threatScenario": "string",
-  "capecId": "string",
-  "capecName": "string",
-  "capecDescription": "string",
-  "mitigationRecommendations": "string",
-  "impact": "string (CRITICAL, HIGH, MEDIUM ou LOW)",
-  "owaspTop10": "string (ex: 'A01:2021 - Broken Access Control')"
-}
+- Mantenha formatação Markdown clara e organizada
+- ESCREVA TUDO EM PORTUGUÊS DO BRASIL
 
 Saída:
-Retorne APENAS o objeto JSON principal. Não inclua nenhum outro texto, explicações ou formatação markdown como 'três crases' ou 'formatação markdown de código'.
-
-Exemplo de Saída JSON:
-{
-  "threats": [
-    {
-      "elementName": "Frontend(App Web Refinado)",
-      "strideCategory": "Information Disclosure",
-      "threatScenario": "Um invasor explora uma vulnerabilidade de Cross-Site Scripting (XSS) para roubar tokens de sessão armazenados no navegador do usuário.",
-      "capecId": "CAPEC-591",
-      "capecName": "Stored XSS",
-      "capecDescription": "O invasor tenta injetar script malicioso que é armazenado no servidor e servido a outros usuários, comprometendo suas sessões.",
-      "mitigationRecommendations": "Implementar uma Política de Segurança de Conteúdo (CSP) forte. Validar e sanitizar todas as entradas do usuário no lado do servidor e do cliente. Usar codificação de saída apropriada.",
-      "impact": "HIGH",
-      "owaspTop10": "A03:2021 - Injection"
-    }
-    // ... outras ameaças refinadas
-  ]
-}
+Retorne o relatório refinado em formato Markdown, sem explicações ou texto extra.
 `;
 
-  const response = await executeWithIntelligentRetry(prompt, 'REFINEMENT', complexity);
-  const parsedResponse = parseJsonFromText(response.text);
+  // Usar endpoint do backend para geração de conteúdo
+  const backendResponse = await fetch('http://localhost:3001/api/generate-content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      modelConfig
+    })
+  });
 
-  if (!parsedResponse || !Array.isArray(parsedResponse.threats)) {
-    console.error("A resposta da IA para refinamento não continha 'threats':", parsedResponse);
-    throw new Error("A resposta da IA para refinamento estava malformada.");
+  if (!backendResponse.ok) {
+    throw new Error(`Erro na geração de conteúdo: ${backendResponse.statusText}`);
   }
 
-  const threatsWithIds = parsedResponse.threats.map((threat: any, index: number) => ({
-    ...threat,
-    id: `threat-${index}-${Date.now()}`,
-  }));
-
-  return { threats: threatsWithIds };
+  const result = await backendResponse.json();
+  const response = result.content;
+  return response.response.text();
 };
 
 /**
- * Usa a IA Gemini para resumir e formatar a descrição geral do sistema a partir de um texto livre.
+ * Usa a IA para resumir e formatar a descrição geral do sistema a partir de um texto livre.
  * @param fullDescription Texto livre informado pelo usuário sobre o sistema.
+ * @param modelConfig Configuração do modelo a ser usado.
  * @returns Promise<Partial<SystemInfo>> com a descrição geral resumida e formatada.
  */
-export const summarizeSystemDescription = async (fullDescription: string): Promise<Partial<SystemInfo>> => {
-  if (!ai) throw new Error("Chave da API Gemini não configurada.");
+export const summarizeSystemDescription = async (fullDescription: string, modelConfig?: any): Promise<Partial<SystemInfo>> => {
   if (!fullDescription) throw new Error("Descrição do sistema não informada.");
   
   // Para resumos, sempre usar complexidade simples
   const complexity = 'SIMPLE' as const;
-  console.log(`[Gemini Service] Executando resumo do sistema com complexidade: ${complexity}`);
+  console.log(`[AI Service] Executando resumo do sistema com complexidade: ${complexity}`);
   
   const prompt = `
 Você é um assistente de segurança da informação especializado em análise de sistemas. 
@@ -879,17 +762,34 @@ Saída esperada (exemplo de estrutura):
 }
 `;
 
-  const response = await executeWithIntelligentRetry(prompt, 'SUMMARY', complexity);
-  const result = parseJsonFromText(response.text);
+  // Usar endpoint do backend para geração de conteúdo
+  const backendResponse = await fetch('http://localhost:3001/api/generate-content', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      modelConfig
+    })
+  });
+
+  if (!backendResponse.ok) {
+    throw new Error(`Erro na geração de conteúdo: ${backendResponse.statusText}`);
+  }
+
+  const result = await backendResponse.json();
+  const response = result.content;
+  const parsedResult = parseJsonFromText(response.response.text());
   
   // Garantir que todos os campos existam
   return {
-    generalDescription: result.generalDescription || "Não informado",
-    components: result.components || "Não informado",
-    sensitiveData: result.sensitiveData || "Não informado",
-    technologies: result.technologies || "Não informado",
-    authentication: result.authentication || "Não informado",
-    userProfiles: result.userProfiles || "Não informado",
-    externalIntegrations: result.externalIntegrations || "Não informado"
+    generalDescription: parsedResult.generalDescription || "Não informado",
+    components: parsedResult.components || "Não informado",
+    sensitiveData: parsedResult.sensitiveData || "Não informado",
+    technologies: parsedResult.technologies || "Não informado",
+    authentication: parsedResult.authentication || "Não informado",
+    userProfiles: parsedResult.userProfiles || "Não informado",
+    externalIntegrations: parsedResult.externalIntegrations || "Não informado"
   };
 };

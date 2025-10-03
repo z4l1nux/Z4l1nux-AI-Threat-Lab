@@ -30,7 +30,7 @@ npm run test:coverage
 
 | Arquivo | Tipo | Testes | Descrição |
 |---------|------|--------|-----------|
-| **geminiService.ts** | Service | 4 | Resumo de sistema, validação, erros |
+| **aiService.ts** | Service | 4 | Resumo de sistema, validação, erros |
 | **useThreatModeler.ts** | Hook | 5 | Estado, mapeamento STRIDE, envio RAG |
 | **SystemInputForm.tsx** | Component | 8 | Renderização, submit, acessibilidade |
 
@@ -40,7 +40,7 @@ src/
 └── __tests__/
     ├── setup.ts                      # Configuração global
     ├── services/
-    │   └── geminiService.test.ts
+    │   └── aiService.test.ts
     ├── hooks/
     │   └── useThreatModeler.test.ts
     └── components/
@@ -99,9 +99,9 @@ chmod +x test-rag.sh
 ### **Teste de Serviço (Mock de API)**
 
 ```typescript
-// src/__tests__/services/geminiService.test.ts
+// src/__tests__/services/aiService.test.ts
 import { describe, it, expect, vi } from 'vitest';
-import { summarizeSystemDescription } from '../../services/geminiService';
+import { summarizeSystemDescription } from '../../services/aiService';
 
 vi.mock('@google/genai', () => ({
   GoogleGenAI: vi.fn().mockImplementation(() => ({
@@ -111,7 +111,7 @@ vi.mock('@google/genai', () => ({
   }))
 }));
 
-describe('geminiService', () => {
+describe('aiService', () => {
   it('deve resumir descrição do sistema corretamente', async () => {
     const { GoogleGenAI } = await import('@google/genai');
     const mockGenAI = new GoogleGenAI({ apiKey: 'test-key' });
@@ -272,7 +272,7 @@ npm test -- --reporter=verbose
 
 ### **Executar teste específico**
 ```bash
-npm test -- geminiService.test.ts
+npm test -- aiService.test.ts
 ```
 
 ### **Modo debug**

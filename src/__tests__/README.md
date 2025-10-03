@@ -132,7 +132,7 @@ npm run test:ui
 npm run test:coverage
 
 # Teste específico
-npm test -- geminiService.test.ts
+npm test -- aiService.test.ts
 ```
 
 ## 📊 Cobertura Esperada

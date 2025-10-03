@@ -6,7 +6,7 @@ import { useThreatModeler } from '../../hooks/useThreatModeler';
 global.fetch = vi.fn();
 
 // Mock dos serviços
-vi.mock('../../services/geminiService', () => ({
+vi.mock('../../services/aiService', () => ({
   analyzeThreatsAndMitigations: vi.fn(),
   generateAttackTreeMermaid: vi.fn(),
   summarizeSystemDescription: vi.fn()
@@ -69,7 +69,7 @@ describe('useThreatModeler Hook', () => {
   });
 
   it('deve enviar informações do sistema ao RAG', async () => {
-    const { analyzeThreatsAndMitigations } = await import('../../services/geminiService');
+    const { analyzeThreatsAndMitigations } = await import('../../services/aiService');
     
     (global.fetch as any)
       .mockResolvedValueOnce({

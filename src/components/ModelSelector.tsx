@@ -182,10 +182,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         </div>
 
         {/* Status dos Provedores */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-          <div className={`p-2 rounded ${models.some(m => m.provider === 'gemini') ? 'bg-green-900/20 text-green-300' : 'bg-red-900/20 text-red-300'}`}>
-            <span className="font-medium">Gemini:</span> {models.some(m => m.provider === 'gemini') ? 'Configurado' : 'Não configurado'}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
           <div className={`p-2 rounded ${models.some(m => m.provider === 'ollama') ? 'bg-green-900/20 text-green-300' : 'bg-red-900/20 text-red-300'}`}>
             <span className="font-medium">Ollama:</span> {models.some(m => m.provider === 'ollama') ? 'Configurado' : 'Não configurado'}
           </div>

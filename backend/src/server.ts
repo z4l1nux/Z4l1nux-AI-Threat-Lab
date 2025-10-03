@@ -3,6 +3,8 @@ import cors from 'cors';
 import multer from 'multer';
 import * as dotenv from 'dotenv';
 import neo4j from 'neo4j-driver';
+import { OllamaProvider } from './core/models/providers/OllamaProvider';
+import { OpenRouterProvider } from './core/models/providers/OpenRouterProvider';
 import { GeminiSearchFactory } from './core/search/GeminiSearchFactory';
 import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
@@ -11,6 +13,10 @@ import { ModelFactory } from './core/models/ModelFactory';
 
 // Carregar variáveis de ambiente
 dotenv.config({ path: '../.env.local' });
+
+// Inicializar providers
+const ollamaProvider = new OllamaProvider();
+const openrouterProvider = new OpenRouterProvider();
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -80,10 +86,9 @@ app.get('/api/health', async (req, res) => {
 });
 
 // Listar modelos disponíveis
-app.get('/api/models/available', (req, res) => {
+app.get('/api/models/available', async (req, res) => {
   try {
     console.log('🔍 Verificando variáveis de ambiente:');
-    console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurado' : 'Não configurado');
     console.log('OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL || 'Não configurado');
     console.log('MODEL_OLLAMA:', process.env.MODEL_OLLAMA || 'Não configurado');
     console.log('EMBEDDING_MODEL:', process.env.EMBEDDING_MODEL || 'Não configurado');
@@ -93,50 +98,22 @@ app.get('/api/models/available', (req, res) => {
     const models = [];
     const embeddings = [];
 
-    // Gemini models
-    // Gemini models - só incluir se a API key estiver configurada e válida
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    const isGeminiValid = geminiApiKey && geminiApiKey.includes('AIza') && geminiApiKey.length > 20;
-    
-    if (isGeminiValid) {
-      models.push({
-        id: 'gemini-1.5-pro',
-        name: 'Gemini 1.5 Pro',
-        provider: 'gemini',
-        available: true
-      });
-      models.push({
-        id: 'gemini-1.5-flash',
-        name: 'Gemini 1.5 Flash',
-        provider: 'gemini',
-        available: true
-      });
-      
-      embeddings.push({
-        id: 'gemini-embedding-001',
-        name: 'Gemini Embedding 001',
-        provider: 'gemini',
-        available: true
-      });
-    } else {
-      console.log('⚠️ Gemini API key inválida ou não configurada, desabilitando Gemini');
-    }
 
-    // Ollama models - sempre incluir se as variáveis estiverem definidas
+    // Ollama models - verificar disponibilidade
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434';
-    const ollamaModel = process.env.MODEL_OLLAMA || 'granite3.3:8b';
+    const ollamaModel = process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
     const ollamaEmbedding = process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
     
-    if (ollamaBaseUrl && ollamaModel) {
+    const isOllamaAvailable = await ollamaProvider.isAvailable();
+    
+    if (isOllamaAvailable) {
       models.push({
         id: ollamaModel,
         name: `Ollama: ${ollamaModel}`,
         provider: 'ollama',
         available: true
       });
-    }
 
-    if (ollamaBaseUrl && ollamaEmbedding) {
       embeddings.push({
         id: ollamaEmbedding,
         name: `Ollama: ${ollamaEmbedding}`,
@@ -145,11 +122,13 @@ app.get('/api/models/available', (req, res) => {
       });
     }
 
-    // OpenRouter models - sempre incluir se as variáveis estiverem definidas
-    const openrouterApiKey = process.env.OPENROUTER_API_KEY || 'sk-or-my-api-key';
-    const openrouterModel = process.env.MODEL_OPENROUTER || 'meta-llama/llama-3.3-70b-instruct:free';
+    // OpenRouter models - verificar disponibilidade
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+    const openrouterModel = process.env.MODEL_OPENROUTER;
     
-    if (openrouterApiKey && openrouterModel) {
+    const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+    
+    if (isOpenRouterAvailable && openrouterModel) {
       models.push({
         id: openrouterModel,
         name: `OpenRouter: ${openrouterModel.split('/').pop()}`,
@@ -162,9 +141,8 @@ app.get('/api/models/available', (req, res) => {
       models,
       embeddings,
       providers: {
-        gemini: isGeminiValid,
-        ollama: !!(ollamaBaseUrl && ollamaModel),
-        openrouter: !!(openrouterApiKey && openrouterModel)
+        ollama: isOllamaAvailable,
+        openrouter: isOpenRouterAvailable
       }
     };
     
@@ -715,6 +693,95 @@ app.delete('/api/cache', requireInitialized, async (req, res) => {
     console.error('❌ Erro ao limpar cache:', error);
     res.status(500).json({
       error: 'Falha ao limpar cache',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Geração de conteúdo com modelo selecionado
+app.post('/api/generate-content', requireInitialized, async (req, res) => {
+  try {
+    const { prompt, modelConfig } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({ error: 'Prompt é obrigatório' });
+    }
+
+    console.log(`🤖 Gerando conteúdo com modelo: ${modelConfig?.model || 'padrão'} (${modelConfig?.provider || 'ollama'})`);
+    
+    let content: string = '';
+    let model: string = '';
+
+    // Determinar qual provider usar
+    const provider = modelConfig?.provider || 'ollama';
+    
+    if (provider === 'ollama') {
+      const isOllamaAvailable = await ollamaProvider.isAvailable();
+      if (!isOllamaAvailable) {
+        return res.status(500).json({
+          error: 'Ollama não disponível',
+          message: 'Servidor Ollama não está rodando ou não configurado'
+        });
+      }
+      
+      const ollamaModel = modelConfig?.model || process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
+      console.log(`🔧 Usando modelo Ollama: ${ollamaModel}`);
+      console.log(`🔧 Prompt: ${prompt.substring(0, 100)}...`);
+      
+      try {
+        content = await ollamaProvider.generateContent(prompt, ollamaModel);
+        console.log(`🔧 Resposta do Ollama: ${content.substring(0, 100)}...`);
+        console.log(`🔧 Content length: ${content.length}`);
+        console.log(`🔧 Content type: ${typeof content}`);
+      } catch (error) {
+        console.error(`❌ Erro no OllamaProvider:`, error);
+        throw error;
+      }
+      
+      model = ollamaModel;
+      
+    } else if (provider === 'openrouter') {
+      const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+      if (!isOpenRouterAvailable) {
+        return res.status(500).json({
+          error: 'OpenRouter não disponível',
+          message: 'API key do OpenRouter não está configurada'
+        });
+      }
+      
+      const openrouterModel = modelConfig?.model || process.env.MODEL_OPENROUTER;
+      if (!openrouterModel) {
+        return res.status(400).json({
+          error: 'Modelo OpenRouter não especificado',
+          message: 'Configure MODEL_OPENROUTER ou forneça modelConfig.model'
+        });
+      }
+      
+      content = await openrouterProvider.generateContent(prompt, openrouterModel);
+      model = openrouterModel;
+      
+    } else {
+      return res.status(400).json({
+        error: 'Provider não suportado',
+        message: 'Apenas "ollama" e "openrouter" são suportados'
+      });
+    }
+
+    console.log(`🔧 Content final: "${content}"`);
+    console.log(`🔧 Content length: ${content.length}`);
+    console.log(`🔧 Content type: ${typeof content}`);
+    
+    res.json({
+      content: { response: { text: () => content } },
+      model: model,
+      provider: provider,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao gerar conteúdo:', error);
+    res.status(500).json({
+      error: 'Falha ao gerar conteúdo',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
   }

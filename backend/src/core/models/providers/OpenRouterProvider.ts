@@ -32,7 +32,7 @@ export class OpenRouterProvider implements ModelProvider {
       throw new Error(`Erro ao gerar conteúdo com OpenRouter: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
     return data.choices[0].message.content;
   }
 

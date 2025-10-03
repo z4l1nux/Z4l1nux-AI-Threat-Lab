@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '../types';
-import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/geminiService';
+import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/aiService';
 import { useModelSelection } from './useModelSelection';
 
 

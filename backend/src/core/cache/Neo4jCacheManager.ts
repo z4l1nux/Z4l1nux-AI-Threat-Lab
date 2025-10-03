@@ -1,14 +1,11 @@
 import neo4j, { Driver, Session, Node, Integer } from 'neo4j-driver';
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { Document } from "@langchain/core/documents";
 import * as crypto from 'crypto';
 import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '../../types/index';
-// import { ModelFactory } from '../models/ModelFactory';
 
 export class Neo4jCacheManager {
   private driver: Driver;
-  private embeddings: GoogleGenerativeAIEmbeddings;
   private splitter: RecursiveCharacterTextSplitter;
 
   constructor(
@@ -29,12 +26,6 @@ export class Neo4jCacheManager {
 
     this.driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
     
-    // Configurar embeddings do Gemini
-    this.embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: process.env.GEMINI_API_KEY!,
-      model: "gemini-embedding-001" // Sempre usar modelo Gemini para embeddings
-    });
-    
     this.splitter = new RecursiveCharacterTextSplitter({
       chunkSize: 2000,
       chunkOverlap: 500,
@@ -49,9 +40,8 @@ export class Neo4jCacheManager {
         return { documentLabel: 'Document:Ollama', chunkLabel: 'Chunk:Ollama' };
       case 'openrouter':
         return { documentLabel: 'Document:OpenRouter', chunkLabel: 'Chunk:OpenRouter' };
-      case 'gemini':
       default:
-        return { documentLabel: 'Document:Gemini', chunkLabel: 'Chunk:Gemini' };
+        return { documentLabel: 'Document:Ollama', chunkLabel: 'Chunk:Ollama' }; // Ollama como padrão
     }
   }
 
@@ -62,9 +52,8 @@ export class Neo4jCacheManager {
         return 768;
       case 'openrouter':
         return 1536;
-      case 'gemini':
       default:
-        return 3072;
+        return 768; // Ollama como padrão
     }
   }
 
@@ -89,12 +78,11 @@ export class Neo4jCacheManager {
         `);
       }
       
-      // Criar índices vetoriais para cada provedor
-      const embeddingDimensions = {
-        'Gemini': 3072,
-        'Ollama': 768,
-        'OpenRouter': 1536
-      };
+            // Criar índices vetoriais para cada provedor
+            const embeddingDimensions = {
+              'Ollama': 768,
+              'OpenRouter': 1536
+            };
       
       for (const [provider, dimensions] of Object.entries(embeddingDimensions)) {
         try {
@@ -119,16 +107,10 @@ export class Neo4jCacheManager {
     }
   }
 
-  async processDocumentFromMemory(document: DocumentUpload, modelConfig?: any): Promise<void> {
-    // Determinar labels baseados no provedor de embedding
-    // Se não há modelConfig ou se Gemini falhar, usar Ollama como padrão
-    let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
-    
-    // Se Gemini não estiver disponível, forçar Ollama
-    if (embeddingProvider === 'gemini' && !process.env.GEMINI_API_KEY?.includes('AIza')) {
-      console.log('⚠️ Gemini não disponível, usando Ollama como padrão');
-      embeddingProvider = 'ollama';
-    }
+        async processDocumentFromMemory(document: DocumentUpload, modelConfig?: any): Promise<void> {
+          // Determinar labels baseados no provedor de embedding
+          // Usar Ollama como padrão
+          let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
     
     const labels = this.getEmbeddingLabels(embeddingProvider);
     
@@ -205,10 +187,30 @@ export class Neo4jCacheManager {
               console.error(`❌ Erro com Ollama embedding:`, error);
               throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-          } else {
-            // Usar Gemini para embeddings
-            embedding = await this.embeddings.embedQuery(chunks[i].pageContent);
-          }
+                 } else {
+                   // Fallback para Ollama se não for especificado
+                   console.log(`🔗 Usando Ollama para embedding do chunk ${i + 1} (fallback)`);
+                   try {
+                     const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({
+                         model: 'nomic-embed-text:latest',
+                         prompt: chunks[i].pageContent
+                       })
+                     });
+
+                     if (response.ok) {
+                       const data = await response.json() as { embedding: number[] };
+                       embedding = data.embedding;
+                     } else {
+                       throw new Error(`Ollama embedding failed: ${response.statusText}`);
+                     }
+                   } catch (error) {
+                     console.error(`❌ Erro com Ollama embedding:`, error);
+                     throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                   }
+                 }
           embeddings.push(embedding);
           
           // Log de progresso
@@ -283,7 +285,7 @@ export class Neo4jCacheManager {
       });
 
       const action = shouldUpdate ? 'atualizado' : 'criado';
-      console.log(`✅ Documento ${action} com Gemini: ${document.name} (${chunks.length} chunks)`);
+      console.log(`✅ Documento ${action} com ${embeddingProvider}: ${document.name} (${chunks.length} chunks)`);
       
     } catch (error: any) {
       console.error(`❌ Erro ao processar documento: ${document.name}`, error);
@@ -293,16 +295,10 @@ export class Neo4jCacheManager {
     }
   }
 
-  async search(query: string, limit: number = 8, modelConfig?: any): Promise<Neo4jSearchResult[]> {
-    // Determinar labels baseados no provedor de embedding
-    // Se não há modelConfig ou se Gemini falhar, usar Ollama como padrão
-    let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
-    
-    // Se Gemini não estiver disponível, forçar Ollama
-    if (embeddingProvider === 'gemini' && !process.env.GEMINI_API_KEY?.includes('AIza')) {
-      console.log('⚠️ Gemini não disponível, usando Ollama como padrão');
-      embeddingProvider = 'ollama';
-    }
+        async search(query: string, limit: number = 8, modelConfig?: any): Promise<Neo4jSearchResult[]> {
+          // Determinar labels baseados no provedor de embedding
+          // Usar Ollama como padrão
+          let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
     
     const labels = this.getEmbeddingLabels(embeddingProvider);
     
@@ -338,10 +334,30 @@ export class Neo4jCacheManager {
           console.error(`❌ Erro com Ollama embedding:`, error);
           throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
-      } else {
-        // Usar Gemini para embeddings
-        queryEmbedding = await this.embeddings.embedQuery(query);
-      }
+             } else {
+               // Fallback para Ollama se não for especificado
+               console.log(`🔗 Usando Ollama para embedding da query (fallback)`);
+               try {
+                 const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({
+                     model: 'nomic-embed-text:latest',
+                     prompt: query
+                   })
+                 });
+
+                 if (response.ok) {
+                   const data = await response.json() as { embedding: number[] };
+                   queryEmbedding = data.embedding;
+                 } else {
+                   throw new Error(`Ollama embedding failed: ${response.statusText}`);
+                 }
+               } catch (error) {
+                 console.error(`❌ Erro com Ollama embedding:`, error);
+                 throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+               }
+             }
       
       // Tentar busca vetorial primeiro
       try {
@@ -506,8 +522,8 @@ export class Neo4jCacheManager {
     const session = this.driver.session();
     
     try {
-      // Contar documentos e chunks de todos os provedores
-      const providers = ['Gemini', 'Ollama', 'OpenRouter'];
+            // Contar documentos e chunks de todos os provedores
+            const providers = ['Ollama', 'OpenRouter'];
       let totalDocumentos = 0;
       let totalChunks = 0;
       
