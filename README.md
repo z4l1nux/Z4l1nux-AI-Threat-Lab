@@ -25,7 +25,7 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 - **Embeddings**: Modelos de embedding do Ollama (nomic-embed-text)
 - **Configuração**: 
   - `OLLAMA_BASE_URL` (ex: http://172.21.112.1:11434)
-  - `MODEL_OLLAMA` (ex: granite3.3:8b, qwen2.5-coder:7b)
+  - `MODEL_OLLAMA` (ex: granite3.3:8b, llama3.1:latest)
   - `EMBEDDING_MODEL` (ex: nomic-embed-text:latest)
 
 #### 3. OpenRouter

@@ -107,7 +107,7 @@ app.get('/api/models/available', async (req, res) => {
 
     // Ollama models - verificar disponibilidade
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434';
-    const ollamaModel = process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
+    const ollamaModel = process.env.MODEL_OLLAMA || 'llama3.1:latest';
     const ollamaEmbedding = process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
     
     const isOllamaAvailable = await ollamaProvider.isAvailable();
@@ -752,7 +752,7 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
           });
         }
       } else {
-        const ollamaModel = modelConfig?.model || process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
+        const ollamaModel = modelConfig?.model || process.env.MODEL_OLLAMA || 'llama3.1:latest';
         console.log(`🔧 Usando modelo Ollama: ${ollamaModel}`);
         console.log(`🔧 Prompt: ${prompt.substring(0, 100)}...`);
         
