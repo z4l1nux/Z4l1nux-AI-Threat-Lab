@@ -325,12 +325,17 @@ ${systemInfo.userProfiles || 'Não informado'}
 INTEGRAÇÕES EXTERNAS:
 ${systemInfo.externalIntegrations || 'Não informado'}
 
-CAPECs DISPONÍVEIS: ${strideCapecMap.map(entry => 
-  `${entry.stride}: ${entry.capecs.slice(0, 2).map(c => `${c.id} (${c.name})`).join(', ')}`
-).join(' | ')}
+MAPEAMENTO STRIDE-CAPEC DISPONÍVEL:
+${strideCapecMap.map(entry => 
+  `${entry.stride}:\n${entry.capecs.slice(0, 5).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
+).join('\n\n')}
 
-IMPORTANTE: Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName.
-Use os CAPECs disponíveis para mapear as ameaças corretamente.
+INSTRUÇÕES CRÍTICAS:
+1. Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName
+2. Use APENAS os CAPECs listados no mapeamento acima - NÃO invente CAPECs
+3. Para cada CAPEC usado, forneça o ID exato e nome correto do mapeamento
+4. Crie cenários de ameaça específicos para o sistema SuperMax Retail Management Platform
+5. Forneça mitigações específicas e detalhadas, não genéricas
 
 Analise e retorne JSON objeto com array de ameaças STRIDE:
 {"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
