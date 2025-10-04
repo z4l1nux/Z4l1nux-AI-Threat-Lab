@@ -151,12 +151,75 @@ const parseJsonFromText = (text: string | undefined | any): any => {
     jsonStr = jsonStr.substring(jsonStart);
   }
   
+  // Tentar encontrar o final do JSON válido para evitar texto adicional
+  let braceCount = 0;
+  let jsonEnd = -1;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"' && !escapeNext) {
+      inString = !inString;
+      continue;
+    }
+    
+    if (!inString) {
+      if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount === 0) {
+          jsonEnd = i + 1;
+          break;
+        }
+      }
+    }
+  }
+  
+  // Se encontrou o final do JSON, cortar o texto
+  if (jsonEnd > 0) {
+    jsonStr = jsonStr.substring(0, jsonEnd);
+  }
+  
   try {
     const result = JSON.parse(jsonStr);
     return result;
   } catch (parseError) {
     console.error("❌ Erro ao fazer parse do JSON da IA:", parseError);
     console.error("❌ Texto que causou erro:", jsonStr.substring(0, 500) + "...");
+    
+    // Tentar fallback: procurar por JSON entre ```json e ```
+    const jsonBlockMatch = text.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+    if (jsonBlockMatch) {
+      try {
+        return JSON.parse(jsonBlockMatch[1]);
+      } catch (e) {
+        // Ignorar erro do fallback
+      }
+    }
+    
+    // Tentar fallback: procurar por JSON entre ``` e ```
+    const codeBlockMatch = text.match(/```\s*(\{[\s\S]*?\})\s*```/);
+    if (codeBlockMatch) {
+      try {
+        return JSON.parse(codeBlockMatch[1]);
+      } catch (e) {
+        // Ignorar erro do fallback
+      }
+    }
+    
     throw new Error(`Falha ao fazer parse da resposta JSON da IA: ${parseError}`);
   }
 };
@@ -245,18 +308,34 @@ ${ragContext.context.substring(0, 1000)}...
   
   const prompt = `${ragContextSection}
 SISTEMA: ${systemInfo.systemName}
-DESCRIÇÃO: ${systemInfo.generalDescription.substring(0, 150)}...
+DESCRIÇÃO: ${systemInfo.generalDescription.substring(0, 500)}...
 
-CAPECs: ${strideCapecMap.map(entry => 
-  `${entry.stride}: ${entry.capecs.slice(0, 1).map(c => c.id).join(', ')}`
+COMPONENTES ESPECÍFICOS DO SISTEMA:
+${systemInfo.components || 'Não informado'}
+
+DADOS SENSÍVEIS:
+${systemInfo.sensitiveData || 'Não informado'}
+
+TECNOLOGIAS:
+${systemInfo.technologies || 'Não informado'}
+
+PERFIS DE USUÁRIO:
+${systemInfo.userProfiles || 'Não informado'}
+
+INTEGRAÇÕES EXTERNAS:
+${systemInfo.externalIntegrations || 'Não informado'}
+
+CAPECs DISPONÍVEIS: ${strideCapecMap.map(entry => 
+  `${entry.stride}: ${entry.capecs.slice(0, 2).map(c => `${c.id} (${c.name})`).join(', ')}`
 ).join(' | ')}
 
-IMPORTANTE: Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema como elementName.
+IMPORTANTE: Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName.
+Use os CAPECs disponíveis para mapear as ameaças corretamente.
 
 Analise e retorne JSON objeto com array de ameaças STRIDE:
-{"threats":[{"elementName":"COMPONENTE_ESPECÍFICO","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
+{"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
 
-5-6 ameaças em português, cada uma focada em um componente específico diferente.
+5-6 ameaças em português, cada uma focada em um componente específico diferente do sistema.
 `;
   
   // Usar endpoint do backend para geração de conteúdo

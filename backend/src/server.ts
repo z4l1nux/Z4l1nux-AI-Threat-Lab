@@ -600,6 +600,10 @@ function parseStructuredTextToMapping(content: string): any[] {
         const name = capecMatch[2].trim()
           .replace(/^[:\-–\s]+/, '')  // Remove separadores do início
           .replace(/[,;\.]+$/, '')     // Remove pontuação do final
+          .replace(/\]\(https?:\/\/[^)]+\)/g, '') // Remove URLs entre ]()
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove markdown links, mantém texto
+          .replace(/https?:\/\/[^\s]+/g, '') // Remove URLs soltas
+          .replace(/[\[\]()]/g, '') // Remove colchetes e parênteses restantes
           .trim();
 
         if (name && name.length > 0 && name.length < 200) {
