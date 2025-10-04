@@ -330,18 +330,54 @@ ${strideCapecMap.map(entry =>
   `${entry.stride}:\n${entry.capecs.slice(0, 5).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
 ).join('\n\n')}
 
-INSTRUÇÕES CRÍTICAS:
+🔍 DEBUG: Mapeamento STRIDE-CAPEC carregado com ${strideCapecMap.length} categorias
+
+INSTRUÇÕES CRÍTICAS - OBRIGATÓRIO SEGUIR TODAS:
 1. Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName
-2. Use APENAS os CAPECs listados no mapeamento acima - NÃO invente CAPECs
-3. Para cada CAPEC usado, forneça o ID exato e nome correto do mapeamento
-4. Crie cenários de ameaça específicos para o sistema SuperMax Retail Management Platform
-5. Forneça mitigações específicas e detalhadas, não genéricas
+2. OBRIGATÓRIO: Use APENAS os CAPECs listados no mapeamento acima - NÃO invente CAPECs
+3. OBRIGATÓRIO: Para cada CAPEC usado, forneça o ID exato e nome correto do mapeamento
+4. OBRIGATÓRIO: Crie cenários de ameaça específicos para o sistema SuperMax Retail Management Platform
+5. OBRIGATÓRIO: Forneça mitigações específicas e detalhadas, não genéricas
+6. OBRIGATÓRIO: Para cada categoria STRIDE, escolha um CAPEC diferente da lista
+7. OBRIGATÓRIO: Forneça descrição detalhada do CAPEC escolhido
+8. OBRIGATÓRIO: Inclua categoria OWASP Top 10 apropriada para cada ameaça
+9. OBRIGATÓRIO: TODOS os campos devem ser preenchidos - NÃO deixe campos vazios
+
+EXEMPLO DE RESPOSTA CORRETA - SEGUIR EXATAMENTE ESTE FORMATO:
+{
+  "threats": [
+    {
+      "elementName": "PDV Checkout",
+      "strideCategory": "Tampering", 
+      "threatScenario": "Atacante manipula dados de preços no sistema de checkout",
+      "capecId": "CAPEC-123",
+      "capecName": "Buffer Manipulation",
+      "capecDescription": "Manipulação de buffers para alterar comportamento do sistema",
+      "mitigationRecommendations": "Implementar validação de entrada e sanitização de dados",
+      "impact": "CRITICAL",
+      "owaspTop10": "A03:2021-Injection"
+    }
+  ]
+}
+
+⚠️ ATENÇÃO: A resposta DEVE incluir TODOS os campos acima. NÃO omita nenhum campo.
 
 Analise e retorne JSON objeto com array de ameaças STRIDE:
 {"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
 
 5-6 ameaças em português, cada uma focada em um componente específico diferente do sistema.
+
+🚨 VALIDAÇÃO FINAL OBRIGATÓRIA:
+- Cada ameaça DEVE ter: elementName, strideCategory, threatScenario, capecId, capecName, capecDescription, mitigationRecommendations, impact, owaspTop10
+- Use APENAS CAPECs do mapeamento fornecido acima
+- NÃO invente CAPECs
+- NÃO omita campos
+- Siga EXATAMENTE o formato do exemplo
 `;
+  
+  // Debug: verificar se o mapeamento está sendo enviado
+  console.log(`🔍 DEBUG: Mapeamento STRIDE-CAPEC enviado:`, strideCapecMap.length, 'categorias');
+  console.log(`🔍 DEBUG: Primeira categoria:`, strideCapecMap[0]?.stride, 'com', strideCapecMap[0]?.capecs?.length, 'CAPECs');
   
   // Usar endpoint do backend para geração de conteúdo
   const backendResponse = await fetch('http://localhost:3001/api/generate-content', {
@@ -362,6 +398,12 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
 
   const result = await backendResponse.json();
   const response = result.content;
+  
+  // Debug: verificar resposta da IA
+  console.log(`🔍 DEBUG: Resposta da IA (primeiros 500 chars):`, response.substring(0, 500));
+  console.log(`🔍 DEBUG: Resposta contém capecId?`, response.includes('capecId'));
+  console.log(`🔍 DEBUG: Resposta contém capecName?`, response.includes('capecName'));
+  
   const parsedThreatsData = parseJsonFromText(response);
 
   // Extrair array de threats do objeto retornado
@@ -383,18 +425,25 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
   }
 
   // Validar e processar ameaças
-  const threats: IdentifiedThreat[] = threatsArray.map((threat: any, index: number) => ({
-    id: `threat-${Date.now()}-${index}`,
-    elementName: threat.elementName || `Elemento ${index + 1}`,
-    strideCategory: threat.strideCategory || 'Information Disclosure',
-    threatScenario: threat.threatScenario || 'Cenário de ameaça não especificado',
-    capecId: threat.capecId || 'CAPEC-1',
-    capecName: threat.capecName || 'Ameaça não categorizada',
-    capecDescription: threat.capecDescription || 'Descrição não disponível',
-    mitigationRecommendations: threat.mitigationRecommendations || 'Implementar controles de segurança apropriados',
-    impact: threat.impact || 'MEDIUM',
-    owaspTop10: threat.owaspTop10 || 'A1:2021 - Broken Access Control'
-  }));
+  const threats: IdentifiedThreat[] = threatsArray.map((threat: any, index: number) => {
+    // Validar se todos os campos obrigatórios estão presentes
+    if (!threat.capecId || !threat.capecName || !threat.capecDescription) {
+      console.warn(`⚠️ Ameaça ${index + 1} com dados CAPEC incompletos:`, threat);
+    }
+    
+    return {
+      id: `threat-${Date.now()}-${index}`,
+      elementName: threat.elementName || `Elemento ${index + 1}`,
+      strideCategory: threat.strideCategory || 'Information Disclosure',
+      threatScenario: threat.threatScenario || 'Cenário de ameaça não especificado',
+      capecId: threat.capecId || 'CAPEC-NOT-FOUND',
+      capecName: threat.capecName || 'CAPEC não encontrado',
+      capecDescription: threat.capecDescription || 'Descrição CAPEC não disponível',
+      mitigationRecommendations: threat.mitigationRecommendations || 'Implementar controles de segurança apropriados',
+      impact: threat.impact || 'MEDIUM',
+      owaspTop10: threat.owaspTop10 || 'A1:2021 - Broken Access Control'
+    };
+  });
 
   console.log(`✅ Análise de ameaças concluída: ${threats.length} ameaças identificadas`);
   return threats;

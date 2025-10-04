@@ -332,6 +332,33 @@ threat-modeling-co-pilot-with-ai-3/
 - **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
 - **Administrador:** Gerencia usuários e monitora o sistema.
 
+## Configurações de Timeout
+
+### Ollama (Modelo Local)
+- **Timeout Padrão**: 180 segundos (3 minutos)
+- **Tentativas**: 2 tentativas máximo
+- **Fallback**: OpenRouter automático em caso de falha
+
+### Variáveis de Ambiente Recomendadas
+```bash
+# Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+MODEL_OLLAMA=llama3.1:latest
+EMBEDDING_MODEL=nomic-embed-text:latest
+OLLAMA_TIMEOUT=180000  # 3 minutos
+OLLAMA_MAX_RETRIES=2
+
+# OpenRouter (Fallback)
+OPENROUTER_API_KEY=sua_chave_aqui
+MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+```
+
+### Ajuste de Timeout
+Para prompts muito complexos, você pode aumentar o timeout:
+- **Padrão**: 180s (3 minutos)
+- **Complexo**: 300s (5 minutos) - `OLLAMA_TIMEOUT=300000`
+- **Muito Complexo**: 600s (10 minutos) - `OLLAMA_TIMEOUT=600000`
+
 ## Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.

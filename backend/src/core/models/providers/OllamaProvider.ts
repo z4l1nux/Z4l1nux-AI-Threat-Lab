@@ -9,8 +9,8 @@ export class OllamaProvider implements ModelProvider {
 
   constructor() {
     this.baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    this.timeout = parseInt(process.env.OLLAMA_TIMEOUT || '60000');
-    this.maxRetries = parseInt(process.env.OLLAMA_MAX_RETRIES || '3'); // Aumentar para 3
+    this.timeout = parseInt(process.env.OLLAMA_TIMEOUT || '180000'); // Aumentar para 3 minutos
+    this.maxRetries = parseInt(process.env.OLLAMA_MAX_RETRIES || '2'); // Manter 2 tentativas
     console.log(`🔧 OllamaProvider baseUrl: ${this.baseUrl}, timeout: ${this.timeout}ms, maxRetries: ${this.maxRetries}`);
   }
 
@@ -28,12 +28,29 @@ export class OllamaProvider implements ModelProvider {
     console.log(`🔧 OllamaProvider: URL: ${this.baseUrl}/api/generate`);
     console.log(`🔧 OllamaProvider: Structured output: ${format ? 'Sim' : 'Não'}`);
     
+    // Verificar se o modelo está disponível primeiro
+    try {
+      const modelsResponse = await fetch(`${this.baseUrl}/api/tags`);
+      if (modelsResponse.ok) {
+        const models = await modelsResponse.json() as any;
+        const modelExists = models.models?.some((m: any) => m.name === model);
+        if (!modelExists) {
+          console.warn(`⚠️ Modelo ${model} não encontrado no Ollama. Modelos disponíveis:`, models.models?.map((m: any) => m.name));
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Não foi possível verificar modelos disponíveis: ${error}`);
+    }
+    
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
         console.log(`🔧 OllamaProvider: Tentativa ${attempt}/${this.maxRetries}`);
         
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+        const timeoutId = setTimeout(() => {
+          console.log(`⏰ OllamaProvider: Timeout após ${this.timeout}ms na tentativa ${attempt}`);
+          controller.abort();
+        }, this.timeout);
         
         let requestBody: any;
         const endpoint = `${this.baseUrl}/api/generate`;

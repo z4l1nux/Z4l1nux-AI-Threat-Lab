@@ -709,6 +709,25 @@ app.delete('/api/cache', requireInitialized, async (req, res) => {
 });
 
 // Geração de conteúdo com modelo selecionado
+// Função para detectar o melhor provider automaticamente
+async function detectBestProvider(): Promise<string> {
+  const isOllamaAvailable = await ollamaProvider.isAvailable();
+  const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+  
+  console.log(`🔍 Detecção de providers: Ollama=${isOllamaAvailable}, OpenRouter=${isOpenRouterAvailable}`);
+  
+  // Prioridade: Ollama (local) > OpenRouter (nuvem)
+  if (isOllamaAvailable) {
+    console.log(`✅ Usando Ollama (local) como provider preferido`);
+    return 'ollama';
+  } else if (isOpenRouterAvailable) {
+    console.log(`✅ Usando OpenRouter (nuvem) como provider preferido`);
+    return 'openrouter';
+  } else {
+    throw new Error('Nenhum provider de IA disponível');
+  }
+}
+
 app.post('/api/generate-content', requireInitialized, async (req, res) => {
   try {
     const { prompt, modelConfig, format } = req.body;
@@ -716,14 +735,20 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt é obrigatório' });
     }
-
-    console.log(`🤖 Gerando conteúdo com modelo: ${modelConfig?.model || 'padrão'} (${modelConfig?.provider || 'ollama'})`);
+    
+    console.log(`🤖 Gerando conteúdo com modelo: ${modelConfig?.model || 'padrão'} (${modelConfig?.provider || 'auto'})`);
     
     let content: string = '';
     let model: string = '';
 
     // Determinar qual provider usar
-    const provider = modelConfig?.provider || 'ollama';
+    let provider = modelConfig?.provider || 'auto';
+    
+    // Detectar automaticamente o melhor provider se 'auto'
+    if (provider === 'auto') {
+      provider = await detectBestProvider();
+    }
+    
     console.log(`🔧 Provider selecionado: ${provider}`);
     
     if (provider === 'ollama') {
@@ -759,8 +784,16 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
         try {
           console.log(`🔧 Tentando gerar conteúdo com Ollama...`);
           console.log(`🔧 Tamanho do prompt: ${prompt.length} caracteres`);
+          
+          // Verificar disponibilidade do Ollama antes de tentar
+          const isOllamaAvailable = await ollamaProvider.isAvailable();
+          if (!isOllamaAvailable) {
+            console.warn('⚠️ Ollama não está disponível, usando OpenRouter diretamente...');
+            throw new Error('Ollama não disponível');
+          }
+          
           content = await ollamaProvider.generateContent(prompt, ollamaModel, format);
-          console.log(`🔧 Resposta do Ollama: ${content.substring(0, 100)}...`);
+          console.log(`✅ Ollama: Resposta gerada com sucesso`);
           console.log(`🔧 Content length: ${content.length}`);
           console.log(`🔧 Content type: ${typeof content}`);
           model = ollamaModel;
@@ -768,19 +801,29 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
           console.error(`❌ Erro no OllamaProvider:`, error);
           console.warn('⚠️ Ollama falhou, tentando fallback para OpenRouter...');
           
-          // Fallback para OpenRouter em caso de erro
+          // Fallback inteligente para OpenRouter
           const isOpenRouterAvailable = await openrouterProvider.isAvailable();
           if (isOpenRouterAvailable) {
             const openrouterModel = process.env.MODEL_OPENROUTER;
             if (openrouterModel) {
               console.log(`🔄 Fallback: Usando OpenRouter ${openrouterModel} em vez de Ollama`);
-              content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
-              model = openrouterModel;
+              try {
+                content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
+                console.log(`✅ OpenRouter: Resposta gerada com sucesso via fallback`);
+                model = openrouterModel;
+              } catch (fallbackError) {
+                console.error(`❌ Erro no fallback OpenRouter:`, fallbackError);
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                const fallbackErrorMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+                throw new Error(`Ambos Ollama e OpenRouter falharam: Ollama(${errorMsg}), OpenRouter(${fallbackErrorMsg})`);
+              }
             } else {
-              throw error; // Re-throw se não houver fallback
+              const errorMsg = error instanceof Error ? error.message : String(error);
+              throw new Error(`OpenRouter não configurado. Erro original: ${errorMsg}`);
             }
           } else {
-            throw error; // Re-throw se não houver fallback
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            throw new Error(`OpenRouter não disponível. Erro original: ${errorMsg}`);
           }
         }
       }
