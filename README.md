@@ -228,14 +228,6 @@ chmod +x test-rag.sh
 ./test-rag.sh
 ```
 
-**Validações:**
-- Conectividade do backend
-- Inicialização do RAG
-- Busca semântica (todas categorias STRIDE)
-- Mapeamento STRIDE-CAPEC
-- Confiança da busca (>= 70%)
-- Upload de documentos
-
 ## Documentação
 
 - **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes unitários e integração
@@ -305,6 +297,7 @@ threat-modeling-co-pilot-with-ai-3/
 ├── test-rag.sh                 # Testes automatizados de integração
 ├── docker-compose.yml          # Configuração Neo4j
 ├── MODEL_SELECTION.md          # Documentação de seleção de modelos
+├── LICENSE                     # Licença MIT
 ├── package.json                # Dependências do frontend
 ├── vite.config.ts              # Configuração Vite
 ├── vitest.config.ts            # Configuração de testes
@@ -312,54 +305,6 @@ threat-modeling-co-pilot-with-ai-3/
 ├── tsconfig.json               # Configuração TypeScript frontend
 └── App.tsx                     # Componente principal
 ```
-
-## Criando um Gem no Gemini para Facilitar a Modelagem
-
-Para facilitar a geração do prompt correto que será usado no Threat Modeling Copilot, você pode criar um Gem personalizado no [Gemini](https://gemini.google.com). Siga os passos:
-
-1. Acesse [gemini.google.com](https://gemini.google.com)
-2. Clique no ícone de "Gem Manager" ou "Criar Gem"
-3. Crie um novo Gem com o nome: **"Threat Modeling Copilot - System Overview"**
-4. Cole o template abaixo nas instruções do Gem:
-
-### **Sugestão de Prompt para Modelagem de Ameaças: [Nome do Sistema]**
-
-**Nome do Sistema:** [Nome do seu sistema. Ex: FinDataFlow Engine, EduConnect Hub]
-
-**Objetivo:** [Descrição concisa do propósito principal do sistema. O que ele faz? Qual problema ele resolve?]
-
-**Componentes Chave:**
-* [Liste os principais módulos, microsserviços, aplicações (frontends/backends), gateways, etc. Ex: Portal do Aluno, Serviço de Gerenciamento de Cursos, Cluster de Processamento EC2, Dispositivos IoT.]
-* [Adicione mais pontos conforme necessário, detalhando a arquitetura.]
-
-**Dados Críticos:**
-* [Liste os tipos de dados mais sensíveis que o sistema armazena, processa ou transmite. Ex: Dados Pessoais Identificáveis (PII), Dados de Transações Financeiras, Histórico Médico, Propriedade Intelectual, Credenciais de Acesso.]
-* [Especifique a sensibilidade: Confidencialidade, Integridade, Disponibilidade.]
-
-**Tecnologias e Infraestrutura:**
-* [Liste as principais tecnologias usadas (linguagens, frameworks, bancos de dados, message brokers). Ex: Python, Java, Spring Boot, PostgreSQL, MongoDB, Kafka.]
-* [Descreva a infraestrutura de deployment (cloud provider, orquestração, serviços específicos). Ex: AWS EC2, S3, Kubernetes, Azure IoT Hub.]
-* [Mencione aspectos de segurança da tecnologia. Ex: TLS, OAuth, Criptografia em repouso/trânsito.]
-
-**Fluxos de Usuário/Processo:**
-* [Descreva os principais atores (usuários, sistemas externos) e como eles interagem com o sistema. Ex: Aluno acessa aulas, Engenheiro de Dados gerencia pipeline, Dispositivo IoT envia telemetria.]
-* [Liste os fluxos de dados mais importantes e as interações críticas.]
-
-**[OPCIONAL] Cenário de Ameaça Específico (se aplicável, para prompts baseados em CVE/Incidentes):**
-* [Descreva um cenário hipotético ou real onde uma vulnerabilidade específica é explorada, levando a um incidente. Se não houver uma CVE específica, esta seção pode ser omitida ou generalizada como um "Cenário de Risco" principal.]
-* [Ex: "Um atacante explora a CVE-XXXX-YYYY no componente Z para obter acesso W, resultando em X."]
-
-**Pergunta para a Modelagem de Ameaças:**
-
-Com base no objetivo do sistema, seus componentes, dados críticos e fluxos de usuário [e no cenário de ameaça descrito, se aplicável]:
-
-* Quais são os principais **ativos** a serem protegidos (incluindo dados, funcionalidades, reputação, infraestrutura)?
-* Quais **ameaças** (utilizando o modelo **STRIDE**) poderiam explorar vulnerabilidades no sistema? (Ex: Spoofing de identidade, Tampering de dados, Information Disclosure de informações sensíveis, Denial of Service, Elevação de Privilégio, Repudiação).
-* Quais **controles** de segurança (mitigações) você sugere para prevenir essas ameaças, com foco em [especifique áreas-chave como: segurança na nuvem, autenticação/autorização, proteção de dados, hardening de endpoints, moderação de conteúdo, etc.] e como esses controles se alinham com os princípios de segurança?
-
-Após criar o Gem, você pode usá-lo para gerar automaticamente prompts estruturados que serão mais eficazes quando colados no Threat Modeling Copilot.
-
-## Sugestão de Descrição Completa do Sistema
 
 ### Exemplo de Prompt para Modelagem de Ameaças: Sistema de Telemedicina
 
@@ -387,68 +332,17 @@ Após criar o Gem, você pode usá-lo para gerar automaticamente prompts estrutu
 - **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
 - **Administrador:** Gerencia usuários e monitora o sistema.
 
-## ✅ Validação do Sistema
-
-### Estrutura Validada
-- ✅ **Frontend React**: Componentes, hooks e serviços organizados
-- ✅ **Backend Node.js**: API REST com sistema RAG completo
-- ✅ **Banco de Dados**: Neo4j configurado com Docker Compose
-- ✅ **Testes**: Testes unitários (Vitest) e integração (Shell script)
-- ✅ **Documentação**: README, guias e documentação técnica completa
-- ✅ **Configuração**: Vite, TypeScript, TailwindCSS configurados
-
-### Funcionalidades Validadas
-- ✅ **Múltiplos Provedores de IA**: Gemini, Ollama, OpenRouter
-- ✅ **Sistema RAG**: Busca semântica com embeddings configuráveis
-- ✅ **Upload de Documentos**: Suporte a PDF, DOCX, TXT, MD, XML, JSON, CSV
-- ✅ **Modelagem de Ameaças**: Análise STRIDE com mapeamento CAPEC
-- ✅ **Interface Responsiva**: Design moderno com TailwindCSS
-- ✅ **Testes Automatizados**: Cobertura de testes unitários e integração
-
-### Arquivos de Configuração
-- ✅ **package.json**: Dependências do frontend e backend
-- ✅ **tsconfig.json**: Configuração TypeScript para ambos os projetos
-- ✅ **vite.config.ts**: Configuração do bundler
-- ✅ **vitest.config.ts**: Configuração de testes
-- ✅ **tailwind.config.js**: Configuração de estilos
-- ✅ **docker-compose.yml**: Configuração do Neo4j
-
-## ⚠️ Problemas Identificados e Correções Necessárias
-
-### Dependências Duplicadas
-O sistema possui algumas dependências duplicadas entre frontend e backend que podem ser otimizadas:
-
-**Dependências que devem ser removidas do frontend:**
-- `neo4j-driver` - Usado apenas no backend
-- `express` - Usado apenas no backend  
-- `cors` - Usado apenas no backend
-- `multer` - Usado apenas no backend
-- `dotenv` - Usado apenas no backend
-- `@langchain/community` - Usado apenas no backend
-- `@langchain/google-genai` - Usado apenas no backend
-- `csv-parser` - Usado apenas no backend
-- `pdf-parse` - Usado apenas no backend
-- `xml2js` - Usado apenas no backend
-
-**Para otimizar:**
-```bash
-# Remover dependências desnecessárias do frontend
-npm uninstall neo4j-driver express cors multer dotenv @langchain/community @langchain/google-genai csv-parser pdf-parse xml2js
-```
-
-### Segurança
-- **Senha hardcoded no Docker Compose**: A senha do Neo4j está exposta no `docker-compose.yml`
-- **Recomendação**: Usar variáveis de ambiente para credenciais sensíveis
-
-### Arquivos Ausentes
-- ✅ **test-rag.sh**: Criado durante a validação
-- ✅ **Estrutura de testes**: Validada e funcional
-
-### Melhorias Recomendadas
-1. **Criar .env.example**: Para facilitar configuração inicial
-2. **Separar dependências**: Manter apenas dependências necessárias em cada package.json
-3. **Documentar variáveis de ambiente**: Listar todas as variáveis necessárias
-4. **Adicionar health checks**: Para monitoramento do sistema
-
 ## Licença
-MIT
+
+Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+### Resumo da Licença MIT
+
+- ✅ **Uso comercial**: Permitido
+- ✅ **Modificação**: Permitida  
+- ✅ **Distribuição**: Permitida
+- ✅ **Uso privado**: Permitido
+- ⚠️ **Responsabilidade**: Sem garantias
+- 📋 **Requisitos**: Incluir copyright e licença
+
+Para mais informações, consulte o arquivo [LICENSE](LICENSE) na raiz do projeto.
