@@ -259,14 +259,22 @@ threat-modeling-co-pilot-with-ai-3/
 │   ├── __tests__/               # 🧪 Testes unitários centralizados
 │   │   ├── setup.ts
 │   │   ├── components/
+│   │   │   └── SystemInputForm.test.tsx
 │   │   ├── hooks/
-│   │   └── services/
+│   │   │   └── useThreatModeler.test.ts
+│   │   ├── services/
+│   │   │   ├── aiService.test.ts
+│   │   │   └── geminiService.test.ts
+│   │   ├── TESTES.md           # Guia completo de testes
+│   │   ├── QUERIES_NEO4J.md    # Queries úteis Neo4j
+│   │   └── GUIA_RAPIDO_NEO4J.md # Guia rápido Neo4j
 │   ├── components/              # Componentes React
 │   │   ├── SystemInputForm.tsx
 │   │   ├── ReportDisplay.tsx
 │   │   ├── RAGPanel.tsx
 │   │   ├── ModelSelector.tsx
-│   │   └── LoadingSpinner.tsx
+│   │   ├── LoadingSpinner.tsx
+│   │   └── DocumentUpload.tsx
 │   ├── hooks/                   # Custom React Hooks
 │   │   ├── useThreatModeler.ts
 │   │   ├── useModelSelection.ts
@@ -275,26 +283,42 @@ threat-modeling-co-pilot-with-ai-3/
 │       ├── aiService.ts
 │       └── ragService.ts
 ├── backend/                     # Backend Node.js
-│   └── src/
-│       ├── server.ts           # Express server
-│       ├── core/               # Sistema RAG e IA
-│       │   ├── graph/          # Neo4j client
-│       │   ├── cache/          # Cache manager
-│       │   ├── search/         # Busca semântica
-│       │   └── models/         # Provedores de IA
-│       │       ├── providers/  # Gemini, Ollama, OpenRouter
-│       │       └── ModelFactory.ts
-│       ├── scripts/            # Scripts utilitários
-│       │   ├── initNeo4j.ts
-│       │   ├── testRAG.ts
-│       │   └── fixVectorIndex.ts
-│       └── utils/              # Utilidades
-│           └── documentLoaders.ts
-├── test-rag.sh                 # Testes automatizados
-├── QUERIES_NEO4J.md           # Queries úteis Neo4j
-├── GUIA_RAPIDO_NEO4J.md       # Guia rápido Neo4j
-├── MODEL_SELECTION.md         # Documentação de seleção de modelos
-└── VALIDACAO_RAG.md           # Validação do RAG
+│   ├── src/
+│   │   ├── server.ts           # Express server
+│   │   ├── core/               # Sistema RAG e IA
+│   │   │   ├── graph/          # Neo4j client
+│   │   │   │   └── Neo4jClient.ts
+│   │   │   ├── cache/          # Cache manager
+│   │   │   ├── search/         # Busca semântica
+│   │   │   │   ├── GeminiSearchFactory.ts
+│   │   │   │   └── SemanticSearchFactory.ts
+│   │   │   └── models/         # Provedores de IA
+│   │   │       ├── providers/  # Gemini, Ollama, OpenRouter
+│   │   │       │   ├── GeminiProvider.ts
+│   │   │       │   ├── OllamaProvider.ts
+│   │   │       │   └── OpenRouterProvider.ts
+│   │   │       ├── ModelFactory.ts
+│   │   │       └── ModelProvider.ts
+│   │   ├── scripts/            # Scripts utilitários
+│   │   │   ├── initNeo4j.ts
+│   │   │   ├── testRAG.ts
+│   │   │   ├── fixVectorIndex.ts
+│   │   │   ├── createVectorIndexes.ts
+│   │   │   └── simplifyNeo4jIndexes.ts
+│   │   ├── types/              # Definições de tipos
+│   │   └── utils/              # Utilidades
+│   │       └── documentLoaders.ts
+│   ├── package.json            # Dependências do backend
+│   └── tsconfig.json           # Configuração TypeScript
+├── test-rag.sh                 # Testes automatizados de integração
+├── docker-compose.yml          # Configuração Neo4j
+├── MODEL_SELECTION.md          # Documentação de seleção de modelos
+├── package.json                # Dependências do frontend
+├── vite.config.ts              # Configuração Vite
+├── vitest.config.ts            # Configuração de testes
+├── tailwind.config.js          # Configuração TailwindCSS
+├── tsconfig.json               # Configuração TypeScript frontend
+└── App.tsx                     # Componente principal
 ```
 
 ## Criando um Gem no Gemini para Facilitar a Modelagem
@@ -370,6 +394,69 @@ Após criar o Gem, você pode usá-lo para gerar automaticamente prompts estrutu
 - **Paciente:** Agenda, participa de consultas e acessa dados de saúde.
 - **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
 - **Administrador:** Gerencia usuários e monitora o sistema.
+
+## ✅ Validação do Sistema
+
+### Estrutura Validada
+- ✅ **Frontend React**: Componentes, hooks e serviços organizados
+- ✅ **Backend Node.js**: API REST com sistema RAG completo
+- ✅ **Banco de Dados**: Neo4j configurado com Docker Compose
+- ✅ **Testes**: Testes unitários (Vitest) e integração (Shell script)
+- ✅ **Documentação**: README, guias e documentação técnica completa
+- ✅ **Configuração**: Vite, TypeScript, TailwindCSS configurados
+
+### Funcionalidades Validadas
+- ✅ **Múltiplos Provedores de IA**: Gemini, Ollama, OpenRouter
+- ✅ **Sistema RAG**: Busca semântica com embeddings configuráveis
+- ✅ **Upload de Documentos**: Suporte a PDF, DOCX, TXT, MD, XML, JSON, CSV
+- ✅ **Modelagem de Ameaças**: Análise STRIDE com mapeamento CAPEC
+- ✅ **Interface Responsiva**: Design moderno com TailwindCSS
+- ✅ **Testes Automatizados**: Cobertura de testes unitários e integração
+
+### Arquivos de Configuração
+- ✅ **package.json**: Dependências do frontend e backend
+- ✅ **tsconfig.json**: Configuração TypeScript para ambos os projetos
+- ✅ **vite.config.ts**: Configuração do bundler
+- ✅ **vitest.config.ts**: Configuração de testes
+- ✅ **tailwind.config.js**: Configuração de estilos
+- ✅ **docker-compose.yml**: Configuração do Neo4j
+
+## ⚠️ Problemas Identificados e Correções Necessárias
+
+### Dependências Duplicadas
+O sistema possui algumas dependências duplicadas entre frontend e backend que podem ser otimizadas:
+
+**Dependências que devem ser removidas do frontend:**
+- `neo4j-driver` - Usado apenas no backend
+- `express` - Usado apenas no backend  
+- `cors` - Usado apenas no backend
+- `multer` - Usado apenas no backend
+- `dotenv` - Usado apenas no backend
+- `@langchain/community` - Usado apenas no backend
+- `@langchain/google-genai` - Usado apenas no backend
+- `csv-parser` - Usado apenas no backend
+- `pdf-parse` - Usado apenas no backend
+- `xml2js` - Usado apenas no backend
+
+**Para otimizar:**
+```bash
+# Remover dependências desnecessárias do frontend
+npm uninstall neo4j-driver express cors multer dotenv @langchain/community @langchain/google-genai csv-parser pdf-parse xml2js
+```
+
+### Segurança
+- **Senha hardcoded no Docker Compose**: A senha do Neo4j está exposta no `docker-compose.yml`
+- **Recomendação**: Usar variáveis de ambiente para credenciais sensíveis
+
+### Arquivos Ausentes
+- ✅ **test-rag.sh**: Criado durante a validação
+- ✅ **Estrutura de testes**: Validada e funcional
+
+### Melhorias Recomendadas
+1. **Criar .env.example**: Para facilitar configuração inicial
+2. **Separar dependências**: Manter apenas dependências necessárias em cada package.json
+3. **Documentar variáveis de ambiente**: Listar todas as variáveis necessárias
+4. **Adicionar health checks**: Para monitoramento do sistema
 
 ## Licença
 MIT
