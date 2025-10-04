@@ -20,11 +20,6 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 
 ### Provedores de IA Suportados
 
-#### 1. Google Gemini
-- **Modelos**: Gemini 1.5 Pro, Gemini 1.5 Flash
-- **Embeddings**: Gemini Embedding 001 (768D)
-- **Configuração**: `GEMINI_API_KEY`
-
 #### 2. Ollama (Modelos Locais)
 - **Modelos**: Qualquer modelo disponível no Ollama
 - **Embeddings**: Modelos de embedding do Ollama (nomic-embed-text)
@@ -61,7 +56,7 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 - npm ou yarn
 - Docker e Docker Compose
 - **Pelo menos um dos seguintes provedores de IA:**
-  - Google Gemini: Conta e chave de API (https://aistudio.google.com/app/apikey)
+
   - Ollama: Instalação local do Ollama (https://ollama.ai)
   - OpenRouter: Conta e chave de API (https://openrouter.ai)
 
@@ -105,9 +100,6 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
      ALLOWED_EXTENSIONS=pdf,docx,doc,txt,md,xml,json,csv
      
      # === PROVEDORES DE IA (configure pelo menos um) ===
-     
-     # Google Gemini (recomendado)
-     GEMINI_API_KEY=sua_chave_gemini_aqui
      
      # Ollama (modelos locais)
      OLLAMA_BASE_URL=http://172.21.112.1:11434
