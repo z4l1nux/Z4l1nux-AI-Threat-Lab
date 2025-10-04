@@ -1,7 +1,7 @@
 import neo4j, { Driver, Session } from "neo4j-driver";
 import * as dotenv from "dotenv";
 
-dotenv.config({ path: '../../.env.local' });
+dotenv.config({ path: '../../../.env.local' });
 
 export class Neo4jClient {
   private static driver: Driver | null = null;

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { ragService, RAGContext, SystemStatistics, DocumentUploadResult } from '../services/ragService';
 
 export interface RAGSystemState {
@@ -7,16 +7,44 @@ export interface RAGSystemState {
   error: string | null;
   statistics: SystemStatistics | null;
   lastSearch: RAGContext | null;
+  cacheStats: { size: number; entries: string[] };
 }
 
-export const useRAGSystem = () => {
+export interface UseRAGSystemReturn extends RAGSystemState {
+  initializeSystem: () => Promise<any>;
+  uploadDocument: (file: File) => Promise<DocumentUploadResult>;
+  uploadText: (name: string, content: string) => Promise<DocumentUploadResult>;
+  searchContext: (query: string, limit?: number) => Promise<RAGContext>;
+  refreshStatistics: () => Promise<SystemStatistics>;
+  clearCache: () => Promise<void>;
+  checkSystemHealth: () => Promise<any>;
+  clearLocalCache: () => void;
+  retryLastAction: () => Promise<void>;
+}
+
+export const useRAGSystem = (): UseRAGSystemReturn => {
   const [state, setState] = useState<RAGSystemState>({
     isInitialized: false,
     isLoading: false,
     error: null,
     statistics: null,
     lastSearch: null,
+    cacheStats: { size: 0, entries: [] }
   });
+
+  // Refs para controlar operações
+  const lastActionRef = useRef<(() => Promise<any>) | null>(null);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
+
+  // Debounce para buscas
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Atualizar estatísticas do cache
+  const updateCacheStats = useCallback(() => {
+    const cacheStats = ragService.getCacheStats();
+    setState(prev => ({ ...prev, cacheStats }));
+  }, []);
 
   // Verificar status do sistema
   const checkSystemHealth = useCallback(async () => {
@@ -30,6 +58,7 @@ export const useRAGSystem = () => {
         error: health.services.neo4j === 'disconnected' ? 'Neo4j desconectado' : null
       }));
 
+      updateCacheStats();
       return health;
     } catch (error) {
       setState(prev => ({
@@ -38,22 +67,34 @@ export const useRAGSystem = () => {
       }));
       return null;
     }
-  }, []);
+  }, [updateCacheStats]);
 
   // Inicializar sistema RAG
   const initializeSystem = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
-    try {
+    const action = async () => {
       const result = await ragService.initialize();
       setState(prev => ({
         ...prev,
         isInitialized: true,
         isLoading: false,
-        statistics: result.statistics
+        statistics: {
+          ...result.statistics,
+          cacheValid: true,
+          timestamp: new Date().toISOString()
+        }
       }));
       
+      updateCacheStats();
       return result;
+    };
+
+    lastActionRef.current = action;
+    retryCountRef.current = 0;
+
+    try {
+      return await action();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -62,21 +103,33 @@ export const useRAGSystem = () => {
       }));
       throw error;
     }
-  }, []);
+  }, [updateCacheStats]);
 
   // Upload de arquivo
   const uploadDocument = useCallback(async (file: File): Promise<DocumentUploadResult> => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
-    try {
+    const action = async () => {
       const result = await ragService.uploadDocument(file);
       setState(prev => ({
         ...prev,
         isLoading: false,
-        statistics: result.statistics
+        statistics: {
+          ...result.statistics,
+          cacheValid: true,
+          timestamp: new Date().toISOString()
+        }
       }));
       
+      updateCacheStats();
       return result;
+    };
+
+    lastActionRef.current = action;
+    retryCountRef.current = 0;
+
+    try {
+      return await action();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -85,21 +138,33 @@ export const useRAGSystem = () => {
       }));
       throw error;
     }
-  }, []);
+  }, [updateCacheStats]);
 
   // Upload de texto
   const uploadText = useCallback(async (name: string, content: string): Promise<DocumentUploadResult> => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
-    try {
+    const action = async () => {
       const result = await ragService.uploadText(name, content);
       setState(prev => ({
         ...prev,
         isLoading: false,
-        statistics: result.statistics
+        statistics: {
+          ...result.statistics,
+          cacheValid: true,
+          timestamp: new Date().toISOString()
+        }
       }));
       
+      updateCacheStats();
       return result;
+    };
+
+    lastActionRef.current = action;
+    retryCountRef.current = 0;
+
+    try {
+      return await action();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -108,47 +173,74 @@ export const useRAGSystem = () => {
       }));
       throw error;
     }
-  }, []);
+  }, [updateCacheStats]);
 
-  // Busca com contexto RAG
+  // Busca com contexto RAG (com debounce)
   const searchContext = useCallback(async (query: string, limit: number = 5): Promise<RAGContext> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
-    try {
-      const result = await ragService.searchContext(query, limit);
-      const context: RAGContext = {
-        context: result.context,
-        sources: result.sources,
-        totalDocuments: result.totalDocuments,
-        confidence: result.confidence
-      };
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        lastSearch: context
-      }));
-      
-      return context;
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Erro na busca'
-      }));
-      throw error;
+    // Limpar timeout anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-  }, []);
+
+    return new Promise((resolve, reject) => {
+      searchTimeoutRef.current = setTimeout(async () => {
+        setState(prev => ({ ...prev, isLoading: true, error: null }));
+        
+        const action = async () => {
+          const result = await ragService.searchContext(query, limit);
+          const context: RAGContext = {
+            context: result.context,
+            sources: result.sources,
+            totalDocuments: result.totalDocuments,
+            confidence: result.confidence
+          };
+          
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            lastSearch: context
+          }));
+          
+          updateCacheStats();
+          return context;
+        };
+
+        lastActionRef.current = action;
+        retryCountRef.current = 0;
+
+        try {
+          const result = await action();
+          resolve(result);
+        } catch (error) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Erro na busca'
+          }));
+          reject(error);
+        }
+      }, 300); // Debounce de 300ms
+    });
+  }, [updateCacheStats]);
 
   // Atualizar estatísticas
   const refreshStatistics = useCallback(async () => {
-    try {
+    const action = async () => {
       const stats = await ragService.getStatistics();
       setState(prev => ({
         ...prev,
         statistics: stats
       }));
+      
+      updateCacheStats();
       return stats;
+    };
+
+    lastActionRef.current = action;
+    retryCountRef.current = 0;
+
+    try {
+      return await action();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -156,13 +248,13 @@ export const useRAGSystem = () => {
       }));
       throw error;
     }
-  }, []);
+  }, [updateCacheStats]);
 
   // Limpar cache
   const clearCache = useCallback(async () => {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
-    try {
+    const action = async () => {
       await ragService.clearCache();
       const stats = await ragService.getStatistics();
       setState(prev => ({
@@ -171,6 +263,15 @@ export const useRAGSystem = () => {
         statistics: stats,
         lastSearch: null
       }));
+      
+      updateCacheStats();
+    };
+
+    lastActionRef.current = action;
+    retryCountRef.current = 0;
+
+    try {
+      await action();
     } catch (error) {
       setState(prev => ({
         ...prev,
@@ -179,14 +280,57 @@ export const useRAGSystem = () => {
       }));
       throw error;
     }
-  }, []);
+  }, [updateCacheStats]);
+
+  // Limpar cache local
+  const clearLocalCache = useCallback(() => {
+    ragService.clearLocalCache();
+    updateCacheStats();
+  }, [updateCacheStats]);
+
+  // Retry da última ação
+  const retryLastAction = useCallback(async () => {
+    if (!lastActionRef.current || retryCountRef.current >= maxRetries) {
+      return;
+    }
+
+    retryCountRef.current++;
+    setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      await lastActionRef.current();
+      setState(prev => ({ ...prev, isLoading: false }));
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Erro na operação'
+      }));
+    }
+  }, [maxRetries]);
 
   // Verificar sistema na inicialização
   useEffect(() => {
     checkSystemHealth();
   }, [checkSystemHealth]);
 
-  return {
+  // Atualizar estatísticas do cache periodicamente
+  useEffect(() => {
+    const interval = setInterval(updateCacheStats, 30000); // A cada 30 segundos
+    return () => clearInterval(interval);
+  }, [updateCacheStats]);
+
+  // Cleanup do timeout de busca
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoizar o retorno para evitar re-renders desnecessários
+  const returnValue = useMemo(() => ({
     ...state,
     initializeSystem,
     uploadDocument,
@@ -195,5 +339,20 @@ export const useRAGSystem = () => {
     refreshStatistics,
     clearCache,
     checkSystemHealth,
-  };
+    clearLocalCache,
+    retryLastAction,
+  }), [
+    state,
+    initializeSystem,
+    uploadDocument,
+    uploadText,
+    searchContext,
+    refreshStatistics,
+    clearCache,
+    checkSystemHealth,
+    clearLocalCache,
+    retryLastAction,
+  ]);
+
+  return returnValue;
 };

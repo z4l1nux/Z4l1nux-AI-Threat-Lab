@@ -1,154 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import DocumentUpload from './DocumentUpload';
-
-interface RAGSystemState {
-  isInitialized: boolean;
-  isLoading: boolean;
-  error: string | null;
-  statistics: {
-    totalChunks: number;
-    totalDocumentos: number;
-  } | null;
-}
+import { useRAGSystem } from '../hooks/useRAGSystem';
 
 const RAGPanel: React.FC = () => {
-  const [state, setState] = useState<RAGSystemState>({
-    isInitialized: false,
-    isLoading: false,
-    error: null,
-    statistics: null,
-  });
+  const {
+    isInitialized,
+    isLoading,
+    error,
+    statistics,
+    initializeSystem,
+    uploadDocument,
+    refreshStatistics,
+    checkSystemHealth,
+    retryLastAction
+  } = useRAGSystem();
 
-
-  const BACKEND_URL = 'http://localhost:3001';
 
   // Verificar status do sistema ao carregar
   useEffect(() => {
     checkSystemHealth();
-  }, []);
-
-  const checkSystemHealth = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/health`);
-      if (response.ok) {
-        const health = await response.json();
-        const isRAGInitialized = health.services?.rag === 'initialized';
-        setState(prev => ({
-          ...prev,
-          isInitialized: isRAGInitialized,
-          error: health.services?.neo4j === 'disconnected' ? 'Neo4j desconectado' : null
-        }));
-      }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: 'Backend não disponível. Execute: npm run dev:backend'
-      }));
-    }
-  };
-
-  const initializeSystem = async () => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/initialize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Falha ao inicializar sistema');
-      }
-
-      const result = await response.json();
-      setState(prev => ({
-        ...prev,
-        isInitialized: true,
-        isLoading: false,
-        statistics: result.statistics
-      }));
-    } catch (error: any) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error.message || 'Erro ao inicializar sistema'
-      }));
-    }
-  };
+  }, [checkSystemHealth]);
 
   const handleFileUpload = async (file: File) => {
-
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-
     try {
-      const formData = new FormData();
-      formData.append('document', file);
-
-      const response = await fetch(`${BACKEND_URL}/api/documents/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Falha no upload');
-      }
-
-      const result = await response.json();
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        statistics: result.statistics
-      }));
-    } catch (error: any) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error.message || 'Erro no upload'
-      }));
+      await uploadDocument(file);
+    } catch (error) {
+      console.error('Erro no upload:', error);
     }
   };
 
-  const refreshStatistics = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/statistics`);
-      if (response.ok) {
-        const stats = await response.json();
-        setState(prev => ({ ...prev, statistics: stats }));
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar estatísticas:', error);
-    }
+
+
+  const getStatusColor = () => {
+    if (isLoading) return 'bg-yellow-500';
+    if (isInitialized) return 'bg-green-500';
+    return 'bg-red-500';
+  };
+
+  const getStatusText = () => {
+    if (isLoading) return 'Processando...';
+    if (isInitialized) return 'Ativo';
+    return 'Inativo';
   };
 
   return (
     <div className="bg-custom-blue rounded-lg shadow-lg p-6 mb-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center">
           🧠 Sistema RAG (Retrieval-Augmented Generation)
         </h2>
-        <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${state.isInitialized ? 'bg-green-500' : 'bg-red-500'}`}></div>
+        <div className="flex items-center space-x-3">
+          <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
           <span className="text-sm text-gray-300">
-            {state.isInitialized ? 'Ativo' : 'Inativo'}
+            {getStatusText()}
           </span>
         </div>
       </div>
 
-      {state.error && (
+      {/* Error Display */}
+      {error && (
         <div className="bg-red-900/20 border border-red-500 rounded-md p-4 mb-4">
-          <div className="flex">
-            <div className="text-red-400">⚠️</div>
-            <div className="ml-3">
+          <div className="flex items-start">
+            <div className="text-red-400 mr-3">⚠️</div>
+            <div className="flex-1">
               <h3 className="text-sm font-medium text-red-300">Erro</h3>
-              <div className="mt-2 text-sm text-red-200">{state.error}</div>
+              <div className="mt-2 text-sm text-red-200">{error}</div>
+              <button
+                onClick={retryLastAction}
+                className="mt-2 text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-500"
+              >
+                🔄 Tentar Novamente
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {!state.isInitialized ? (
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-blue-900/20 border border-blue-500 rounded-md p-4 mb-4">
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400 mr-3"></div>
+            <span className="text-blue-200">Processando...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Not Initialized State */}
+      {!isInitialized && !isLoading && (
         <div className="text-center py-8">
           <div className="mb-4">
             <div className="text-gray-400 mb-2">🚀</div>
@@ -162,29 +102,22 @@ const RAGPanel: React.FC = () => {
           </div>
           <button
             onClick={initializeSystem}
-            disabled={state.isLoading}
+            disabled={isLoading}
             className="bg-z4l1nux-primary text-white px-6 py-2 rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {state.isLoading ? 'Inicializando...' : 'Inicializar Sistema RAG'}
+            {isLoading ? 'Inicializando...' : 'Inicializar Sistema RAG'}
           </button>
         </div>
-      ) : (
+      )}
+
+      {/* Initialized State */}
+      {isInitialized && (
         <div className="space-y-6">
-          {/* Estatísticas */}
-          {state.statistics && (
+          {/* Statistics */}
+          {statistics && (
             <div className="bg-gray-700 rounded-md p-4">
-              <h3 className="text-sm font-medium text-white mb-2">📊 Estatísticas</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-300">Documentos:</span>
-                  <span className="ml-2 font-medium text-white">{state.statistics.totalDocumentos}</span>
-                </div>
-                <div>
-                  <span className="text-gray-300">Chunks:</span>
-                  <span className="ml-2 font-medium text-white">{state.statistics.totalChunks}</span>
-                </div>
-              </div>
-              <div className="mt-2">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-white">📊 Estatísticas</h3>
                 <button
                   onClick={refreshStatistics}
                   className="text-xs bg-gray-600 text-gray-200 px-2 py-1 rounded hover:bg-gray-500"
@@ -192,14 +125,26 @@ const RAGPanel: React.FC = () => {
                   🔄 Atualizar
                 </button>
               </div>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                <div>
+                  <span className="text-gray-300">Documentos:</span>
+                  <span className="ml-2 font-medium text-white">{statistics.totalDocumentos}</span>
+                </div>
+                <div>
+                  <span className="text-gray-300">Chunks:</span>
+                  <span className="ml-2 font-medium text-white">{statistics.totalChunks}</span>
+                </div>
+              </div>
             </div>
           )}
+
 
           {/* Upload de Documentos */}
           <DocumentUpload 
             onFileUpload={handleFileUpload}
-            isLoading={state.isLoading}
+            isLoading={isLoading}
           />
+
         </div>
       )}
     </div>

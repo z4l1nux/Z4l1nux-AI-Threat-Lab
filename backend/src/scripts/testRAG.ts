@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import { GeminiSearchFactory } from "../core/search/GeminiSearchFactory";
 import { Neo4jClient } from "../core/graph/Neo4jClient";
 
-dotenv.config({ path: '../.env.local' });
+dotenv.config({ path: '../../../.env.local' });
 
 async function testRAGSystem() {
   let searchFactory: GeminiSearchFactory | null = null;

@@ -7,7 +7,7 @@ import ModelSelector from './src/components/ModelSelector';
 import { useThreatModeler } from './src/hooks/useThreatModeler';
 import { useModelSelection } from './src/hooks/useModelSelection';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { APP_TITLE, INITIAL_SYSTEM_INFO, GEMINI_API_KEY_CHECK_MSG } from './constants';
+import { APP_TITLE, INITIAL_SYSTEM_INFO } from './constants';
 import { SystemInfo } from './types';
 
 const App: React.FC = () => {
@@ -56,7 +56,6 @@ const App: React.FC = () => {
     refineThreatModel(markdown);
   };
 
-  const isApiKeyMissing = !process.env.GEMINI_API_KEY && !process.env.API_KEY;
 
   return (
     <div className="min-h-screen bg-custom-black text-custom-yellow flex flex-col items-center p-4 md:p-8 selection:bg-custom-yellow selection:text-custom-black">
@@ -67,11 +66,6 @@ const App: React.FC = () => {
         <p className="text-z4l1nux-primary mt-2 text-sm md:text-base">
           Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
         </p>
-        {isApiKeyMissing && (
-           <div role="alert" className="mt-4 p-3 bg-custom-yellow/20 border border-custom-yellow text-custom-yellow rounded-md text-xs">
-            <strong>Aviso:</strong> {GEMINI_API_KEY_CHECK_MSG} A variável de ambiente <code>GEMINI_API_KEY</code> ou <code>API_KEY</code> não está configurada. As funcionalidades de IA podem não funcionar.
-          </div>
-        )}
       </header>
 
       <main className="w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4">

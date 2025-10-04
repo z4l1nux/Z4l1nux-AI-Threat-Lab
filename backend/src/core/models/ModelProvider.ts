@@ -1,6 +1,6 @@
 export interface ModelProvider {
   name: string;
-  generateContent(prompt: string, model: string): Promise<string>;
+  generateContent(prompt: string, model: string, format?: any): Promise<string>;
   generateEmbedding(text: string, model: string): Promise<number[]>;
   isAvailable(): Promise<boolean>;
 }

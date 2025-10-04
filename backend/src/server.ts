@@ -5,16 +5,20 @@ import * as dotenv from 'dotenv';
 import neo4j from 'neo4j-driver';
 import { OllamaProvider } from './core/models/providers/OllamaProvider';
 import { OpenRouterProvider } from './core/models/providers/OpenRouterProvider';
-import { GeminiSearchFactory } from './core/search/GeminiSearchFactory';
+import { SemanticSearchFactory } from './core/search/SemanticSearchFactory';
 import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
 import { SearchResult, RAGContext } from './types/index';
 import { ModelFactory } from './core/models/ModelFactory';
 
 // Carregar variáveis de ambiente
-dotenv.config({ path: '../.env.local' });
+console.log('🔧 Diretório atual:', process.cwd());
+const dotenvResult = dotenv.config({ path: '../.env.local' });
+console.log('🔧 Dotenv resultado:', dotenvResult.error ? dotenvResult.error.message : 'Carregado com sucesso');
+console.log('🔧 OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL);
+console.log('🔧 OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
 
-// Inicializar providers
+// Inicializar providers APÓS carregar variáveis de ambiente
 const ollamaProvider = new OllamaProvider();
 const openrouterProvider = new OpenRouterProvider();
 
@@ -48,7 +52,7 @@ const upload = multer({
 });
 
 // Instância global do sistema de busca
-let searchFactory: GeminiSearchFactory | null = null;
+let searchFactory: SemanticSearchFactory | null = null;
 
 // Middleware para verificar se o sistema está inicializado
 const requireInitialized = (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -92,6 +96,8 @@ app.get('/api/models/available', async (req, res) => {
     console.log('OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL || 'Não configurado');
     console.log('MODEL_OLLAMA:', process.env.MODEL_OLLAMA || 'Não configurado');
     console.log('EMBEDDING_MODEL:', process.env.EMBEDDING_MODEL || 'Não configurado');
+    console.log('OLLAMA_TIMEOUT:', process.env.OLLAMA_TIMEOUT || '300000ms');
+    console.log('OLLAMA_MAX_RETRIES:', process.env.OLLAMA_MAX_RETRIES || '2');
     console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
     console.log('MODEL_OPENROUTER:', process.env.MODEL_OPENROUTER || 'Não configurado');
     
@@ -174,11 +180,11 @@ app.post('/api/initialize', async (req, res) => {
     }
     
     // Inicializar sistema de busca
-    searchFactory = GeminiSearchFactory.criarBusca();
+    searchFactory = SemanticSearchFactory.createSearch();
     await searchFactory.initialize();
     
     // Obter estatísticas
-    const stats = await searchFactory.obterEstatisticas();
+    const stats = await searchFactory.getStatistics();
     
     res.json({
       message: 'Sistema RAG inicializado com sucesso',
@@ -222,7 +228,7 @@ app.post('/api/documents/upload', requireInitialized, upload.single('document'),
     }
 
     // Processar documento no sistema RAG
-    await searchFactory!.processarDocumento({
+    await searchFactory!.processDocument({
       name: req.file.originalname,
       content,
       metadata: {
@@ -235,7 +241,7 @@ app.post('/api/documents/upload', requireInitialized, upload.single('document'),
     });
 
     // Obter estatísticas atualizadas
-    const stats = await searchFactory!.obterEstatisticas();
+    const stats = await searchFactory!.getStatistics();
 
     res.json({
       message: 'Documento processado com sucesso',
@@ -274,7 +280,7 @@ app.post('/api/documents/text', requireInitialized, async (req, res) => {
     }
 
     // Processar documento no sistema RAG
-    await searchFactory!.processarDocumento({
+    await searchFactory!.processDocument({
       name,
       content,
       metadata: {
@@ -288,7 +294,7 @@ app.post('/api/documents/text', requireInitialized, async (req, res) => {
     });
 
     // Obter estatísticas atualizadas
-    const stats = await searchFactory!.obterEstatisticas();
+    const stats = await searchFactory!.getStatistics();
 
     res.json({
       message: 'Texto processado com sucesso',
@@ -321,7 +327,7 @@ app.post('/api/search', requireInitialized, async (req, res) => {
 
     console.log(`🔍 Executando busca RAG: "${query.substring(0, 50)}..."`);
 
-    const results = await searchFactory!.buscar(query, limit);
+    const results = await searchFactory!.search(query, limit);
 
     res.json({
       query,
@@ -359,7 +365,7 @@ app.post('/api/search/context', requireInitialized, async (req, res) => {
       console.log(`🔗 Usando embedding: ${modelConfig.embedding} (${modelConfig.embeddingProvider})`);
     }
 
-    const contextData = await searchFactory!.buscarContextoRAG(query, limit, systemContext, modelConfig);
+    const contextData = await searchFactory!.searchRAGContext(query, limit, systemContext, modelConfig);
 
     res.json({
       query,
@@ -396,7 +402,7 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
     // Buscar documentos que contenham mapeamento STRIDE-CAPEC
     let results;
     try {
-      results = await searchFactory.buscar('STRIDE CAPEC mapping categoria', 50);
+      results = await searchFactory.search('STRIDE CAPEC mapping categoria', 50);
     } catch (error) {
       console.warn('⚠️ Busca semântica falhou, tentando busca textual direta:', error);
       
@@ -619,8 +625,8 @@ function parseStructuredTextToMapping(content: string): any[] {
 // Estatísticas do sistema
 app.get('/api/statistics', requireInitialized, async (req, res) => {
   try {
-    const stats = await searchFactory!.obterEstatisticas();
-    const cacheValid = await searchFactory!.verificarCache();
+    const stats = await searchFactory!.getStatistics();
+    const cacheValid = await searchFactory!.verifyCache();
 
     res.json({
       ...stats,
@@ -643,7 +649,7 @@ app.get('/api/stride-capec-mapping', requireInitialized, async (req, res) => {
     console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
     
     // Buscar documentos relacionados a STRIDE-CAPEC
-    const results = await searchFactory!.buscar('STRIDE CAPEC mapping categoria', 50);
+    const results = await searchFactory!.search('STRIDE CAPEC mapping categoria', 50);
     
     console.log(`📈 Total de chunks encontrados: ${results.length}`);
     
@@ -682,7 +688,7 @@ app.get('/api/stride-capec-mapping', requireInitialized, async (req, res) => {
 app.delete('/api/cache', requireInitialized, async (req, res) => {
   try {
     console.log('🗑️ Limpando cache...');
-    await searchFactory!.limparCache();
+    await searchFactory!.clearCache();
 
     res.json({
       message: 'Cache limpo com sucesso',
@@ -701,7 +707,7 @@ app.delete('/api/cache', requireInitialized, async (req, res) => {
 // Geração de conteúdo com modelo selecionado
 app.post('/api/generate-content', requireInitialized, async (req, res) => {
   try {
-    const { prompt, modelConfig } = req.body;
+    const { prompt, modelConfig, format } = req.body;
     
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt é obrigatório' });
@@ -714,31 +720,66 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
 
     // Determinar qual provider usar
     const provider = modelConfig?.provider || 'ollama';
+    console.log(`🔧 Provider selecionado: ${provider}`);
     
     if (provider === 'ollama') {
       const isOllamaAvailable = await ollamaProvider.isAvailable();
       if (!isOllamaAvailable) {
-        return res.status(500).json({
-          error: 'Ollama não disponível',
-          message: 'Servidor Ollama não está rodando ou não configurado'
-        });
+        console.warn('⚠️ Ollama não disponível, tentando fallback para OpenRouter...');
+        
+        // Fallback para OpenRouter
+        const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+        if (isOpenRouterAvailable) {
+          const openrouterModel = process.env.MODEL_OPENROUTER;
+          if (openrouterModel) {
+            console.log(`🔄 Fallback: Usando OpenRouter ${openrouterModel} em vez de Ollama`);
+            content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
+            model = openrouterModel;
+          } else {
+            return res.status(500).json({
+              error: 'Ollama não disponível e OpenRouter não configurado',
+              message: 'Configure Ollama ou OpenRouter'
+            });
+          }
+        } else {
+          return res.status(500).json({
+            error: 'Nenhum provedor de IA disponível',
+            message: 'Ollama e OpenRouter não estão disponíveis'
+          });
+        }
+      } else {
+        const ollamaModel = modelConfig?.model || process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
+        console.log(`🔧 Usando modelo Ollama: ${ollamaModel}`);
+        console.log(`🔧 Prompt: ${prompt.substring(0, 100)}...`);
+        
+        try {
+          console.log(`🔧 Tentando gerar conteúdo com Ollama...`);
+          console.log(`🔧 Tamanho do prompt: ${prompt.length} caracteres`);
+          content = await ollamaProvider.generateContent(prompt, ollamaModel, format);
+          console.log(`🔧 Resposta do Ollama: ${content.substring(0, 100)}...`);
+          console.log(`🔧 Content length: ${content.length}`);
+          console.log(`🔧 Content type: ${typeof content}`);
+          model = ollamaModel;
+        } catch (error) {
+          console.error(`❌ Erro no OllamaProvider:`, error);
+          console.warn('⚠️ Ollama falhou, tentando fallback para OpenRouter...');
+          
+          // Fallback para OpenRouter em caso de erro
+          const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+          if (isOpenRouterAvailable) {
+            const openrouterModel = process.env.MODEL_OPENROUTER;
+            if (openrouterModel) {
+              console.log(`🔄 Fallback: Usando OpenRouter ${openrouterModel} em vez de Ollama`);
+              content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
+              model = openrouterModel;
+            } else {
+              throw error; // Re-throw se não houver fallback
+            }
+          } else {
+            throw error; // Re-throw se não houver fallback
+          }
+        }
       }
-      
-      const ollamaModel = modelConfig?.model || process.env.MODEL_OLLAMA || 'qwen2.5-coder:7b';
-      console.log(`🔧 Usando modelo Ollama: ${ollamaModel}`);
-      console.log(`🔧 Prompt: ${prompt.substring(0, 100)}...`);
-      
-      try {
-        content = await ollamaProvider.generateContent(prompt, ollamaModel);
-        console.log(`🔧 Resposta do Ollama: ${content.substring(0, 100)}...`);
-        console.log(`🔧 Content length: ${content.length}`);
-        console.log(`🔧 Content type: ${typeof content}`);
-      } catch (error) {
-        console.error(`❌ Erro no OllamaProvider:`, error);
-        throw error;
-      }
-      
-      model = ollamaModel;
       
     } else if (provider === 'openrouter') {
       const isOpenRouterAvailable = await openrouterProvider.isAvailable();
@@ -757,7 +798,12 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
         });
       }
       
-      content = await openrouterProvider.generateContent(prompt, openrouterModel);
+      console.log(`🔧 Usando modelo OpenRouter: ${openrouterModel}`);
+      console.log(`🔧 Format fornecido:`, format);
+      content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
+      console.log(`🔧 Resposta do OpenRouter: ${content.substring(0, 100)}...`);
+      console.log(`🔧 Content length: ${content.length}`);
+      console.log(`🔧 Content type: ${typeof content}`);
       model = openrouterModel;
       
     } else {
@@ -772,7 +818,7 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
     console.log(`🔧 Content type: ${typeof content}`);
     
     res.json({
-      content: { response: { text: () => content } },
+      content: content,
       model: model,
       provider: provider,
       timestamp: new Date().toISOString()

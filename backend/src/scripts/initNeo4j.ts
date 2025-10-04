@@ -2,7 +2,7 @@ import * as dotenv from "dotenv";
 import { GeminiSearchFactory } from "../core/search/GeminiSearchFactory";
 import { Neo4jClient } from "../core/graph/Neo4jClient";
 
-const result = dotenv.config({ path: '../.env.local' });
+const result = dotenv.config({ path: '../../../.env.local' });
 console.log('🔍 Resultado do dotenv:', result.error ? result.error.message : 'Carregado com sucesso');
 console.log('🔍 GEMINI_API_KEY presente:', !!process.env.GEMINI_API_KEY);
 

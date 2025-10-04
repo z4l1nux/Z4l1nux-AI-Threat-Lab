@@ -144,7 +144,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
       
       // 2. Resumir e estruturar informações do sistema via IA para exibição
       console.log('📝 Resumindo informações do sistema para exibição...');
-      const summarizedInfo = await summarizeSystemDescription(currentSystemInfo.generalDescription || "");
+      const summarizedInfo = await summarizeSystemDescription(currentSystemInfo.generalDescription || "", modelConfig);
       
       // Mesclar informações resumidas com dados originais
       const systemInfoWithSummary = {
@@ -165,7 +165,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
         generatedAt: new Date().toISOString(),
       };
       try {
-        const mermaid = await generateAttackTreeMermaid(systemInfoWithSummary as SystemInfo, identifiedThreats);
+        const mermaid = await generateAttackTreeMermaid(identifiedThreats, modelConfig);
         setReportData({ ...newReportData, attackTreeMermaid: mermaid });
       } catch (err) {
         console.warn('Falha ao gerar Mermaid de árvore de ataque:', err);
@@ -196,9 +196,8 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
 
     try {
       const { threats: refinedThreats } = await refineAnalysis(
-        systemInfo,
         currentMarkdown,
-        strideCapecMap
+        modelConfig
       );
 
       const newReportData: ReportData = {
@@ -207,7 +206,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
         generatedAt: new Date().toISOString(), // Update timestamp
       };
       try {
-        const mermaid = await generateAttackTreeMermaid(systemInfo, refinedThreats);
+        const mermaid = await generateAttackTreeMermaid(refinedThreats, modelConfig);
         setReportData({ ...newReportData, attackTreeMermaid: mermaid });
       } catch (err) {
         console.warn('Falha ao gerar Mermaid após refinamento:', err);

@@ -15,6 +15,3 @@ export const INITIAL_SYSTEM_INFO = {
   externalIntegrations: "Serviço de email de terceiros (ex: SendGrid) para notificações. Nenhuma outra integração externa significativa.",
 };
 
-export const GEMINI_API_KEY_CHECK_MSG = "Nota: Esta aplicação requer que a variável de ambiente GEMINI_API_KEY seja configurada para que as funcionalidades de IA funcionem. Se não estiver configurada, a geração assistida por IA falhará.";
-
-

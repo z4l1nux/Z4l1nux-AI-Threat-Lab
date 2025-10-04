@@ -1,8 +1,8 @@
-# Threat Modeling Co-Pilot com RAG
+# Z4l1nux AI Threat Lab
 
 ## Descrição
 
-Plataforma de modelagem de ameaças que utiliza IA (Google Gemini) e RAG (Retrieval-Augmented Generation) para:
+Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores de IA e RAG (Retrieval-Augmented Generation) para:
 - Analisar sistemas e identificar ameaças STRIDE
 - Mapear ameaças para padrões CAPEC
 - Sugerir mitigações e avaliar impactos
@@ -12,25 +12,58 @@ Plataforma de modelagem de ameaças que utiliza IA (Google Gemini) e RAG (Retrie
 ## Arquitetura
 
 ### Stack Tecnológica
-- **Frontend**: React + TypeScript + Vite
+- **Frontend**: React 19 + TypeScript + Vite + TailwindCSS
 - **Backend**: Node.js + Express + TypeScript
-- **IA**: Google Gemini (embeddings 768D + geração de conteúdo)
-- **Banco de Dados**: Neo4j (armazenamento vetorial)
-- **RAG**: Busca semântica automática com embeddings Gemini
+- **IA**: Múltiplos provedores (Gemini, Ollama, OpenRouter)
+- **Banco de Dados**: Neo4j (armazenamento vetorial e grafos)
+- **RAG**: Busca semântica com embeddings configuráveis
+
+### Provedores de IA Suportados
+
+#### 1. Google Gemini
+- **Modelos**: Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Embeddings**: Gemini Embedding 001 (768D)
+- **Configuração**: `GEMINI_API_KEY`
+
+#### 2. Ollama (Modelos Locais)
+- **Modelos**: Qualquer modelo disponível no Ollama
+- **Embeddings**: Modelos de embedding do Ollama (nomic-embed-text)
+- **Configuração**: 
+  - `OLLAMA_BASE_URL` (ex: http://172.21.112.1:11434)
+  - `MODEL_OLLAMA` (ex: granite3.3:8b, qwen2.5-coder:7b)
+  - `EMBEDDING_MODEL` (ex: nomic-embed-text:latest)
+
+#### 3. OpenRouter
+- **Modelos**: Qualquer modelo disponível no OpenRouter
+- **Embeddings**: Usa Gemini como fallback
+- **Configuração**:
+  - `OPENROUTER_API_KEY`
+  - `MODEL_OPENROUTER` (ex: meta-llama/llama-3.3-70b-instruct:free)
 
 ### Sistema RAG
 - **Processamento Automático**: Sistema envia informações ao backend automaticamente
-- **Busca Vetorial**: Embeddings Gemini (768 dimensões) + Neo4j
+- **Busca Vetorial**: Embeddings configuráveis + Neo4j com índices vetoriais
 - **Mapeamento Dinâmico**: STRIDE-CAPEC carregado via upload de documentos
 - **Contexto Inteligente**: Análise enriquecida com base de conhecimento
 - **Formatos Suportados**: PDF, DOCX, DOC, TXT, MD, XML, JSON, CSV
+- **Cache Inteligente**: Sistema de cache com TTL configurável
+- **Múltiplos Provedores**: Suporte a diferentes provedores de IA e embeddings
+
+### Seleção de Modelos
+- **Interface Dinâmica**: Dropdowns para seleção de modelos em tempo real
+- **Verificação de Disponibilidade**: Sistema verifica automaticamente quais modelos estão disponíveis
+- **Fallback Inteligente**: Sistema usa modelos alternativos se o principal falhar
+- **Configuração Flexível**: Suporte a modelos locais e remotos
 
 ## Pré-requisitos
 
 - Node.js 18+
 - npm ou yarn
 - Docker e Docker Compose
-- Conta e chave de API do Google Gemini (https://aistudio.google.com/app/apikey)
+- **Pelo menos um dos seguintes provedores de IA:**
+  - Google Gemini: Conta e chave de API (https://aistudio.google.com/app/apikey)
+  - Ollama: Instalação local do Ollama (https://ollama.ai)
+  - OpenRouter: Conta e chave de API (https://openrouter.ai)
 
 ## Instalação
 
@@ -48,25 +81,48 @@ Plataforma de modelagem de ameaças que utiliza IA (Google Gemini) e RAG (Retrie
    ```
 
 3. Configure as variáveis de ambiente:
-   - Copie o arquivo de exemplo:
-     ```bash
-     cp .env.example .env.local
-     ```
-   - Edite o arquivo `.env.local` e configure suas chaves:
+   
+   Crie um arquivo `.env.local` na raiz do projeto com as configurações necessárias:
      ```env
-     # Obrigatório - Chave da API Gemini
-     GEMINI_API_KEY=sua_chave_gemini_aqui
+     # Configurações do servidor backend
+     BACKEND_PORT=3001
+     FRONTEND_URL=http://localhost:5173
      
-     # Opcional - URL do backend (padrão: http://localhost:3001)
-     VITE_BACKEND_URL=http://localhost:3001
-     
-     # Configurações Neo4j (OBRIGATÓRIO - defina suas próprias credenciais)
+     # Configurações do Neo4j (OBRIGATÓRIO - defina suas próprias credenciais)
      NEO4J_URI=bolt://localhost:7687
      NEO4J_USER=neo4j
      NEO4J_PASSWORD=sua_senha_segura_aqui
+     
+     # Configurações de cache
+     RESPONSE_CACHE_TTL_MS=300000
+     RETRIEVAL_CACHE_TTL_MS=300000
+     
+     # Modo de busca
+     SEARCH_MODE=neo4j
+     
+     # Configurações de upload
+     MAX_FILE_SIZE=10485760
+     ALLOWED_EXTENSIONS=pdf,docx,doc,txt,md,xml,json,csv
+     
+     # === PROVEDORES DE IA (configure pelo menos um) ===
+     
+     # Google Gemini (recomendado)
+     GEMINI_API_KEY=sua_chave_gemini_aqui
+     
+     # Ollama (modelos locais)
+     OLLAMA_BASE_URL=http://172.21.112.1:11434
+     MODEL_OLLAMA=granite3.3:8b
+     EMBEDDING_MODEL=nomic-embed-text:latest
+     
+     # OpenRouter (modelos remotos)
+     # OPENROUTER_API_KEY=sk-or-my-api-key
+     # MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
      ```
      
-     ⚠️ **IMPORTANTE:** Substitua `sua_senha_segura_aqui` por uma senha forte!
+     ⚠️ **IMPORTANTE:** 
+     - Substitua `sua_senha_segura_aqui` por uma senha forte para o Neo4j
+     - Configure pelo menos um provedor de IA (Gemini, Ollama ou OpenRouter)
+     - Ajuste `FRONTEND_URL` se estiver usando uma porta diferente
 
 4. Iniciar o Neo4j com Docker:
    ```bash
@@ -100,18 +156,22 @@ npm run dev
 
 1. **Acesse**: `http://localhost:5173`
 
-2. **Inicialize o RAG**: Painel esquerdo → "Inicializar Sistema RAG"
+2. **Selecione os Modelos**: Use os dropdowns para escolher:
+   - **Modelo de IA**: Para geração de conteúdo (Gemini, Ollama, OpenRouter)
+   - **Modelo de Embedding**: Para busca semântica (Gemini, Ollama)
 
-3. **Upload de Mapeamento STRIDE-CAPEC** (obrigatório):
+3. **Inicialize o RAG**: Painel esquerdo → "Inicializar Sistema RAG"
+
+4. **Upload de Mapeamento STRIDE-CAPEC** (obrigatório):
    - Faça upload do arquivo de mapeamento (MD, JSON, PDF, etc.)
    - Nome sugerido: `capec-stride-mapping.md`
 
-4. **Modelar Ameaças**:
+5. **Modelar Ameaças**:
    - Insira a descrição completa do sistema
    - Clique em "Gerar Modelo de Ameaças"
    - O sistema buscará automaticamente CAPECs relevantes via RAG
 
-5. **Visualizar Resultados**:
+6. **Visualizar Resultados**:
    - Árvore de Ataque Interativa (Mermaid com zoom/pan)
    - Exportar relatório PDF
    - Refinar análise com IA
@@ -129,10 +189,12 @@ npm run dev
 
 ### Sistema RAG
 - Upload de documentos (PDF, DOCX, TXT, MD, XML, JSON, CSV)
-- Busca semântica vetorial (Gemini embeddings 768D)
+- Busca semântica vetorial com embeddings configuráveis
 - Mapeamento STRIDE-CAPEC dinâmico (via upload)
 - Contexto automático para análise de ameaças
-- Armazenamento persistente no Neo4j
+- Armazenamento persistente no Neo4j com índices vetoriais
+- Cache inteligente com TTL configurável
+- Suporte a múltiplos provedores de embeddings
 - Sem duplicação de documentos (atualização inteligente)
 
 ## Testes
@@ -203,25 +265,35 @@ threat-modeling-co-pilot-with-ai-3/
 │   │   ├── SystemInputForm.tsx
 │   │   ├── ReportDisplay.tsx
 │   │   ├── RAGPanel.tsx
+│   │   ├── ModelSelector.tsx
 │   │   └── LoadingSpinner.tsx
 │   ├── hooks/                   # Custom React Hooks
 │   │   ├── useThreatModeler.ts
+│   │   ├── useModelSelection.ts
 │   │   └── useRAGSystem.ts
 │   └── services/                # Serviços
-│       ├── geminiService.ts
+│       ├── aiService.ts
 │       └── ragService.ts
 ├── backend/                     # Backend Node.js
 │   └── src/
 │       ├── server.ts           # Express server
-│       ├── core/               # Sistema RAG
+│       ├── core/               # Sistema RAG e IA
 │       │   ├── graph/          # Neo4j client
 │       │   ├── cache/          # Cache manager
-│       │   └── search/         # Busca semântica
+│       │   ├── search/         # Busca semântica
+│       │   └── models/         # Provedores de IA
+│       │       ├── providers/  # Gemini, Ollama, OpenRouter
+│       │       └── ModelFactory.ts
+│       ├── scripts/            # Scripts utilitários
+│       │   ├── initNeo4j.ts
+│       │   ├── testRAG.ts
+│       │   └── fixVectorIndex.ts
 │       └── utils/              # Utilidades
 │           └── documentLoaders.ts
 ├── test-rag.sh                 # Testes automatizados
 ├── QUERIES_NEO4J.md           # Queries úteis Neo4j
 ├── GUIA_RAPIDO_NEO4J.md       # Guia rápido Neo4j
+├── MODEL_SELECTION.md         # Documentação de seleção de modelos
 └── VALIDACAO_RAG.md           # Validação do RAG
 ```
 

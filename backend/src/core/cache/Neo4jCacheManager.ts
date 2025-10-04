@@ -33,28 +33,16 @@ export class Neo4jCacheManager {
     });
   }
 
-  // Método para obter labels baseados no provedor de embedding
+  // Método para obter labels simplificados (apenas nomic-embed-text)
   private getEmbeddingLabels(embeddingProvider: string): { documentLabel: string; chunkLabel: string } {
-    switch (embeddingProvider) {
-      case 'ollama':
-        return { documentLabel: 'Document:Ollama', chunkLabel: 'Chunk:Ollama' };
-      case 'openrouter':
-        return { documentLabel: 'Document:OpenRouter', chunkLabel: 'Chunk:OpenRouter' };
-      default:
-        return { documentLabel: 'Document:Ollama', chunkLabel: 'Chunk:Ollama' }; // Ollama como padrão
-    }
+    // Sempre usar labels simples, independente do provedor
+    return { documentLabel: 'Document', chunkLabel: 'Chunk' };
   }
 
-  // Método para obter dimensões do embedding baseado no provedor
+  // Método para obter dimensões do embedding (apenas nomic-embed-text)
   private getEmbeddingDimensions(embeddingProvider: string): number {
-    switch (embeddingProvider) {
-      case 'ollama':
-        return 768;
-      case 'openrouter':
-        return 1536;
-      default:
-        return 768; // Ollama como padrão
-    }
+    // Sempre usar 768 dimensões (nomic-embed-text)
+    return 768;
   }
 
   async initialize(): Promise<void> {
@@ -79,28 +67,22 @@ export class Neo4jCacheManager {
       }
       
             // Criar índices vetoriais para cada provedor
-            const embeddingDimensions = {
-              'Ollama': 768,
-              'OpenRouter': 1536
-            };
+            // Criar índice vetorial único para nomic-embed-text (768 dimensões)
+            try {
+              await session.run(`
+                CREATE VECTOR INDEX chunk_embeddings IF NOT EXISTS
+                FOR (c:Chunk) ON (c.embedding)
+                OPTIONS {indexConfig: {
+                  \`vector.dimensions\`: 768,
+                  \`vector.similarity_function\`: 'cosine'
+                }}
+              `);
+              console.log(`✅ Índice vetorial único criado para nomic-embed-text (768 dimensões)`);
+            } catch (error) {
+              console.warn(`⚠️ Erro ao criar índice vetorial único:`, error);
+            }
       
-      for (const [provider, dimensions] of Object.entries(embeddingDimensions)) {
-        try {
-          await session.run(`
-            CREATE VECTOR INDEX chunk_${provider.toLowerCase()}_embeddings IF NOT EXISTS
-            FOR (c:Chunk) ON (c.embedding)
-            OPTIONS {indexConfig: {
-              \`vector.dimensions\`: ${dimensions},
-              \`vector.similarity_function\`: 'cosine'
-            }}
-          `);
-          console.log(`✅ Índice vetorial criado para ${provider} (${dimensions} dimensões)`);
-        } catch (error) {
-          console.warn(`⚠️ Erro ao criar índice vetorial para ${provider}:`, error);
-        }
-      }
-      
-      console.log("✅ Neo4j Cache Manager inicializado com labels por provedor");
+      console.log("✅ Neo4j Cache Manager inicializado com índice único para nomic-embed-text");
       
     } finally {
       await session.close();
@@ -362,7 +344,7 @@ export class Neo4jCacheManager {
       // Tentar busca vetorial primeiro
       try {
         const result = await session.run(`
-          CALL db.index.vector.queryNodes('chunk_${embeddingProvider.toLowerCase()}_embeddings', $k, $queryEmbedding)
+          CALL db.index.vector.queryNodes('chunk_embeddings', $k, $queryEmbedding)
           YIELD node AS chunk, score
           MATCH (d:${labels.documentLabel})-[:CONTAINS]->(chunk)
           RETURN chunk, d AS document, score
