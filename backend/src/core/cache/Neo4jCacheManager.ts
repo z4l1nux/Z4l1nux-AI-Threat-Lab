@@ -45,6 +45,12 @@ export class Neo4jCacheManager {
     return 768;
   }
 
+  // Método para obter modelo de embedding baseado na configuração
+  private getEmbeddingModel(modelConfig?: any): string {
+    // Prioridade: modelConfig.embedding > EMBEDDING_MODEL > padrão
+    return modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
+  }
+
   async initialize(): Promise<void> {
     const session = this.driver.session();
     
@@ -149,7 +155,7 @@ export class Neo4jCacheManager {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  model: modelConfig?.embeddingProvider === 'ollama' ? 'nomic-embed-text:latest' : (modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest'),
+                  model: this.getEmbeddingModel(modelConfig),
                   prompt: chunks[i].pageContent
                 })
               });
@@ -172,7 +178,7 @@ export class Neo4jCacheManager {
                        method: 'POST',
                        headers: { 'Content-Type': 'application/json' },
                        body: JSON.stringify({
-                         model: 'nomic-embed-text:latest',
+                         model: this.getEmbeddingModel(modelConfig),
                          prompt: chunks[i].pageContent
                        })
                      });
@@ -291,7 +297,7 @@ export class Neo4jCacheManager {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              model: modelConfig?.embeddingProvider === 'ollama' ? 'nomic-embed-text:latest' : (modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest'),
+              model: this.getEmbeddingModel(modelConfig),
               prompt: query
             })
           });
@@ -314,7 +320,7 @@ export class Neo4jCacheManager {
                    method: 'POST',
                    headers: { 'Content-Type': 'application/json' },
                    body: JSON.stringify({
-                     model: 'nomic-embed-text:latest',
+                     model: this.getEmbeddingModel(modelConfig),
                      prompt: query
                    })
                  });

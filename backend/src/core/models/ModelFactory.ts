@@ -17,12 +17,12 @@ export class ModelFactory {
   }
 
   static async generateContent(prompt: string, config: ModelConfig): Promise<string> {
-    // Implementação simplificada - sempre usar Gemini por enquanto
+    // Implementação simplificada - usar configuração do .env.local
     throw new Error('ModelFactory.generateContent não implementado ainda');
   }
 
   static async generateEmbedding(text: string, config: ModelConfig): Promise<number[]> {
-    // Implementação simplificada - sempre usar Gemini por enquanto
+    // Implementação simplificada - usar configuração do .env.local
     throw new Error('ModelFactory.generateEmbedding não implementado ainda');
   }
 }

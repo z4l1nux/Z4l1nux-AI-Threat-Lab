@@ -14,7 +14,7 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 ### Stack Tecnológica
 - **Frontend**: React 19 + TypeScript + Vite + TailwindCSS
 - **Backend**: Node.js + Express + TypeScript
-- **IA**: Múltiplos provedores (Gemini, Ollama, OpenRouter)
+- **IA**: Múltiplos provedores (Ollama, OpenRouter)
 - **Banco de Dados**: Neo4j (armazenamento vetorial e grafos)
 - **RAG**: Busca semântica com embeddings configuráveis
 
@@ -28,9 +28,9 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
   - `MODEL_OLLAMA` (ex: granite3.3:8b, llama3.1:latest)
   - `EMBEDDING_MODEL` (ex: nomic-embed-text:latest)
 
-#### 3. OpenRouter
+#### 2. OpenRouter
 - **Modelos**: Qualquer modelo disponível no OpenRouter
-- **Embeddings**: Usa Gemini como fallback
+- **Embeddings**: Usa Ollama como fallback
 - **Configuração**:
   - `OPENROUTER_API_KEY`
   - `MODEL_OPENROUTER` (ex: meta-llama/llama-3.3-70b-instruct:free)

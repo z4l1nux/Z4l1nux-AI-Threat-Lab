@@ -103,6 +103,8 @@ app.get('/api/models/available', async (req, res) => {
     
     const models = [];
     const embeddings = [];
+    const warnings = [];
+    const errors = [];
 
 
     // Ollama models - verificar disponibilidade
@@ -143,12 +145,34 @@ app.get('/api/models/available', async (req, res) => {
       });
     }
 
+    // Validar configuração padrão
+    const defaultConfig = {
+      model: models.length > 0 ? models[0].id : '',
+      provider: models.length > 0 ? models[0].provider : '',
+      embedding: embeddings.length > 0 ? embeddings[0].id : '',
+      embeddingProvider: embeddings.length > 0 ? embeddings[0].provider : ''
+    };
+
+    // Adicionar validações se não há modelos configurados
+    if (models.length === 0) {
+      errors.push('Nenhum modelo configurado. Configure OLLAMA_BASE_URL + MODEL_OLLAMA ou OPENROUTER_API_KEY + MODEL_OPENROUTER');
+    }
+
+    if (embeddings.length === 0) {
+      warnings.push('Nenhum modelo de embedding configurado. Configure EMBEDDING_MODEL ou use o padrão nomic-embed-text:latest');
+    }
+
     const response = {
       models,
       embeddings,
       providers: {
         ollama: isOllamaAvailable,
         openrouter: isOpenRouterAvailable
+      },
+      defaultConfig,
+      validation: {
+        warnings,
+        errors
       }
     };
     

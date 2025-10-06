@@ -45,53 +45,29 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         setModels(data.models || []);
         setEmbeddings(data.embeddings || []);
       } else {
-        console.warn('Falha ao carregar modelos do backend, usando fallback');
-        // Fallback: criar lista baseada nas variáveis de ambiente conhecidas
-        const availableModels = createModelList();
-        const availableEmbeddings = createEmbeddingList();
-        setModels(availableModels);
-        setEmbeddings(availableEmbeddings);
+        console.warn('Falha ao carregar modelos do backend, aguardando configuração');
+        // Fallback: lista vazia - usuário deve configurar .env.local
+        setModels([]);
+        setEmbeddings([]);
       }
     } catch (error) {
       console.error('Erro ao carregar modelos:', error);
-      // Fallback em caso de erro
-      const availableModels = createModelList();
-      const availableEmbeddings = createEmbeddingList();
-      setModels(availableModels);
-      setEmbeddings(availableEmbeddings);
+      // Fallback em caso de erro: lista vazia
+      setModels([]);
+      setEmbeddings([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const createModelList = (): ModelConfig[] => {
-    // Fallback: sempre incluir Gemini como padrão
-    return [
-      {
-        id: 'gemini-1.5-pro',
-        name: 'Gemini 1.5 Pro',
-        provider: 'gemini',
-        available: true
-      },
-      {
-        id: 'gemini-1.5-flash',
-        name: 'Gemini 1.5 Flash',
-        provider: 'gemini',
-        available: true
-      }
-    ];
+    // Fallback: retornar lista vazia, deixar o backend decidir baseado no .env.local
+    return [];
   };
 
   const createEmbeddingList = (): EmbeddingConfig[] => {
-    // Fallback: sempre incluir Gemini embedding como padrão
-    return [
-      {
-        id: 'gemini-embedding-001',
-        name: 'Gemini Embedding 001',
-        provider: 'gemini',
-        available: true
-      }
-    ];
+    // Fallback: retornar lista vazia, deixar o backend decidir baseado no .env.local
+    return [];
   };
 
   const handleModelChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -150,8 +126,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             ))}
           </select>
           {models.length === 0 && (
-            <p className="text-sm text-gray-400 mt-1">
-              Nenhum modelo configurado. Configure as variáveis de ambiente.
+            <p className="text-sm text-yellow-400 mt-1">
+              ⚠️ Nenhum modelo configurado. Configure OLLAMA_BASE_URL, MODEL_OLLAMA ou OPENROUTER_API_KEY no .env.local
             </p>
           )}
         </div>
@@ -175,8 +151,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
             ))}
           </select>
           {embeddings.length === 0 && (
-            <p className="text-sm text-gray-400 mt-1">
-              Nenhum modelo de embedding configurado.
+            <p className="text-sm text-yellow-400 mt-1">
+              ⚠️ Nenhum modelo de embedding configurado. Configure EMBEDDING_MODEL no .env.local
             </p>
           )}
         </div>
