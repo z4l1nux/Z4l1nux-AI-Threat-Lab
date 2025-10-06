@@ -1,21 +1,21 @@
 import * as dotenv from "dotenv";
-import { GeminiSearchFactory } from "../core/search/GeminiSearchFactory";
+import { SemanticSearchFactory } from "../core/search/SemanticSearchFactory";
 import { Neo4jClient } from "../core/graph/Neo4jClient";
 
 dotenv.config({ path: '../../../.env.local' });
 
 async function testRAGSystem() {
-  let searchFactory: GeminiSearchFactory | null = null;
+  let searchFactory: SemanticSearchFactory | null = null;
   
   try {
     console.log("🧪 Testando sistema RAG completo...");
     
     // Inicializar sistema
-    searchFactory = GeminiSearchFactory.criarBusca();
+    searchFactory = new SemanticSearchFactory();
     await searchFactory.initialize();
     
     // Verificar cache inicial
-    const initialStats = await searchFactory.obterEstatisticas();
+    const initialStats = await searchFactory.getStatistics();
     console.log(`📊 Estado inicial: ${initialStats.totalDocumentos} documentos, ${initialStats.totalChunks} chunks`);
     
     // Adicionar documento de teste se cache estiver vazio
@@ -79,7 +79,7 @@ Ataque que força usuários autenticados a executar ações não intencionais.
         }
       };
       
-      await searchFactory.processarDocumento(testDocument);
+      await searchFactory.processDocument(testDocument);
       console.log("✅ Documento de teste adicionado");
     }
     
@@ -98,15 +98,15 @@ Ataque que força usuários autenticados a executar ações não intencionais.
       console.log(`\n📋 Query: "${query}"`);
       
       try {
-        const results = await searchFactory.buscar(query, 3);
+        const results = await searchFactory.search(query, 3);
         console.log(`✅ Encontrados ${results.length} resultados`);
         
-        results.forEach((result, index) => {
+        results.forEach((result: any, index: number) => {
           console.log(`  ${index + 1}. Score: ${result.score.toFixed(3)} - ${result.documento.pageContent.substring(0, 100)}...`);
         });
         
         // Teste de contexto RAG
-        const contextData = await searchFactory.buscarContextoRAG(query, 2);
+        const contextData = await searchFactory.searchRAGContext(query, 2);
         console.log(`📊 Contexto: ${contextData.context.length} chars, Confiança: ${contextData.confidence.toFixed(1)}%`);
         
       } catch (error) {
@@ -115,7 +115,7 @@ Ataque que força usuários autenticados a executar ações não intencionais.
     }
     
     // Estatísticas finais
-    const finalStats = await searchFactory.obterEstatisticas();
+    const finalStats = await searchFactory.getStatistics();
     console.log(`\n📊 Estado final: ${finalStats.totalDocumentos} documentos, ${finalStats.totalChunks} chunks`);
     
     console.log("\n✅ Teste RAG concluído com sucesso!");
@@ -133,7 +133,7 @@ Ataque que força usuários autenticados a executar ações não intencionais.
 async function testPerformance() {
   console.log("\n⚡ Teste de performance...");
   
-  const searchFactory = GeminiSearchFactory.criarBusca();
+  const searchFactory = new SemanticSearchFactory();
   await searchFactory.initialize();
   
   const query = "ameaças de segurança em aplicações web";
@@ -142,7 +142,7 @@ async function testPerformance() {
   
   for (let i = 0; i < iterations; i++) {
     const start = Date.now();
-    await searchFactory.buscar(query, 5);
+    await searchFactory.search(query, 5);
     const end = Date.now();
     times.push(end - start);
     console.log(`  Iteração ${i + 1}: ${end - start}ms`);

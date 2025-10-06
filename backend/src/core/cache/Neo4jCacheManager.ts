@@ -90,17 +90,12 @@ export class Neo4jCacheManager {
   }
 
         async processDocumentFromMemory(document: DocumentUpload, modelConfig?: any): Promise<void> {
-          // Determinar labels baseados no provedor de embedding
-          // Usar Ollama como padrão
-          let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
-    
-    const labels = this.getEmbeddingLabels(embeddingProvider);
-    
-    const session = this.driver.session();
+          // Usar estrutura unificada (sem labels específicos de provedor)
+          const session = this.driver.session();
     
     try {
       const provider = modelConfig?.provider || 'ollama';
-      console.log(`🧠 Processando documento com ${provider} usando labels ${labels.documentLabel}: ${document.name}`);
+      console.log(`🧠 Processando documento com ${provider}: ${document.name}`);
       
       // Gerar hash do conteúdo (para detectar mudanças)
       const documentHash = crypto.createHash('sha256').update(document.content).digest('hex');
@@ -110,7 +105,7 @@ export class Neo4jCacheManager {
       
       // Verificar se documento já existe
       const existingDoc = await session.run(`
-        MATCH (d:${labels.documentLabel} {id: $documentId})
+        MATCH (d:Document {id: $documentId})
         RETURN d.hash as hash
       `, { documentId });
 
@@ -122,7 +117,7 @@ export class Neo4jCacheManager {
           console.log(`🔄 Documento existente encontrado, atualizando: ${document.name}`);
           // Deletar chunks antigos
         await session.run(`
-          MATCH (d:${labels.documentLabel} {id: $documentId})-[:CONTAINS]->(c:${labels.chunkLabel})
+          MATCH (d:Document {id: $documentId})-[:CONTAINS]->(c:Chunk)
           DETACH DELETE c
         `, { documentId });
         } else {
@@ -146,7 +141,7 @@ export class Neo4jCacheManager {
         try {
           let embedding: number[];
           
-          if (embeddingProvider === 'ollama') {
+          if (provider === 'ollama') {
             // Usar Ollama para embeddings
             console.log(`🔗 Usando Ollama para embedding do chunk ${i + 1}`);
             try {
@@ -209,7 +204,7 @@ export class Neo4jCacheManager {
       await session.executeWrite(async (tx) => {
         // Inserir/atualizar documento
         await tx.run(`
-          MERGE (d:${labels.documentLabel} {id: $documentId})
+          MERGE (d:Document {id: $documentId})
           SET d.name = $name,
               d.hash = $hash,
               d.content = $content,
@@ -233,7 +228,7 @@ export class Neo4jCacheManager {
           const chunkId = `${documentId}_chunk_${i}`;
           
           await tx.run(`
-            CREATE (c:${labels.chunkLabel} {
+            CREATE (c:Chunk {
               id: $chunkId,
               documentId: $documentId,
               content: $content,
@@ -267,7 +262,7 @@ export class Neo4jCacheManager {
       });
 
       const action = shouldUpdate ? 'atualizado' : 'criado';
-      console.log(`✅ Documento ${action} com ${embeddingProvider}: ${document.name} (${chunks.length} chunks)`);
+      console.log(`✅ Documento ${action} com ${provider}: ${document.name} (${chunks.length} chunks)`);
       
     } catch (error: any) {
       console.error(`❌ Erro ao processar documento: ${document.name}`, error);
@@ -278,22 +273,17 @@ export class Neo4jCacheManager {
   }
 
         async search(query: string, limit: number = 8, modelConfig?: any): Promise<Neo4jSearchResult[]> {
-          // Determinar labels baseados no provedor de embedding
-          // Usar Ollama como padrão
-          let embeddingProvider = modelConfig?.embeddingProvider || 'ollama';
-    
-    const labels = this.getEmbeddingLabels(embeddingProvider);
-    
-    const session = this.driver.session();
+          // Usar estrutura unificada (sem labels específicos de provedor)
+          const session = this.driver.session();
     
     try {
       // Gerar embedding da query
-      const provider = embeddingProvider;
-      console.log(`🔍 Gerando embedding ${provider} para query usando labels ${labels.chunkLabel}: "${query.substring(0, 50)}..."`);
+      const provider = modelConfig?.embeddingProvider || 'ollama';
+      console.log(`🔍 Gerando embedding ${provider} para query: "${query.substring(0, 50)}..."`);
       
       let queryEmbedding: number[];
       
-      if (embeddingProvider === 'ollama') {
+      if (provider === 'ollama') {
         // Usar Ollama para embeddings
         console.log(`🔗 Usando Ollama para embedding da query`);
         try {
@@ -346,7 +336,7 @@ export class Neo4jCacheManager {
         const result = await session.run(`
           CALL db.index.vector.queryNodes('chunk_embeddings', $k, $queryEmbedding)
           YIELD node AS chunk, score
-          MATCH (d:${labels.documentLabel})-[:CONTAINS]->(chunk)
+          MATCH (d:Document)-[:CONTAINS]->(chunk)
           RETURN chunk, d AS document, score
           ORDER BY score DESC
           LIMIT $limit
@@ -363,7 +353,7 @@ export class Neo4jCacheManager {
         console.warn("⚠️ Índice vetorial não disponível, usando busca por similaridade manual:", vectorError.message);
         
         // Fallback: busca manual por similaridade
-        return await this.manualSimilaritySearch(queryEmbedding, limit, session, labels);
+        return await this.manualSimilaritySearch(queryEmbedding, limit, session);
       }
       
     } catch (error: any) {
@@ -374,10 +364,10 @@ export class Neo4jCacheManager {
     }
   }
 
-  private async manualSimilaritySearch(queryEmbedding: number[], limit: number, session: any, labels: { documentLabel: string; chunkLabel: string }): Promise<Neo4jSearchResult[]> {
+  private async manualSimilaritySearch(queryEmbedding: number[], limit: number, session: any): Promise<Neo4jSearchResult[]> {
     // Buscar todos os chunks e calcular similaridade manualmente
     const result = await session.run(`
-      MATCH (d:${labels.documentLabel})-[:CONTAINS]->(c:${labels.chunkLabel})
+      MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
       RETURN c AS chunk, d AS document
       LIMIT 100
     `);
@@ -504,31 +494,18 @@ export class Neo4jCacheManager {
     const session = this.driver.session();
     
     try {
-            // Contar documentos e chunks de todos os provedores
-            const providers = ['Ollama', 'OpenRouter'];
-      let totalDocumentos = 0;
-      let totalChunks = 0;
+      // Contar todos os documentos e chunks (sem labels específicos de provedor)
+      const result = await session.run(`
+        MATCH (d:Document)
+        OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+        RETURN count(DISTINCT d) AS totalDocumentos, count(c) AS totalChunks
+      `);
       
-      for (const provider of providers) {
-        try {
-          const result = await session.run(`
-            MATCH (d:Document:${provider})
-            OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk:${provider})
-            RETURN count(DISTINCT d) AS totalDocumentos, count(c) AS totalChunks
-          `);
-          
-          const record = result.records[0];
-          const docCount = (record?.get('totalDocumentos') as Integer)?.toNumber() || 0;
-          const chunkCount = (record?.get('totalChunks') as Integer)?.toNumber() || 0;
-          
-          totalDocumentos += docCount;
-          totalChunks += chunkCount;
-          
-          console.log(`📊 ${provider}: ${docCount} documentos, ${chunkCount} chunks`);
-        } catch (error) {
-          console.warn(`⚠️ Erro ao contar estatísticas para ${provider}:`, error);
-        }
-      }
+      const record = result.records[0];
+      const totalDocumentos = (record?.get('totalDocumentos') as Integer)?.toNumber() || 0;
+      const totalChunks = (record?.get('totalChunks') as Integer)?.toNumber() || 0;
+      
+      console.log(`📊 Total: ${totalDocumentos} documentos, ${totalChunks} chunks`);
       
       return { totalChunks, totalDocumentos };
       
