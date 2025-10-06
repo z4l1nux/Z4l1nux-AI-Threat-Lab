@@ -509,7 +509,7 @@ Retorne APENAS o código Mermaid, sem explicações.
     
     // Validação e limpeza robusta
     if (!/^(flowchart|graph)\s+(TD|LR|BT|RL)/i.test(text) || /^mindmap/i.test(text)) {
-      return buildFlowchartFromThreats(threats);
+      return buildFlowchartFromThreats(threats, systemName);
     }
 
     // Limpar texto extra
@@ -518,21 +518,21 @@ Retorne APENAS o código Mermaid, sem explicações.
       return text;
   } catch (error) {
     console.error('Erro ao gerar árvore de ataque:', error);
-    return buildFlowchartFromThreats(threats);
+    return buildFlowchartFromThreats(threats, systemName);
   }
 };
 
 // Função de fallback para criar flowchart básico
-const buildFlowchartFromThreats = (threats: IdentifiedThreat[]): string => {
+const buildFlowchartFromThreats = (threats: IdentifiedThreat[], systemName: string = 'Sistema'): string => {
   // Garantir que threats é um array válido
   if (!Array.isArray(threats) || threats.length === 0) {
-    return 'flowchart TD\n    A[Sistema] --> B[Nenhuma ameaça identificada]';
+    return `flowchart TD\n    A[${systemName}] --> B[Nenhuma ameaça identificada]`;
   }
   
   const categories = [...new Set(threats.map(t => t.strideCategory))];
   
   let mermaid = 'flowchart TD\n';
-  mermaid += '    A[Sistema] --> B[STRIDE]\n';
+  mermaid += `    A[${systemName}] --> B[STRIDE]\n`;
   
   categories.forEach((category, index) => {
     const categoryId = `C${index + 1}`;
