@@ -52,7 +52,7 @@ export class Neo4jCacheManager {
       console.log("🔧 Inicializando Neo4j Cache Manager com labels por provedor...");
       
       // Criar constraints únicos para cada tipo de documento
-      const providers = ['Gemini', 'Ollama', 'OpenRouter'];
+      const providers = ['Ollama', 'OpenRouter'];
       
       for (const provider of providers) {
         await session.run(`
@@ -248,7 +248,7 @@ export class Neo4jCacheManager {
               ...document.metadata,
               chunkIndex: i,
               source: 'memory_upload',
-              embeddingModel: 'gemini-embedding-001'
+              embeddingModel: 'nomic-embed-text:latest'
             })
           });
 
@@ -346,7 +346,7 @@ export class Neo4jCacheManager {
           limit: neo4j.int(limit)
         });
 
-        console.log(`✅ Busca vetorial Gemini encontrou ${result.records.length} resultados`);
+        console.log(`✅ Busca vetorial encontrou ${result.records.length} resultados`);
         return this.parseSearchResults(result);
         
       } catch (vectorError: any) {

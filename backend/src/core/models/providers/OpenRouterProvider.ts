@@ -79,7 +79,7 @@ export class OpenRouterProvider implements ModelProvider {
 
   async generateEmbedding(text: string, model: string): Promise<number[]> {
     // OpenRouter não suporta embeddings diretamente
-    // Usar Gemini como fallback para embeddings
-    throw new Error('OpenRouter não suporta embeddings. Use Gemini para embeddings.');
+    // Usar Ollama como fallback para embeddings
+    throw new Error('OpenRouter não suporta embeddings. Use Ollama para embeddings.');
   }
 }

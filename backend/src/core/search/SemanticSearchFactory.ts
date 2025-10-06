@@ -159,7 +159,7 @@ export class SemanticSearchFactory {
       case 'openrouter':
         return 'text-embedding-3-small';
       case 'gemini':
-        return 'gemini-embedding-001';
+        return 'nomic-embed-text:latest';
       default:
         return 'nomic-embed-text:latest';
     }
