@@ -7,6 +7,7 @@ import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '..
 export class Neo4jCacheManager {
   private driver: Driver;
   private splitter: RecursiveCharacterTextSplitter;
+  private embeddingCache: Map<string, number[]> = new Map();
 
   constructor(
     neo4jUri: string,
@@ -49,6 +50,24 @@ export class Neo4jCacheManager {
   private getEmbeddingModel(modelConfig?: any): string {
     // Prioridade: modelConfig.embedding > EMBEDDING_MODEL > padrão
     return modelConfig?.embedding || process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
+  }
+
+  /**
+   * Limpar cache de embeddings
+   */
+  clearEmbeddingCache(): void {
+    this.embeddingCache.clear();
+    console.log('🧹 Cache de embeddings limpo');
+  }
+
+  /**
+   * Obter estatísticas do cache
+   */
+  getCacheStats(): { size: number; maxSize: number } {
+    return {
+      size: this.embeddingCache.size,
+      maxSize: 100
+    };
   }
 
   async initialize(): Promise<void> {
@@ -283,59 +302,80 @@ export class Neo4jCacheManager {
           const session = this.driver.session();
     
     try {
-      // Gerar embedding da query
+      // Gerar embedding da query com cache
       const provider = modelConfig?.embeddingProvider || 'ollama';
       console.log(`🔍 Gerando embedding ${provider} para query: "${query.substring(0, 50)}..."`);
       
       let queryEmbedding: number[];
       
-      if (provider === 'ollama') {
-        // Usar Ollama para embeddings
-        console.log(`🔗 Usando Ollama para embedding da query`);
-        try {
-          const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: this.getEmbeddingModel(modelConfig),
-              prompt: query
-            })
-          });
-          
-          if (response.ok) {
-            const data = await response.json() as { embedding: number[] };
-            queryEmbedding = data.embedding;
-          } else {
-            throw new Error(`Ollama embedding failed: ${response.statusText}`);
+      // Verificar cache primeiro
+      const cacheKey = `${provider}:${query}`;
+      if (this.embeddingCache.has(cacheKey)) {
+        console.log(`⚡ Cache hit para embedding: "${query.substring(0, 30)}..."`);
+        queryEmbedding = this.embeddingCache.get(cacheKey)!;
+      } else {
+        console.log(`🔄 Cache miss, gerando novo embedding...`);
+        
+        if (provider === 'ollama') {
+          // Usar Ollama para embeddings
+          console.log(`🔗 Usando Ollama para embedding da query`);
+          try {
+            const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: this.getEmbeddingModel(modelConfig),
+                prompt: query
+              })
+            });
+            
+            if (response.ok) {
+              const data = await response.json() as { embedding: number[] };
+              queryEmbedding = data.embedding;
+              
+              // Armazenar no cache (limitar tamanho do cache)
+              if (this.embeddingCache.size < 100) {
+                this.embeddingCache.set(cacheKey, queryEmbedding);
+                console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
+              }
+            } else {
+              throw new Error(`Ollama embedding failed: ${response.statusText}`);
+            }
+          } catch (error) {
+            console.error(`❌ Erro com Ollama embedding:`, error);
+            throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
-        } catch (error) {
-          console.error(`❌ Erro com Ollama embedding:`, error);
-          throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        }
-             } else {
-               // Fallback para Ollama se não for especificado
-               console.log(`🔗 Usando Ollama para embedding da query (fallback)`);
-               try {
-                 const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
-                   method: 'POST',
-                   headers: { 'Content-Type': 'application/json' },
-                   body: JSON.stringify({
-                     model: this.getEmbeddingModel(modelConfig),
-                     prompt: query
-                   })
-                 });
+        } else {
+          // Fallback para Ollama se não for especificado
+          console.log(`🔗 Usando Ollama para embedding da query (fallback)`);
+          try {
+            const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: this.getEmbeddingModel(modelConfig),
+                prompt: query
+              })
+            });
 
-                 if (response.ok) {
-                   const data = await response.json() as { embedding: number[] };
-                   queryEmbedding = data.embedding;
-                 } else {
-                   throw new Error(`Ollama embedding failed: ${response.statusText}`);
-                 }
-               } catch (error) {
-                 console.error(`❌ Erro com Ollama embedding:`, error);
-                 throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
-               }
-             }
+            if (response.ok) {
+              const data = await response.json() as { embedding: number[] };
+              queryEmbedding = data.embedding;
+              
+              // Armazenar no cache (limitar tamanho do cache)
+              if (this.embeddingCache.size < 100) {
+                this.embeddingCache.set(cacheKey, queryEmbedding);
+                console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
+              }
+            } else {
+              throw new Error(`Ollama embedding failed: ${response.statusText}`);
+            }
+          } catch (error) {
+            console.error(`❌ Erro com Ollama embedding:`, error);
+            throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+      }
       
       // Tentar busca vetorial primeiro
       try {

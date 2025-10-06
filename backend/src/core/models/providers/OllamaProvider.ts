@@ -6,6 +6,7 @@ export class OllamaProvider implements ModelProvider {
   private baseUrl: string;
   private timeout: number;
   private maxRetries: number;
+  private modelWarmup: Map<string, boolean> = new Map();
 
   constructor() {
     this.baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
@@ -23,10 +24,49 @@ export class OllamaProvider implements ModelProvider {
     }
   }
 
+  /**
+   * Aquecer modelo com uma requisição simples para evitar timeout na primeira chamada real
+   */
+  private async warmupModel(model: string): Promise<void> {
+    if (this.modelWarmup.get(model)) {
+      return; // Já foi aquecido
+    }
+
+    try {
+      console.log(`🔥 OllamaProvider: Aquecendo modelo ${model}...`);
+      const warmupResponse = await fetch(`${this.baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt: "Hello",
+          stream: false,
+          options: {
+            temperature: 0.1,
+            num_predict: 1
+          }
+        })
+      });
+
+      if (warmupResponse.ok) {
+        this.modelWarmup.set(model, true);
+        console.log(`✅ OllamaProvider: Modelo ${model} aquecido com sucesso`);
+      } else {
+        console.warn(`⚠️ OllamaProvider: Falha no warmup do modelo ${model}, mas continuando...`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ OllamaProvider: Erro no warmup do modelo ${model}:`, error);
+      // Não falhar por causa do warmup
+    }
+  }
+
   async generateContent(prompt: string, model: string, format?: any): Promise<string> {
     console.log(`🔧 OllamaProvider: Gerando conteúdo com modelo ${model}`);
     console.log(`🔧 OllamaProvider: URL: ${this.baseUrl}/api/generate`);
     console.log(`🔧 OllamaProvider: Structured output: ${format ? 'Sim' : 'Não'}`);
+    
+    // Aquecer modelo na primeira tentativa para evitar timeout
+    await this.warmupModel(model);
     
     // Verificar se o modelo está disponível primeiro
     try {
@@ -47,10 +87,12 @@ export class OllamaProvider implements ModelProvider {
         console.log(`🔧 OllamaProvider: Tentativa ${attempt}/${this.maxRetries}`);
         
         const controller = new AbortController();
+        // Timeout maior na primeira tentativa (modelo pode estar carregando)
+        const currentTimeout = attempt === 1 ? this.timeout * 2 : this.timeout;
         const timeoutId = setTimeout(() => {
-          console.log(`⏰ OllamaProvider: Timeout após ${this.timeout}ms na tentativa ${attempt}`);
+          console.log(`⏰ OllamaProvider: Timeout após ${currentTimeout}ms na tentativa ${attempt}`);
           controller.abort();
-        }, this.timeout);
+        }, currentTimeout);
         
         let requestBody: any;
         const endpoint = `${this.baseUrl}/api/generate`;

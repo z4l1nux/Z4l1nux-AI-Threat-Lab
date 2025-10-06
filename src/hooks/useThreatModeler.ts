@@ -165,7 +165,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
         generatedAt: new Date().toISOString(),
       };
       try {
-        const mermaid = await generateAttackTreeMermaid(identifiedThreats, modelConfig);
+        const mermaid = await generateAttackTreeMermaid(identifiedThreats, currentSystemInfo.systemName, modelConfig);
         setReportData({ ...newReportData, attackTreeMermaid: mermaid });
       } catch (err) {
         console.warn('Falha ao gerar Mermaid de árvore de ataque:', err);
@@ -195,23 +195,21 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
     setError(null);
 
     try {
-      const { threats: refinedThreats } = await refineAnalysis(
+      const modelConfig = getModelConfig();
+      await refineAnalysis(
         currentMarkdown,
         modelConfig
       );
 
+      // Para refinamento, mantemos as ameaças originais e apenas atualizamos o markdown
       const newReportData: ReportData = {
         systemInfo: systemInfo, // Keep original system info
-        threats: refinedThreats,
+        threats: threats || [], // Keep original threats
         generatedAt: new Date().toISOString(), // Update timestamp
       };
-      try {
-        const mermaid = await generateAttackTreeMermaid(refinedThreats, modelConfig);
-        setReportData({ ...newReportData, attackTreeMermaid: mermaid });
-      } catch (err) {
-        console.warn('Falha ao gerar Mermaid após refinamento:', err);
-        setReportData(newReportData);
-      }
+      
+      // Não geramos novo Mermaid para refinamento, mantemos o original
+      setReportData(newReportData);
 
     } catch (e: any) {
       console.error("Erro ao refinar análise:", e);

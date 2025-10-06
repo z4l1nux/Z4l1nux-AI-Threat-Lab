@@ -455,34 +455,40 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
  */
 export const generateAttackTreeMermaid = async (
   threats: IdentifiedThreat[],
+  systemName: string,
   modelConfig?: any
 ): Promise<string> => {
   try {
     // Garantir que threats é um array válido
     if (!Array.isArray(threats) || threats.length === 0) {
       console.warn('generateAttackTreeMermaid: threats não é um array válido:', threats);
-      return 'flowchart TD\n    A[Sistema] --> B[Nenhuma ameaça identificada]';
+      return `flowchart TD\n    A[${systemName}] --> B[Nenhuma ameaça identificada]`;
     }
     
     // Prompt melhorado baseado na abordagem Python
     const prompt = `
 Você é um especialista em modelagem de ameaças. Analise as ameaças fornecidas e crie uma Árvore de Ataque estruturada.
 
+SISTEMA: ${systemName}
+
 Ameaças Identificadas:
 ${threats.map(t => `- ${t.elementName}: ${t.threatScenario} (${t.strideCategory})`).join('\n')}
 
 Crie um diagrama Mermaid que mostre:
-1. Nó raiz com o sistema
+1. Nó raiz com o nome do sistema: "${systemName}"
 2. Categorias STRIDE como nós principais
 3. Ameaças específicas como folhas
 4. Relacionamentos entre ameaças
 
 Use esta estrutura:
 - flowchart TD
-- Nós retangulares para categorias
+- Nó raiz: ${systemName}[${systemName}]
+- Nós retangulares para categorias STRIDE
 - Nós circulares para ameaças específicas
 - Labels em português
 - Máximo 20 nós para legibilidade
+
+IMPORTANTE: O nó raiz DEVE usar o nome exato do sistema: "${systemName}"
 
 Retorne APENAS o código Mermaid, sem explicações.
 `;
