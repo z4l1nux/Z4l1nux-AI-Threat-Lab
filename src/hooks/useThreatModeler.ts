@@ -23,8 +23,6 @@ export const useThreatModeler = () => {
         const response = await fetch(`${BACKEND_URL}/api/stride-capec-mapping`);
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          
           if (response.status === 503) {
             console.warn('⚠️ Sistema RAG não inicializado');
             setError("⚠️ Sistema RAG não inicializado. Por favor:\n1. Inicialize o sistema RAG no painel lateral\n2. Faça upload do arquivo JSON de mapeamento STRIDE-CAPEC\n3. Tente gerar o modelo novamente");
@@ -39,6 +37,7 @@ export const useThreatModeler = () => {
             return;
           }
           
+          const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.message || `Erro HTTP! status: ${response.status}`);
         }
         

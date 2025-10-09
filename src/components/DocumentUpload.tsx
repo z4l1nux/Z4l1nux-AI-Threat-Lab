@@ -44,12 +44,32 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({ onFileUpload, isLoading
     <div className="bg-custom-blue rounded-lg p-6 mb-6">
       <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
         <span className="text-z4l1nux-primary mr-2">📁</span>
-        Documentos de Contexto (Opcional)
+        Documentos de Contexto
       </h3>
       
       <p className="text-gray-300 text-sm mb-4">
         Envie documentos sobre o sistema para enriquecer a análise de ameaças. A IA utilizará essas informações para gerar um relatório mais preciso e contextualizado.
       </p>
+
+      {/* Referências */}
+      <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-600">
+        <h4 className="text-white font-medium mb-2 flex items-center">
+          <span className="text-z4l1nux-primary mr-2">📚</span>
+          Referência CAPEC-STRIDE
+        </h4>
+        <div className="text-sm text-gray-300">
+          <p className="mb-2">Para análise de ameaças mais precisa, consulte:</p>
+          <a 
+            href="https://www.ostering.com/media/files/docs/capec-stride-mapping.md" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-z4l1nux-primary hover:text-orange-400 underline"
+          >
+            Mapeamento CAPEC-STRIDE (Ostring)
+          </a>
+          <span className="text-gray-500 ml-2">- Mapeamento entre categorias STRIDE e padrões de ataque CAPEC</span>
+        </div>
+      </div>
 
       <div
         className={`

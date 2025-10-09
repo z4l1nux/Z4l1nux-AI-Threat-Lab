@@ -187,7 +187,7 @@ npm run dev
 - Armazenamento persistente no Neo4j com índices vetoriais
 - Cache inteligente com TTL configurável
 - Suporte a múltiplos provedores de embeddings
-- Sem duplicação de documentos (atualização inteligente)
+
 
 ## Testes
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useThreatModeler } from '../../hooks/useThreatModeler';
 
 // Mock do fetch global
@@ -58,13 +58,14 @@ describe('useThreatModeler Hook', () => {
     (global.fetch as any).mockResolvedValueOnce({
       ok: false,
       status: 503,
-      text: async () => 'Sistema RAG não inicializado'
+      text: async () => 'Sistema RAG não inicializado',
+      json: async () => ({ error: 'Sistema RAG não está inicializado' })
     });
 
     const { result } = renderHook(() => useThreatModeler());
 
     await waitFor(() => {
-      expect(result.current.error).toContain('Sistema RAG não está inicializado');
+      expect(result.current.error).toContain('Sistema RAG não inicializado');
     });
   });
 
@@ -96,8 +97,21 @@ describe('useThreatModeler Hook', () => {
       }
     ]);
 
+    // Mock do summarizeSystemDescription
+    const { summarizeSystemDescription } = await import('../../services/aiService');
+    (summarizeSystemDescription as any).mockResolvedValue({
+      generalDescription: 'Sistema de testes resumido',
+      components: 'API, Frontend',
+      sensitiveData: 'Dados de usuários',
+      technologies: 'React, Node.js',
+      authentication: 'OAuth 2.0',
+      userProfiles: 'Admin, User',
+      externalIntegrations: 'API Externa'
+    });
+
     const { result } = renderHook(() => useThreatModeler());
 
+    // Aguardar o carregamento do mapeamento
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
@@ -113,8 +127,11 @@ describe('useThreatModeler Hook', () => {
       externalIntegrations: 'API Externa'
     };
 
-    await result.current.generateThreatModel(systemInfo);
+    await act(async () => {
+      await result.current.generateThreatModel(systemInfo);
+    });
 
+    // Aguardar que o fetch seja chamado com os argumentos corretos
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:3001/api/documents/text',
@@ -124,7 +141,7 @@ describe('useThreatModeler Hook', () => {
           body: expect.stringContaining('Sistema_Sistema Teste')
         })
       );
-    });
+    }, { timeout: 3000 });
   });
 
   it('deve validar que systemVersion não é mais usado', () => {

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { summarizeSystemDescription } from '../../services/aiService';
 
+// Mock do fetch global
+global.fetch = vi.fn();
+
 // Mock do Google GenAI
 vi.mock('@google/genai', () => ({
   GoogleGenAI: vi.fn().mockImplementation(() => ({
@@ -13,26 +16,26 @@ vi.mock('@google/genai', () => ({
 describe('geminiService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (global.fetch as any).mockClear();
   });
 
   describe('summarizeSystemDescription', () => {
     it('deve resumir descrição do sistema corretamente', async () => {
-      const { GoogleGenAI } = await import('@google/genai');
-      const mockGenAI = new GoogleGenAI({ apiKey: 'test-key' });
-      
-      const mockResponse = {
-        text: JSON.stringify({
-          generalDescription: 'Sistema de gestão farmacêutica',
-          components: 'Frontend React, Backend Node.js, MySQL',
-          sensitiveData: 'Dados de saúde, prescrições médicas',
-          technologies: 'React, Node.js, MySQL, Redis',
-          authentication: 'OAuth 2.0, JWT',
-          userProfiles: 'Admin, Farmacêutico, Cliente',
-          externalIntegrations: 'ANVISA, Operadoras de Saúde'
+      // Mock do backend response
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: JSON.stringify({
+            generalDescription: 'Sistema de gestão farmacêutica',
+            components: 'Frontend React, Backend Node.js, MySQL',
+            sensitiveData: 'Dados de saúde, prescrições médicas',
+            technologies: 'React, Node.js, MySQL, Redis',
+            authentication: 'OAuth 2.0, JWT',
+            userProfiles: 'Admin, Farmacêutico, Cliente',
+            externalIntegrations: 'ANVISA, Operadoras de Saúde'
+          })
         })
-      };
-
-      vi.spyOn(mockGenAI.models, 'generateContent').mockResolvedValue(mockResponse as any);
+      });
 
       const fullDescription = `
         Sistema de gestão para farmácias com controle de estoque,
@@ -48,17 +51,16 @@ describe('geminiService', () => {
     });
 
     it('deve retornar valores padrão quando campos estão vazios', async () => {
-      const { GoogleGenAI } = await import('@google/genai');
-      const mockGenAI = new GoogleGenAI({ apiKey: 'test-key' });
-      
-      const mockResponse = {
-        text: JSON.stringify({
-          generalDescription: '',
-          components: ''
+      // Mock do backend response com campos vazios
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          content: JSON.stringify({
+            generalDescription: '',
+            components: ''
+          })
         })
-      };
-
-      vi.spyOn(mockGenAI.models, 'generateContent').mockResolvedValue(mockResponse as any);
+      });
 
       const result = await summarizeSystemDescription('Descrição simples');
 

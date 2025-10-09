@@ -48,7 +48,7 @@ const RAGPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center">
-          🧠 Sistema RAG (Retrieval-Augmented Generation)
+          Retrieval Augmented Generation
         </h2>
         <div className="flex items-center space-x-3">
           <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>

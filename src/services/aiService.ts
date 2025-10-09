@@ -610,6 +610,11 @@ export const summarizeSystemDescription = async (
   fullDescription: string,
   modelConfig?: any
 ): Promise<SystemInfo> => {
+  // Validar se a descrição não está vazia
+  if (!fullDescription || fullDescription.trim() === '') {
+    throw new Error('Descrição do sistema não informada');
+  }
+
   // Para resumos, sempre usar complexidade simples
   const complexity = 'SIMPLE' as const;
   console.log(`[AI Service] Executando resumo do sistema com complexidade: ${complexity}`);
