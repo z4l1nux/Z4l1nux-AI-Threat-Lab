@@ -333,10 +333,7 @@ RETURN count(doc) as VersõesAntigasDeletadas
 ```cypher
 // ⚠️ ATENÇÃO: Remove TODOS os documentos e chunks da base!
 // Use apenas se tiver certeza absoluta
-MATCH (d:Document)
-OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
-DETACH DELETE c, d
-RETURN count(d) as DocumentosDeletados
+cd z4 
 ```
 
 ### 📊 **Listar todos os sistemas processados:**
