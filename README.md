@@ -3,125 +3,127 @@
 ## Descrição
 
 Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores de IA e RAG (Retrieval-Augmented Generation) para:
-- Analisar sistemas e identificar ameaças STRIDE
-- Mapear ameaças para padrões CAPEC
-- Sugerir mitigações e avaliar impactos
-- Gerar relatórios completos em PDF
-- Criar árvores de ataque interativas
+- Análise STRIDE automatizada com mapeamento CAPEC
+- **Editor Visual de Diagramas** (DFD drag-and-drop)
+- **Detecção automática de componentes IA/ML**
+- Sugestões de mitigações contextualizadas
+- Relatórios completos em PDF + Árvores de Ataque
+
+## ⚡ Novidades Principais
+
+### 🎨 Editor Visual de Diagramas
+- **Drag-and-drop** de 46 assets pré-definidos (AI/ML, Data, Storage, Services, etc.)
+- **3 templates prontos**: LLM Chatbot, Web App, ML Pipeline
+- **Trust Boundaries visuais**: External, Internal, DMZ, Third-party
+- **Análise automática de fluxos**: Detecta cross-boundary e dados não criptografados
+- **Exportação/Importação** de diagramas em JSON
+
+![Editor Visual de Diagramas](src/pictures/visualEditor.png)
+*Editor visual com drag-and-drop, trust boundaries e análise automática de fluxos*
+
+### 🤖 Threat Modeling com IA
+- **Detecção automática de IA/ML**: Keywords de LLM, RAG, ML Pipeline, etc.
+- **RAG com Queries Paralelas**: 5 queries simultâneas (STRIDE, componentes, tech, integrações, IA)
+- **Base de conhecimento especializada**:
+  - OWASP LLM Top 10 (2025)
+  - AI TRiSM Framework (Gartner)
+  - AI Regulations (EU AI Act, GDPR, LGPD)
+  - AI Blind Spots & Challenges
+- **Framework contextual**: OWASP LLM (LLM01-10) para IA, OWASP Web (A01:2021) para tradicional
+- **Análise de fluxos**: Ameaças específicas para data flows e trust boundaries
 
 ## Arquitetura
 
 ### Stack Tecnológica
 - **Frontend**: React 19 + TypeScript + Vite + TailwindCSS
+- **Visual Editor**: ReactFlow (node-based diagrams)
 - **Backend**: Node.js + Express + TypeScript
-- **IA**: Múltiplos provedores (Ollama, OpenRouter)
-- **Banco de Dados**: Neo4j (armazenamento vetorial e grafos)
-- **RAG**: Busca semântica com embeddings configuráveis
+- **IA**: Ollama (local) + OpenRouter (cloud)
+- **Banco de Dados**: Neo4j (vetorial + grafos)
+- **RAG**: Busca semântica com embeddings + cache inteligente
 
 ### Provedores de IA Suportados
 
-#### 2. Ollama (Modelos Locais)
-- **Modelos**: Qualquer modelo disponível no Ollama
-- **Embeddings**: Modelos de embedding do Ollama (nomic-embed-text)
+#### 1. Ollama (Modelos Locais)
+- **Modelos**: Qualquer modelo do Ollama (llama3.1, granite3.3, etc.)
+- **Embeddings**: nomic-embed-text:latest
 - **Configuração**: 
-  - `OLLAMA_BASE_URL` (ex: http://172.21.112.1:11434)
-  - `MODEL_OLLAMA` (ex: granite3.3:8b, llama3.1:latest)
-  - `EMBEDDING_MODEL` (ex: nomic-embed-text:latest)
+  ```env
+  OLLAMA_BASE_URL=http://172.21.112.1:11434
+  MODEL_OLLAMA=llama3.1:latest
+  EMBEDDING_MODEL=nomic-embed-text:latest
+  OLLAMA_TIMEOUT=180000  # 3 minutos
+  ```
 
-#### 2. OpenRouter
-- **Modelos**: Qualquer modelo disponível no OpenRouter
-- **Embeddings**: Usa Ollama como fallback
+#### 2. OpenRouter (Modelos Cloud)
+- **Modelos**: Meta Llama 3.3 70B (free), Claude, GPT-4, etc.
+- **Embeddings**: Fallback para Ollama
 - **Configuração**:
-  - `OPENROUTER_API_KEY`
-  - `MODEL_OPENROUTER` (ex: meta-llama/llama-3.3-70b-instruct:free)
+  ```env
+  OPENROUTER_API_KEY=sk-or-v1-...
+  MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+  ```
 
-### Sistema RAG
-- **Processamento Automático**: Sistema envia informações ao backend automaticamente
-- **Busca Vetorial**: Embeddings configuráveis + Neo4j com índices vetoriais
-- **Mapeamento Dinâmico**: STRIDE-CAPEC carregado via upload de documentos
-- **Contexto Inteligente**: Análise enriquecida com base de conhecimento
-- **Formatos Suportados**: PDF, DOCX, DOC, TXT, MD, XML, JSON, CSV
-- **Cache Inteligente**: Sistema de cache com TTL configurável
-- **Múltiplos Provedores**: Suporte a diferentes provedores de IA e embeddings
-
-### Seleção de Modelos
-- **Interface Dinâmica**: Dropdowns para seleção de modelos em tempo real
-- **Verificação de Disponibilidade**: Sistema verifica automaticamente quais modelos estão disponíveis
-- **Fallback Inteligente**: Sistema usa modelos alternativos se o principal falhar
-- **Configuração Flexível**: Suporte a modelos locais e remotos
+### Sistema RAG Avançado
+- **Queries Paralelas**: 5 queries simultâneas para análise completa
+- **Deduplicação inteligente**: Por chunk e versão de documento
+- **Busca Vetorial**: Neo4j com índices otimizados (768 dimensões)
+- **Cache com TTL**: Reduz latência em 80%
+- **Formatos**: PDF, DOCX, DOC, TXT, MD, XML, JSON, CSV
 
 ## Pré-requisitos
 
 - Node.js 18+
-- npm ou yarn
-- Docker e Docker Compose
-- **Pelo menos um dos seguintes provedores de IA:**
-
-  - Ollama: Instalação local do Ollama (https://ollama.ai)
-  - OpenRouter: Conta e chave de API (https://openrouter.ai)
+- Docker + Docker Compose (para Neo4j)
+- **Pelo menos um provedor de IA:**
+  - Ollama: Instalação local (https://ollama.ai)
+  - OpenRouter: Conta + API key (https://openrouter.ai)
 
 ## Instalação
 
-1. Clone o repositório:
+1. **Clone o repositório:**
    ```bash
    git clone <url-do-repo>
    cd threat-modeling-co-pilot-with-ai-3
    ```
 
-2. Instale as dependências:
+2. **Instale as dependências:**
    ```bash
    npm install
-   # ou
-   yarn install
    ```
 
-3. Configure as variáveis de ambiente:
+3. **Configure o `.env.local`:**
+   ```env
+   # Neo4j (OBRIGATÓRIO)
+   NEO4J_URI=bolt://localhost:7687
+   NEO4J_USER=neo4j
+   NEO4J_PASSWORD=sua_senha_segura_aqui
    
-   Crie um arquivo `.env.local` na raiz do projeto com as configurações necessárias:
-     ```env
-     # Configurações do servidor backend
-     BACKEND_PORT=3001
-     FRONTEND_URL=http://localhost:5173
-     
-     # Configurações do Neo4j (OBRIGATÓRIO - defina suas próprias credenciais)
-     NEO4J_URI=bolt://localhost:7687
-     NEO4J_USER=neo4j
-     NEO4J_PASSWORD=sua_senha_segura_aqui
-     
-     # Configurações de cache
-     RESPONSE_CACHE_TTL_MS=300000
-     RETRIEVAL_CACHE_TTL_MS=300000
-     
-     # Modo de busca
-     SEARCH_MODE=neo4j
-     
-     # Configurações de upload
-     MAX_FILE_SIZE=10485760
-     ALLOWED_EXTENSIONS=pdf,docx,doc,txt,md,xml,json,csv
-     
-     # === PROVEDORES DE IA (configure pelo menos um) ===
-     
-     # Ollama (modelos locais)
-     OLLAMA_BASE_URL=http://172.21.112.1:11434
-     MODEL_OLLAMA=granite3.3:8b
-     EMBEDDING_MODEL=nomic-embed-text:latest
-     
-     # OpenRouter (modelos remotos)
-     # OPENROUTER_API_KEY=sk-or-my-api-key
-     # MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
-     ```
-     
-     ⚠️ **IMPORTANTE:** 
-     - Substitua `sua_senha_segura_aqui` por uma senha forte para o Neo4j
-     - Configure pelo menos um provedor de IA (Gemini, Ollama ou OpenRouter)
-     - Ajuste `FRONTEND_URL` se estiver usando uma porta diferente
+   # Backend
+   BACKEND_PORT=3001
+   FRONTEND_URL=http://localhost:5173
+   
+   # Ollama (modelos locais)
+   OLLAMA_BASE_URL=http://172.21.112.1:11434
+   MODEL_OLLAMA=llama3.1:latest
+   EMBEDDING_MODEL=nomic-embed-text:latest
+   OLLAMA_TIMEOUT=180000
+   
+   # OpenRouter (modelos cloud - OPCIONAL)
+   OPENROUTER_API_KEY=sk-or-v1-...
+   MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+   
+   # Cache e Upload
+   RESPONSE_CACHE_TTL_MS=300000
+   MAX_FILE_SIZE=10485760
+   ```
 
-4. Iniciar o Neo4j com Docker:
+4. **Inicie o Neo4j:**
    ```bash
    docker-compose up -d
    ```
 
-5. Inicializar o sistema RAG:
+5. **Inicialize o RAG:**
    ```bash
    npm run create-neo4j
    ```
@@ -130,246 +132,189 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 
 ### Iniciar o Sistema
 
-**Opção 1: Tudo junto (Recomendado)**
 ```bash
+# Recomendado: Backend + Frontend juntos
 npm run dev:full
+
+# Ou separadamente:
+npm run dev:backend  # Terminal 1
+npm run dev          # Terminal 2
 ```
 
-**Opção 2: Separadamente**
-```bash
-# Terminal 1 - Backend
-npm run dev:backend
-
-# Terminal 2 - Frontend  
-npm run dev
-```
+Acesse: `http://localhost:5173`
 
 ### Fluxo de Uso
 
-1. **Acesse**: `http://localhost:5173`
+#### Opção 1: Editor Visual (Recomendado para sistemas novos)
 
-2. **Selecione os Modelos**: Use os dropdowns para escolher:
-   - **Modelo de IA**: Para geração de conteúdo (Gemini, Ollama, OpenRouter)
-   - **Modelo de Embedding**: Para busca semântica (Gemini, Ollama)
+1. **Acesse a tab "Editor Visual de Diagramas"**
+2. **Escolha um template** ou **arraste assets** da biblioteca
+3. **Configure trust boundaries** (External, Internal, DMZ, Third-party)
+4. **Conecte os componentes** (data flows)
+5. **Clique em "Analisar Ameaças"** → Sistema gera análise completa
 
-3. **Inicialize o RAG**: Painel esquerdo → "Inicializar Sistema RAG"
+#### Opção 2: Formulário de Texto (Para sistemas existentes)
 
-4. **Upload de Mapeamento STRIDE-CAPEC** (obrigatório):
-   - Faça upload do arquivo de mapeamento (MD, JSON, PDF, etc.)
-   - Nome sugerido: `capec-stride-mapping.md`
+1. **Inicialize o RAG** (Painel esquerdo → "Inicializar Sistema")
+2. **Faça upload da base de conhecimento:**
+   - `capec-stride-mapping-completo.md` (mapeamento STRIDE-CAPEC)
+   - `OWASP-LLM-Top-10.md` (ameaças LLM)
+   - `AI-TRiSM-Framework.md` (framework IA)
+   - Outros documentos relevantes
+3. **Preencha o formulário** com descrição do sistema
+4. **Gere o modelo de ameaças** → Sistema detecta IA automaticamente
 
-5. **Modelar Ameaças**:
-   - Insira a descrição completa do sistema
-   - Clique em "Gerar Modelo de Ameaças"
-   - O sistema buscará automaticamente CAPECs relevantes via RAG
+### Visualizar Resultados
 
-6. **Visualizar Resultados**:
-   - Árvore de Ataque Interativa (Mermaid com zoom/pan)
-   - Exportar relatório PDF
-   - Refinar análise com IA
+- **Tabela de Ameaças**: STRIDE + CAPEC + Mitigações + OWASP Top 10/LLM
+- **Árvore de Ataque Interativa**: Diagrama Mermaid com zoom/pan
+- **Exportar PDF**: Relatório completo para compartilhar
+- **Refinar com IA**: Análise adicional contextualizada
 
-## Funcionalidades
+## Funcionalidades Principais
 
-### Análise de Ameaças
-- Análise STRIDE automática com mapeamento CAPEC
-- Sugestão de mitigações práticas
-- Avaliação de impacto (CRITICAL, HIGH, MEDIUM, LOW)
-- Mapeamento OWASP Top 10
-- Árvore de Ataque Interativa (Mermaid)
-- Exportação de relatório PDF
-- Refinamento com IA
+### Editor Visual de Diagramas
+- **46 Assets Pré-definidos**:
+  - AI/ML: LLM Model, Vector DB, ML Pipeline, Training Data
+  - Data: Database, Cache, Data Lake, Message Queue
+  - Storage: Object Storage, File Storage, Backup
+  - Services: Web App, Backend, Microservice, API Gateway
+  - External: Third-party API, Cloud Service, CDN
+  - Users: End User, Admin, Data Scientist, Developer
+- **Templates Prontos**: LLM Chatbot, Web App, ML Pipeline
+- **Trust Boundaries**: Visualização de zonas de confiança
+- **Análise Automática**: Detecta fluxos cross-boundary e dados não criptografados
 
-### Sistema RAG
-- Upload de documentos (PDF, DOCX, TXT, MD, XML, JSON, CSV)
-- Busca semântica vetorial com embeddings configuráveis
-- Mapeamento STRIDE-CAPEC dinâmico (via upload)
-- Contexto automático para análise de ameaças
-- Armazenamento persistente no Neo4j com índices vetoriais
-- Cache inteligente com TTL configurável
-- Suporte a múltiplos provedores de embeddings
+### Análise de Ameaças com IA
+- **Detecção de IA/ML**: Identifica automaticamente LLM, RAG, ML, embeddings, etc.
+- **STRIDE Completo**: Garante todas as 6 categorias (Spoofing, Tampering, etc.)
+- **CAPEC Únicos**: 85%+ de unicidade, sem repetições
+- **Framework Contextual**: 
+  - OWASP LLM (LLM01-10) para componentes de IA
+  - OWASP Web (A01:2021-A10:2021) para componentes tradicionais
+- **Análise de Fluxos**: Ameaças específicas para data flows e trust boundaries
 
+### Sistema RAG Avançado
+- **Queries Paralelas**: 5 aspectos simultâneos (geral, componentes, tech, integrações, IA)
+- **Base de Conhecimento Especializada**:
+  - OWASP LLM Top 10 (2025)
+  - AI TRiSM Framework (Gartner)
+  - AI Regulations (EU AI Act, GDPR, LGPD)
+  - CAPEC-STRIDE Mapping (400+ CAPECs)
+- **Cache Inteligente**: TTL configurável, reduz latência
+- **Busca Vetorial**: Neo4j com índices otimizados
 
-## Testes
-
-### Testes Unitários (TypeScript)
-
-Testes unitários isolados usando **Vitest** com mocks:
-
-```bash
-# Instalar dependências
-npm install
-
-# Executar testes unitários
-npm test
-
-# Executar com interface UI
-npm run test:ui
-
-# Gerar relatório de cobertura
-npm run test:coverage
-```
-
-**Cobertura de Testes:**
-- ✅ `geminiService.ts` - Funções de IA isoladas
-- ✅ `useThreatModeler.ts` - Hook de modelagem de ameaças
-- ✅ `SystemInputForm.tsx` - Componente de entrada
-- ✅ Validação de remoção do campo "Versão"
-
-### Testes de Integração (Shell Script)
-
-Testes E2E do sistema completo:
-
-```bash
-# Executar testes de integração
-npm run test:integration
-
-# Ou diretamente:
-chmod +x test-rag.sh
-./test-rag.sh
-```
-
-## Documentação
-
-- **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes unitários e integração
-- **[QUERIES_NEO4J.md](src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis para Neo4j
-- **[GUIA_RAPIDO_NEO4J.md](src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
-- **[VALIDACAO_RAG.md](src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
+![Arquitetura RAG](src/pictures/rag-arch.jpg)
+*Arquitetura do sistema RAG com Neo4j, busca vetorial e cache inteligente*
 
 ## Estrutura do Projeto
 
 ```
 threat-modeling-co-pilot-with-ai-3/
-├── src/                          # Frontend React
-│   ├── __tests__/               # 🧪 Testes unitários centralizados
-│   │   ├── setup.ts
-│   │   ├── components/
-│   │   │   └── SystemInputForm.test.tsx
-│   │   ├── hooks/
-│   │   │   └── useThreatModeler.test.ts
-│   │   ├── services/
-│   │   │   ├── aiService.test.ts
-│   │   │   └── geminiService.test.ts
-│   │   ├── TESTES.md           # Guia completo de testes
-│   │   ├── QUERIES_NEO4J.md    # Queries úteis Neo4j
-│   │   └── GUIA_RAPIDO_NEO4J.md # Guia rápido Neo4j
-│   ├── components/              # Componentes React
-│   │   ├── SystemInputForm.tsx
-│   │   ├── ReportDisplay.tsx
-│   │   ├── RAGPanel.tsx
-│   │   ├── ModelSelector.tsx
-│   │   ├── LoadingSpinner.tsx
-│   │   └── DocumentUpload.tsx
-│   ├── hooks/                   # Custom React Hooks
-│   │   ├── useThreatModeler.ts
-│   │   ├── useModelSelection.ts
-│   │   └── useRAGSystem.ts
-│   └── services/                # Serviços
-│       ├── aiService.ts
-│       └── ragService.ts
-├── backend/                     # Backend Node.js
-│   ├── src/
-│   │   ├── server.ts           # Express server
-│   │   ├── core/               # Sistema RAG e IA
-│   │   │   ├── graph/          # Neo4j client
-│   │   │   │   └── Neo4jClient.ts
-│   │   │   ├── cache/          # Cache manager
-│   │   │   ├── search/         # Busca semântica
-│   │   │   │   ├── GeminiSearchFactory.ts
-│   │   │   │   └── SemanticSearchFactory.ts
-│   │   │   └── models/         # Provedores de IA
-│   │   │       ├── providers/  # Gemini, Ollama, OpenRouter
-│   │   │       │   ├── GeminiProvider.ts
-│   │   │       │   ├── OllamaProvider.ts
-│   │   │       │   └── OpenRouterProvider.ts
-│   │   │       ├── ModelFactory.ts
-│   │   │       └── ModelProvider.ts
-│   │   ├── scripts/            # Scripts utilitários
-│   │   │   ├── initNeo4j.ts
-│   │   │   ├── testRAG.ts
-│   │   │   ├── fixVectorIndex.ts
-│   │   │   ├── createVectorIndexes.ts
-│   │   │   └── simplifyNeo4jIndexes.ts
-│   │   ├── types/              # Definições de tipos
-│   │   └── utils/              # Utilidades
-│   │       └── documentLoaders.ts
-│   ├── package.json            # Dependências do backend
-│   └── tsconfig.json           # Configuração TypeScript
-├── test-rag.sh                 # Testes automatizados de integração
-├── docker-compose.yml          # Configuração Neo4j
-├── MODEL_SELECTION.md          # Documentação de seleção de modelos
-├── LICENSE                     # Licença MIT
-├── package.json                # Dependências do frontend
-├── vite.config.ts              # Configuração Vite
-├── vitest.config.ts            # Configuração de testes
-├── tailwind.config.js          # Configuração TailwindCSS
-├── tsconfig.json               # Configuração TypeScript frontend
-└── App.tsx                     # Componente principal
+├── src/                              # Frontend React
+│   ├── components/
+│   │   ├── VisualEditor/            # 🎨 Editor Visual
+│   │   │   ├── VisualEditor.tsx     # Editor principal
+│   │   │   ├── AssetLibrary.tsx     # Biblioteca de assets
+│   │   │   ├── CustomNode.tsx       # Nó customizado
+│   │   │   ├── TrustBoundaryNode.tsx # Nó de trust boundary
+│   │   │   └── TemplateSelector.tsx # Seletor de templates
+│   │   ├── SystemInputForm.tsx      # Formulário de texto
+│   │   ├── ReportDisplay.tsx        # Tabela de ameaças
+│   │   ├── RAGPanel.tsx             # Painel RAG
+│   │   └── ModelSelector.tsx        # Seletor de modelos
+│   ├── data/
+│   │   ├── assetLibrary.ts          # 46 assets pré-definidos
+│   │   └── diagramTemplates.ts      # 3 templates prontos
+│   ├── services/
+│   │   ├── aiService.ts             # 🤖 Serviço de IA (detecção + RAG paralelo)
+│   │   ├── aiThreatsKnowledgeBase.ts # Detecção de IA/ML
+│   │   └── ragService.ts            # Serviço RAG
+│   ├── types/
+│   │   └── visual.ts                # Tipos do editor visual
+│   └── utils/
+│       └── diagramConverter.ts      # Converte diagrama → SystemInfo
+├── backend/src/
+│   ├── server.ts                    # Express server + endpoints
+│   ├── core/
+│   │   ├── models/providers/        # Provedores IA (Ollama, OpenRouter)
+│   │   ├── search/                  # Busca semântica
+│   │   ├── cache/                   # Cache manager
+│   │   └── graph/                   # Neo4j client
+│   └── scripts/
+│       ├── initNeo4j.ts             # Inicialização Neo4j
+│       └── testRAG.ts               # Teste RAG
+├── src/knowledge-base/              # 📚 Base de conhecimento
+│   ├── OWASP-LLM-Top-10.md         # Ameaças LLM (636 linhas)
+│   ├── AI-TRiSM-Framework.md       # Framework IA (501 linhas)
+│   ├── AI-Regulations-Compliance.md # Regulações IA (200+ linhas)
+│   ├── AI-Blind-Spots-Challenges.md # Desafios IA (150+ linhas)
+│   └── capec-stride-mapping-completo.md # 400+ CAPECs (613 linhas)
+├── docker-compose.yml               # Neo4j container
+└── test-rag.sh                      # Testes de integração
 ```
 
-### Exemplo de Prompt para Modelagem de Ameaças: Sistema de Telemedicina
+## Testes
 
-**Nome do Sistema:** HealthConnect
-
-**Objetivo:** Plataforma de telemedicina para agendamento e realização de consultas online, com gerenciamento de prontuários eletrônicos (PEP) e prescrições digitais.
-
-**Componentes Chave:**
-- **Frontends:** Portal do Paciente (Web/Móvel) e Portal do Médico (Web).
-- **Backends:** API Central, serviços de Agendamento, Teleconsulta (WebRTC), PEP e Prescrição Digital.
-- **Dados:** Bancos de Dados de perfil de usuário (MongoDB) e Clínico confidencial (PostgreSQL).
-- **Integrações:** Gateways de pagamento, SMS/E-mail e serviços de assinatura digital.
-
-**Dados Críticos:**
-- **Dados Pessoais de Saúde (DPH):** Prontuários, histórico médico, resultados de exames e prescrições.
-- **Dados Sensíveis:** Informações de identificação do paciente (CPF, nome), credenciais e tokens de pagamento.
-
-**Tecnologias e Infraestrutura:**
-- **Tecnologias:** Vue.js, Flutter, Python, Golang, WebRTC, Kafka.
-- **Infraestrutura:** Containers (Docker), Orquestração (Kubernetes) no Azure.
-- **Segurança:** TLS 1.3, criptografia de ponta a ponta e assinaturas digitais (X.509).
-
-**Fluxos de Usuário:**
-- **Paciente:** Agenda, participa de consultas e acessa dados de saúde.
-- **Médico:** Gerencia agenda, acessa prontuários e emite prescrições.
-- **Administrador:** Gerencia usuários e monitora o sistema.
-
-## Configurações de Timeout
-
-### Ollama (Modelo Local)
-- **Timeout Padrão**: 180 segundos (3 minutos)
-- **Tentativas**: 2 tentativas máximo
-- **Fallback**: OpenRouter automático em caso de falha
-
-### Variáveis de Ambiente Recomendadas
+### Testes Unitários
 ```bash
-# Ollama
-OLLAMA_BASE_URL=http://localhost:11434
-MODEL_OLLAMA=llama3.1:latest
-EMBEDDING_MODEL=nomic-embed-text:latest
-OLLAMA_TIMEOUT=180000  # 3 minutos
-OLLAMA_MAX_RETRIES=2
-
-# OpenRouter (Fallback)
-OPENROUTER_API_KEY=sua_chave_aqui
-MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+npm test                # Executar testes
+npm run test:ui         # Interface UI
+npm run test:coverage   # Relatório de cobertura
 ```
 
-### Ajuste de Timeout
-Para prompts muito complexos, você pode aumentar o timeout:
-- **Padrão**: 180s (3 minutos)
-- **Complexo**: 300s (5 minutos) - `OLLAMA_TIMEOUT=300000`
-- **Muito Complexo**: 600s (10 minutos) - `OLLAMA_TIMEOUT=600000`
+### Testes de Integração
+```bash
+npm run test:integration  # Testes E2E
+./test-rag.sh            # Testes RAG completos
+```
+
+## Documentação
+
+- **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes
+- **[QUERIES_NEO4J.md](src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis
+- **[GUIA_RAPIDO_NEO4J.md](src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
+- **[VALIDACAO_RAG.md](src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
+
+## Configurações Avançadas
+
+### Timeout e Retries
+```env
+OLLAMA_TIMEOUT=180000        # 3 minutos (padrão)
+OLLAMA_MAX_RETRIES=2         # 2 tentativas
+```
+
+Para prompts complexos, aumente o timeout:
+- **Complexo**: 300s (5 min) → `OLLAMA_TIMEOUT=300000`
+- **Muito Complexo**: 600s (10 min) → `OLLAMA_TIMEOUT=600000`
+
+### Cache e Performance
+```env
+RESPONSE_CACHE_TTL_MS=300000   # 5 minutos (cache de respostas)
+RETRIEVAL_CACHE_TTL_MS=300000  # 5 minutos (cache de embeddings)
+```
+
+## Exemplo de Prompt Completo
+
+**Sistema:** HealthConnect
+
+**Descrição:** Plataforma de telemedicina com:
+- **Componentes:** Portal Paciente (Web/Móvel), Portal Médico, API Central, Serviços de Agendamento, Teleconsulta (WebRTC), PEP, Prescrição Digital
+- **Dados:** MongoDB (perfis), PostgreSQL (dados clínicos criptografados)
+- **Integrações:** Gateways de pagamento, SMS/E-mail, Assinatura digital
+- **Tecnologias:** Vue.js, Flutter, Python, Golang, WebRTC, Kafka, Docker, Kubernetes (Azure)
+- **Segurança:** TLS 1.3, E2E encryption, X.509 certificates
+- **Dados Críticos:** Prontuários, histórico médico, CPF, credenciais, tokens de pagamento
 
 ## Licença
 
-Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+MIT License - Veja [LICENSE](LICENSE) para detalhes.
 
-### Resumo da Licença MIT
+**Resumo:**
+- ✅ Uso comercial, modificação, distribuição permitidos
+- ⚠️ Sem garantias de funcionamento
+- 📋 Incluir copyright e licença ao redistribuir
 
-- ✅ **Uso comercial**: Permitido
-- ✅ **Modificação**: Permitida  
-- ✅ **Distribuição**: Permitida
-- ✅ **Uso privado**: Permitido
-- ⚠️ **Responsabilidade**: Sem garantias
-- 📋 **Requisitos**: Incluir copyright e licença
+---
 
-Para mais informações, consulte o arquivo [LICENSE](LICENSE) na raiz do projeto.
+**Desenvolvido com ❤️ por Z4l1nux**
