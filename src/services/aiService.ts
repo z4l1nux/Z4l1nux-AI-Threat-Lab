@@ -1,4 +1,5 @@
 import { SystemInfo, IdentifiedThreat, StrideCapecMapType } from '../../types';
+import { detectAIComponents, generateAIThreatQuery } from './aiThreatsKnowledgeBase';
 
 // Configuração para análise de complexidade
 const COMPLEXITY_THRESHOLDS = {
@@ -91,7 +92,7 @@ const THREAT_ANALYSIS_SCHEMA = {
           },
           owaspTop10: {
             type: "string",
-            description: "Categoria OWASP Top 10 relacionada"
+            description: "Framework de segurança: OWASP Web (A01:2021, A02:2021, etc.) OU OWASP LLM (LLM01, LLM02, etc.) conforme o tipo de componente"
           }
         },
         required: ["elementName", "strideCategory", "threatScenario", "capecId", "capecName", "capecDescription", "mitigationRecommendations", "impact", "owaspTop10"],
@@ -224,7 +225,7 @@ const parseJsonFromText = (text: string | undefined | any): any => {
   }
 };
 
-// Função RAG ultra-otimizada - apenas 1 query inteligente
+// Função RAG com Múltiplas Queries Paralelas e Detecção de IA
 const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Promise<{
   context: string;
   sources: any[];
@@ -235,48 +236,153 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
   try {
     const BACKEND_URL = 'http://localhost:3001';
     
-    // Query única e inteligente baseada no sistema
-    const systemKeywords = [
-      systemInfo.systemName,
-      systemInfo.components?.split(',').slice(0, 2).join(' '),
-      systemInfo.technologies?.split(',').slice(0, 2).join(' ')
-    ].filter(Boolean).join(' ');
+    // ===== 1. DETECTAR COMPONENTES DE IA =====
+    const aiDetection = detectAIComponents(systemInfo);
     
-    const query = `threat modeling STRIDE ${systemKeywords}`;
+    if (aiDetection.hasAI) {
+      console.log(`🤖 Sistema com IA detectado!`);
+      console.log(`   Confiança: ${aiDetection.confidence}`);
+      console.log(`   Componentes: ${aiDetection.aiComponents.slice(0, 5).join(', ')}${aiDetection.aiComponents.length > 5 ? '...' : ''}`);
+    }
     
-    console.log(`🔍 RAG otimizado: "${query.substring(0, 60)}..."`);
+    // ===== 2. MONTAR QUERIES PARALELAS =====
+    const searchQueries: Array<{ query: string; aspect: string; limit: number }> = [];
     
+    // Query 1: STRIDE geral (sempre inclui)
+    searchQueries.push({
+      query: `threat modeling STRIDE CAPEC security threats vulnerabilities ${systemInfo.systemName}`,
+      aspect: 'STRIDE Geral',
+      limit: 3
+    });
+    
+    // Query 2: Componentes específicos (se tiver)
+    if (systemInfo.components && systemInfo.components.trim().length > 0) {
+      const components = systemInfo.components.split(',').slice(0, 3).join(' ');
+      searchQueries.push({
+        query: `STRIDE threats ${components} security vulnerabilities`,
+        aspect: 'Componentes',
+        limit: 2
+      });
+    }
+    
+    // Query 3: Tecnologias (se tiver)
+    if (systemInfo.technologies && systemInfo.technologies.trim().length > 0 && systemInfo.technologies !== 'Não especificado') {
+      const tech = systemInfo.technologies.split(',').slice(0, 3).join(' ');
+      searchQueries.push({
+        query: `security vulnerabilities ${tech} threats`,
+        aspect: 'Tecnologias',
+        limit: 2
+      });
+    }
+    
+    // Query 4: Integrações externas (se tiver)
+    if (systemInfo.externalIntegrations && systemInfo.externalIntegrations !== 'Nenhuma identificada' && systemInfo.externalIntegrations !== 'Não informado') {
+      searchQueries.push({
+        query: `third-party integration security risks ${systemInfo.externalIntegrations}`,
+        aspect: 'Integrações Externas',
+        limit: 2
+      });
+    }
+    
+    // Query 5: OWASP LLM + AI TRiSM + NIST AI RMF (SE IA DETECTADA) ⭐⭐⭐
+    if (aiDetection.hasAI) {
+      const aiQuery = generateAIThreatQuery(aiDetection.confidence);
+      searchQueries.push({
+        query: aiQuery,
+        aspect: `Ameaças de IA (${aiDetection.confidence})`,
+        limit: 3
+      });
+    }
+    
+    console.log(`🔍 Executando ${searchQueries.length} queries RAG em paralelo:`);
+    searchQueries.forEach((q, i) => {
+      console.log(`   ${i + 1}. ${q.aspect}: "${q.query.substring(0, 50)}..."`);
+    });
+    
+    // ===== 3. EXECUTAR QUERIES EM PARALELO =====
+    const searchPromises = searchQueries.map(async ({ query, aspect, limit }) => {
+      try {
         const response = await fetch(`${BACKEND_URL}/api/search/context`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            query, 
-        limit: 3, // Apenas 3 resultados mais relevantes
+            query,
+            limit,
             systemContext: systemInfo.systemName,
-        modelConfig
+            modelConfig
           })
         });
         
         if (!response.ok) {
-      console.warn('⚠️ RAG indisponível, continuando sem contexto');
-          return null;
+          console.warn(`⚠️ Query "${aspect}" falhou`);
+          return { aspect, sources: [], confidence: 0 };
         }
         
-    const result = await response.json();
+        const result = await response.json();
+        return {
+          aspect,
+          sources: result.sources || [],
+          confidence: result.confidence || 0
+        };
+      } catch (error) {
+        console.warn(`⚠️ Erro na query "${aspect}":`, error);
+        return { aspect, sources: [], confidence: 0 };
+      }
+    });
     
-    if (!result.sources || result.sources.length === 0) {
-      console.warn('⚠️ Nenhum resultado RAG encontrado');
+    const results = await Promise.all(searchPromises);
+    
+    // ===== 4. DEDUPLICA E COMBINAR RESULTADOS =====
+    const allSources: any[] = [];
+    const seenChunkIds = new Set<string>();
+    const aspectsCovered: string[] = [];
+    
+    results.forEach(result => {
+      if (result.sources.length > 0) {
+        aspectsCovered.push(result.aspect);
+        
+        result.sources.forEach((source: any) => {
+          const chunkId = `${source.documento?.metadata?.documentId || source.documento?.metadata?.documentName}-${source.documento?.metadata?.chunkIndex}`;
+          
+          if (!seenChunkIds.has(chunkId)) {
+            seenChunkIds.add(chunkId);
+            allSources.push({
+              ...source,
+              searchAspect: result.aspect
+            });
+          }
+        });
+      }
+    });
+    
+    if (allSources.length === 0) {
+      console.warn('⚠️ Nenhum resultado RAG encontrado em nenhuma query');
       return null;
     }
     
-    console.log(`✅ RAG: ${result.sources.length} fontes (confiança: ${result.confidence?.toFixed(1) || '0.0'}%)`);
+    // ===== 5. CONSTRUIR CONTEXTO FINAL =====
+    let context = `═══════════════════════════════════════\n`;
+    context += `📚 CONTEXTO RAG (${allSources.length} fontes, ${aspectsCovered.length} aspectos)\n`;
+    context += `═══════════════════════════════════════\n\n`;
+    
+    allSources.forEach((source, index) => {
+      context += `[Fonte ${index + 1}: ${source.searchAspect}]\n`;
+      context += `Documento: ${source.documento?.metadata?.documentName || 'Desconhecido'}\n`;
+      context += `${source.documento?.pageContent?.substring(0, 400) || ''}...\n\n`;
+    });
+    
+    const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
+    
+    console.log(`✅ RAG Completo: ${allSources.length} fontes únicas de ${results.length} queries`);
+    console.log(`   Aspectos: ${aspectsCovered.join(', ')}`);
+    console.log(`   Confiança média: ${avgConfidence.toFixed(1)}%`);
     
     return {
-      context: result.context || '',
-      sources: result.sources,
-      totalDocuments: result.totalDocuments || 1,
-      confidence: result.confidence || 0,
-      aspectsCovered: ['Análise Geral']
+      context,
+      sources: allSources,
+      totalDocuments: new Set(allSources.map(s => s.documento?.metadata?.documentId)).size,
+      confidence: avgConfidence,
+      aspectsCovered
     };
     
   } catch (error) {
@@ -290,21 +396,59 @@ export const analyzeThreatsAndMitigations = async (
   strideCapecMap: StrideCapecMapType,
   modelConfig?: any
 ): Promise<IdentifiedThreat[]> => {
-  // Buscar contexto RAG relevante (otimizado)
+  // Detectar componentes de IA
+  const aiDetection = detectAIComponents(systemInfo);
+  
+  // Buscar contexto RAG relevante (otimizado) - agora inclui query de IA se detectado
   const ragContext = await searchRAGContext(systemInfo, modelConfig);
   
   // Calcular complexidade da tarefa
   console.log(`[AI Service] Complexidade da análise detectada: ${calculateTaskComplexity(systemInfo, JSON.stringify(strideCapecMap))}`);
   
   // Construir contexto RAG para o prompt (versão ultra-otimizada)
+  // Reduzir contexto RAG se sistema tem IA (para economizar tokens)
+  const contextLimit = aiDetection.hasAI ? 600 : 1000;
   const ragContextSection = ragContext ? `
 CONTEXTO RAG (${ragContext.sources.length} fontes, confiança: ${ragContext.confidence?.toFixed(1) || '0.0'}%):
-${ragContext.context.substring(0, 1000)}...
+${ragContext.context.substring(0, contextLimit)}...
 
 ` : `
 ⚠️ Sem contexto RAG. Use conhecimento geral e mapeamento STRIDE-CAPEC.
 
 `;
+
+  // Seção específica de IA (se detectado)
+  const aiContextSection = aiDetection.hasAI ? `
+🤖 ===== SISTEMA COM COMPONENTES DE IA DETECTADO =====
+Confiança: ${aiDetection.confidence}
+Componentes de IA identificados: ${aiDetection.aiComponents.slice(0, 5).join(', ')}${aiDetection.aiComponents.length > 5 ? '...' : ''}
+
+⚠️ ATENÇÃO: Este é um sistema com IA/ML. Use frameworks apropriados:
+
+📋 CAMPO "owaspTop10" - INSTRUÇÕES ESPECIAIS:
+   Para componentes de IA/ML (LLM, Vector Database, ML Pipeline, etc.), use:
+   ✅ "LLM01 - Prompt Injection" (para ameaças de manipulação de prompts)
+   ✅ "LLM02 - Insecure Output Handling" (para saídas não validadas)
+   ✅ "LLM03 - Training Data Poisoning" (para envenenamento de dados)
+   ✅ "LLM04 - Model Denial of Service" (para DoS específicos de modelo)
+   ✅ "LLM05 - Supply Chain Vulnerabilities" (para dependências de IA)
+   ✅ "LLM06 - Sensitive Information Disclosure" (para vazamento via LLM)
+   ✅ "LLM07 - Insecure Plugin Design" (para plugins do LLM)
+   ✅ "LLM08 - Excessive Agency" (para ações não autorizadas do LLM)
+   ✅ "LLM09 - Overreliance" (para confiança excessiva em respostas)
+   ✅ "LLM10 - Model Theft" (para roubo de modelo)
+   
+   Para componentes tradicionais (Web App, Database, API), use:
+   ✅ "A01:2021 - Broken Access Control"
+   ✅ "A02:2021 - Cryptographic Failures"
+   ✅ "A03:2021 - Injection"
+   ✅ "A05:2021 - Security Misconfiguration"
+   ✅ "A07:2021 - Identification and Authentication Failures"
+   etc.
+
+🎯 PRIORIDADE: Considere ameaças do OWASP LLM Top 10, AI TRiSM e NIST AI RMF.
+
+` : '';
   
   const prompt = `${ragContextSection}
 SISTEMA: ${systemInfo.systemName}
@@ -340,6 +484,8 @@ ${systemInfo.additionalContext}
 - Para fluxos cross-boundary, use CAPEC-94 (MitM) e CAPEC-620 (Drop Encryption)
 
 ` : ''}
+
+${aiContextSection}
 
 MAPEAMENTO STRIDE-CAPEC DISPONÍVEL (Use APENAS estes CAPECs):
 ${strideCapecMap.map(entry => 
@@ -445,7 +591,7 @@ Exemplo 2 - Sistema LLM/RAG (USAR ESTE COMO REFERÊNCIA para sistemas com LLM):
       "capecDescription": "Injeção de código ou comandos maliciosos através de entrada não validada",
       "mitigationRecommendations": "Implementar validação rigorosa de prompts, sanitização de entrada, rate limiting e monitoramento de padrões anormais",
       "impact": "HIGH",
-      "owaspTop10": "A03:2021-Injection"
+      "owaspTop10": "LLM01 - Prompt Injection"
     },
     {
       "elementName": "Vector Database",
@@ -456,7 +602,7 @@ Exemplo 2 - Sistema LLM/RAG (USAR ESTE COMO REFERÊNCIA para sistemas com LLM):
       "capecDescription": "Extração sistemática de informações através de consultas estruturadas ao sistema",
       "mitigationRecommendations": "Implementar controles de acesso baseados em função (RBAC), criptografia de embeddings em repouso, auditoria de queries e rate limiting",
       "impact": "CRITICAL",
-      "owaspTop10": "A01:2021-Broken Access Control"
+      "owaspTop10": "LLM06 - Sensitive Information Disclosure"
     },
     {
       "elementName": "OpenAI API",
@@ -467,10 +613,16 @@ Exemplo 2 - Sistema LLM/RAG (USAR ESTE COMO REFERÊNCIA para sistemas com LLM):
       "capecDescription": "Uso de credenciais comprometidas para autenticação em serviços externos",
       "mitigationRecommendations": "Rotação automática de API keys, armazenamento seguro de credenciais (vault), monitoramento de uso anômalo, implementação de least privilege",
       "impact": "CRITICAL",
-      "owaspTop10": "A07:2021-Identification and Authentication Failures"
+      "owaspTop10": "LLM05 - Supply Chain Vulnerabilities"
     }
   ]
 }
+
+⚠️ ATENÇÃO CRÍTICA: Observe a diferença nos exemplos acima:
+- LLM Model usa "LLM01" (componente de IA)
+- Vector Database usa "LLM06" (componente de IA)
+- OpenAI API usa "LLM05" (componente de IA)
+- Componentes tradicionais (Web App, Database) usam "A01:2021", "A03:2021", etc.
 
 Exemplo 3 - Ameaças para FLUXOS DE DADOS (USAR ESTE para analisar fluxos cross-boundary):
 {
@@ -517,13 +669,13 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
 {"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
 
 🎯 QUANTIDADE DE AMEAÇAS OBRIGATÓRIA:
-- MÍNIMO: 18-24 ameaças em português
-- OBRIGATÓRIO: Pelo menos 2-3 ameaças para CADA uma das 6 categorias STRIDE
+- MÍNIMO: 12-18 ameaças em português (priorize qualidade sobre quantidade)
+- OBRIGATÓRIO: Pelo menos 2 ameaças para CADA uma das 6 categorias STRIDE
 - OBRIGATÓRIO: Distribuir as ameaças entre:
-  * Componentes individuais (12-14 ameaças)
-  * Fluxos de dados entre componentes (6-10 ameaças)
+  * Componentes individuais (8-10 ameaças)
+  * Fluxos de dados entre componentes (4-8 ameaças)
 - OBRIGATÓRIO: Para sistemas com fluxos mapeados, incluir ameaças específicas para FLUXOS
-- OBRIGATÓRIO: Incluir múltiplas ameaças por componente quando aplicável
+- IMPORTANTE: Mant resolution concisa para não exceder limite de tokens
 
 🚨 VALIDAÇÃO FINAL OBRIGATÓRIA (Verificar ANTES de retornar):
 

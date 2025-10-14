@@ -30,7 +30,8 @@ export interface IdentifiedThreat {
   capecDescription: string;
   mitigationRecommendations: string;
   impact: string; // CRITICAL, HIGH, MEDIUM ou LOW
-  owaspTop10: string; // Ex: 'A01:2021 - Broken Access Control'
+  owaspTop10: string; // Ex: 'A01:2021 - Broken Access Control' OU 'LLM01 - Prompt Injection' para sistemas de IA
+  securityFramework?: string; // Framework adicional: 'OWASP LLM', 'AI TRiSM', 'NIST AI RMF', etc.
 }
 
 export interface ReportData {
