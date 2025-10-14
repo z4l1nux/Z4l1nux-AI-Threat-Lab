@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E293B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0F172A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <circle cx="16" cy="16" r="16" fill="url(#bgGradient)"/>
+  
+  <!-- Hexagon (STRIDE - 6 categories) -->
+  <polygon points="16,5 26,10.5 26,21.5 16,27 6,21.5 6,10.5" 
+           fill="none" 
+           stroke="#FF6B35" 
+           stroke-width="2"/>
+  
+  <!-- Inner threat graph - 6 nodes representing STRIDE categories -->
+  <circle cx="16" cy="9" r="1.5" fill="#FF6B35"/>
+  <circle cx="22" cy="12" r="1.5" fill="#FF6B35"/>
+  <circle cx="22" cy="20" r="1.5" fill="#FF6B35"/>
+  <circle cx="16" cy="23" r="1.5" fill="#FF6B35"/>
+  <circle cx="10" cy="20" r="1.5" fill="#FF6B35"/>
+  <circle cx="10" cy="12" r="1.5" fill="#FF6B35"/>
+  
+  <!-- Connections between nodes (threat relationships) -->
+  <line x1="16" y1="9" x2="22" y2="12" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  <line x1="22" y1="12" x2="22" y2="20" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  <line x1="22" y1="20" x2="16" y2="23" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  <line x1="16" y1="23" x2="10" y2="20" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  <line x1="10" y1="20" x2="10" y2="12" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  <line x1="10" y1="12" x2="16" y2="9" stroke="#FF6B35" stroke-width="0.6" opacity="0.4"/>
+  
+  <!-- Cross connections (complex threat scenarios) -->
+  <line x1="16" y1="9" x2="22" y2="20" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  <line x1="22" y1="12" x2="16" y2="23" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  <line x1="22" y1="20" x2="10" y2="12" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  <line x1="16" y1="9" x2="10" y2="20" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  <line x1="10" y1="12" x2="22" y2="20" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  <line x1="16" y1="23" x2="22" y2="12" stroke="#FF6B35" stroke-width="0.6" opacity="0.3"/>
+  
+  <!-- Central alert node (critical threat point) -->
+  <circle cx="16" cy="16" r="2.5" fill="#EF4444"/>
+  <circle cx="16" cy="16" r="1.8" fill="#DC2626"/>
+</svg>
