@@ -8,6 +8,7 @@ export interface SystemInfo {
   authentication: string;
   userProfiles: string;
   externalIntegrations: string;
+  additionalContext?: string; // Contexto adicional do diagrama visual
 }
 
 export enum StrideCategory {

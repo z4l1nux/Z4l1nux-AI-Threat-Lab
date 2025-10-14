@@ -325,25 +325,98 @@ ${systemInfo.userProfiles || 'Não informado'}
 INTEGRAÇÕES EXTERNAS:
 ${systemInfo.externalIntegrations || 'Não informado'}
 
-MAPEAMENTO STRIDE-CAPEC DISPONÍVEL:
+${systemInfo.additionalContext ? `
+═══════════════════════════════════════════════════════════
+📊 ANÁLISE DETALHADA DO DIAGRAMA (Fluxos e Zonas)
+═══════════════════════════════════════════════════════════
+
+${systemInfo.additionalContext}
+
+⚠️ ATENÇÃO CRÍTICA: 
+- Analise os FLUXOS DE DADOS listados acima (não apenas componentes)
+- Identifique ameaças para fluxos cross-boundary (🔴→🟢, 🟢→🟣)
+- Use formato "Componente A → Componente B (nome do fluxo)" para elementName
+- Para fluxos não criptografados, use CAPECs de interceptação (CAPEC-117, CAPEC-157, CAPEC-158)
+- Para fluxos cross-boundary, use CAPEC-94 (MitM) e CAPEC-620 (Drop Encryption)
+
+` : ''}
+
+MAPEAMENTO STRIDE-CAPEC DISPONÍVEL (Use APENAS estes CAPECs):
 ${strideCapecMap.map(entry => 
-  `${entry.stride}:\n${entry.capecs.slice(0, 5).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
+  `${entry.stride}:\n${entry.capecs.map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
 ).join('\n\n')}
 
 🔍 DEBUG: Mapeamento STRIDE-CAPEC carregado com ${strideCapecMap.length} categorias
 
-INSTRUÇÕES CRÍTICAS - OBRIGATÓRIO SEGUIR TODAS:
-1. Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName
-2. OBRIGATÓRIO: Use APENAS os CAPECs listados no mapeamento acima - NÃO invente CAPECs
-3. OBRIGATÓRIO: Para cada CAPEC usado, forneça o ID exato e nome correto do mapeamento
-4. OBRIGATÓRIO: Crie cenários de ameaça específicos para o sistema SuperMax Retail Management Platform
-5. OBRIGATÓRIO: Forneça mitigações específicas e detalhadas, não genéricas
-6. OBRIGATÓRIO: Para cada categoria STRIDE, escolha um CAPEC diferente da lista
-7. OBRIGATÓRIO: Forneça descrição detalhada do CAPEC escolhido
-8. OBRIGATÓRIO: Inclua categoria OWASP Top 10 apropriada para cada ameaça
-9. OBRIGATÓRIO: TODOS os campos devem ser preenchidos - NÃO deixe campos vazios
+⚠️ REGRA CRÍTICA DE MAPEAMENTO CAPEC→STRIDE:
 
-EXEMPLO DE RESPOSTA CORRETA - SEGUIR EXATAMENTE ESTE FORMATO:
+Spoofing - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-98 (Phishing), CAPEC-151 (Identity Spoofing), CAPEC-194 (Fake the Source of Data)
+- CAPEC-473 (Signature Spoof), CAPEC-89 (Pharming), CAPEC-148 (Content Spoofing)
+
+Tampering - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-123 (Buffer Manipulation), CAPEC-242 (Code Injection), CAPEC-272 (Protocol Manipulation)
+- CAPEC-153 (Input Data Manipulation), CAPEC-250 (XML Injection), CAPEC-66 (SQL Injection)
+
+Repudiation - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-268 (Audit Log Manipulation), CAPEC-93 (Log Injection-Tampering-Forging)
+- CAPEC-571 (Block Logging), CAPEC-195 (Principal Spoof)
+
+Information Disclosure - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-116 (Excavation), CAPEC-117 (Interception), CAPEC-129 (Pointer Manipulation)
+- CAPEC-212 (Functionality Misuse), CAPEC-169 (Footprinting), CAPEC-224 (Fingerprinting)
+
+Denial of Service - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-125 (Flooding), CAPEC-482 (TCP Flood), CAPEC-488 (HTTP Flood)
+- CAPEC-130 (Excessive Allocation), CAPEC-492 (Regex Exponential Blowup), CAPEC-469 (HTTP DoS)
+
+Elevation of Privilege - Use CAPECs DIFERENTES para cada componente:
+- CAPEC-560 (Use of Known Domain Credentials), CAPEC-248 (Command Injection), CAPEC-66 (SQL Injection)
+- CAPEC-122 (Privilege Abuse), CAPEC-21 (Exploitation of Trusted Identifiers), CAPEC-233 (Privilege Escalation)
+
+🚨 REGRA ABSOLUTA DE UNICIDADE:
+❌ NÃO REPITA o mesmo CAPEC mais de UMA VEZ no relatório inteiro!
+❌ NÃO USE CAPEC-125 para Database, Vector Database E Web Application - escolha UM componente!
+❌ NÃO USE CAPEC-416 para múltiplos componentes - use CAPEC-98, CAPEC-151, CAPEC-194 para variar!
+❌ Se já usou CAPEC-123 para Web Application, use CAPEC-250 ou CAPEC-272 para Vector Database!
+✅ CADA ameaça DEVE ter um CAPEC ÚNICO e DIFERENTE das demais!
+
+INSTRUÇÕES CRÍTICAS - OBRIGATÓRIO SEGUIR TODAS:
+
+ANÁLISE DE COMPONENTES:
+1. OBRIGATÓRIO: Identifique ameaças para TODAS as 6 categorias STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
+2. OBRIGATÓRIO: Para cada ameaça, identifique um COMPONENTE ESPECÍFICO do sistema listado acima como elementName
+3. OBRIGATÓRIO: Inclua TODOS os componentes do sistema, incluindo integrações externas e APIs de terceiros
+
+ANÁLISE DE FLUXOS E ZONAS (CRÍTICO):
+4. OBRIGATÓRIO: Identifique ameaças para FLUXOS DE DADOS entre componentes, não apenas componentes isolados
+5. OBRIGATÓRIO: Para fluxos cross-boundary (External→Internal, Internal→Third-party), considere:
+   - CAPEC-94 (Adversary in the Middle) para interceptação
+   - CAPEC-117 (Interception) para escuta de dados em trânsito
+   - CAPEC-620 (Drop Encryption Level) para downgrade de criptografia
+6. OBRIGATÓRIO: Para fluxos não criptografados, identifique:
+   - CAPEC-157 (Sniffing Attacks) para captura de dados
+   - CAPEC-158 (Sniffing Network Traffic) para análise de tráfego
+7. OBRIGATÓRIO: Ao descrever ameaças, mencione o FLUXO específico (ex: "no fluxo de prompts entre Backend e LLM")
+
+USO DE CAPECs:
+8. OBRIGATÓRIO: Use APENAS os CAPECs listados no mapeamento acima que correspondem à categoria STRIDE correta
+9. OBRIGATÓRIO: NÃO reutilize o mesmo CAPEC para categorias STRIDE diferentes
+10. OBRIGATÓRIO: Para cada CAPEC usado, forneça o ID exato e nome correto do mapeamento
+11. OBRIGATÓRIO: Para cada categoria STRIDE, escolha CAPECs diferentes e apropriados da lista
+
+QUALIDADE DA ANÁLISE:
+12. OBRIGATÓRIO: Crie cenários de ameaça específicos para o sistema "${systemInfo.systemName}"
+13. OBRIGATÓRIO: Forneça mitigações específicas e detalhadas, não genéricas
+14. OBRIGATÓRIO: Forneça descrição detalhada do CAPEC escolhido
+15. OBRIGATÓRIO: Inclua categoria OWASP Top 10 apropriada para cada ameaça
+16. OBRIGATÓRIO: TODOS os campos devem ser preenchidos - NÃO deixe campos vazios
+17. OBRIGATÓRIO: Gere PELO MENOS 2-3 ameaças por componente quando aplicável
+18. OBRIGATÓRIO: A resposta DEVE conter ameaças de TODAS as 6 categorias STRIDE
+
+EXEMPLOS DE RESPOSTA CORRETA - SEGUIR EXATAMENTE ESTE FORMATO:
+
+Exemplo 1 - Sistema de Varejo:
 {
   "threats": [
     {
@@ -360,19 +433,121 @@ EXEMPLO DE RESPOSTA CORRETA - SEGUIR EXATAMENTE ESTE FORMATO:
   ]
 }
 
+Exemplo 2 - Sistema LLM/RAG (USAR ESTE COMO REFERÊNCIA para sistemas com LLM):
+{
+  "threats": [
+    {
+      "elementName": "LLM Model",
+      "strideCategory": "Tampering",
+      "threatScenario": "Atacante injeta prompts maliciosos para manipular respostas do modelo LLM",
+      "capecId": "CAPEC-242",
+      "capecName": "Code Injection",
+      "capecDescription": "Injeção de código ou comandos maliciosos através de entrada não validada",
+      "mitigationRecommendations": "Implementar validação rigorosa de prompts, sanitização de entrada, rate limiting e monitoramento de padrões anormais",
+      "impact": "HIGH",
+      "owaspTop10": "A03:2021-Injection"
+    },
+    {
+      "elementName": "Vector Database",
+      "strideCategory": "Information Disclosure",
+      "threatScenario": "Atacante explora vulnerabilidades na busca vetorial para extrair embeddings de dados sensíveis",
+      "capecId": "CAPEC-116",
+      "capecName": "Excavation",
+      "capecDescription": "Extração sistemática de informações através de consultas estruturadas ao sistema",
+      "mitigationRecommendations": "Implementar controles de acesso baseados em função (RBAC), criptografia de embeddings em repouso, auditoria de queries e rate limiting",
+      "impact": "CRITICAL",
+      "owaspTop10": "A01:2021-Broken Access Control"
+    },
+    {
+      "elementName": "OpenAI API",
+      "strideCategory": "Elevation of Privilege",
+      "threatScenario": "Atacante compromete credenciais da API externa para obter acesso privilegiado e gerar conteúdo malicioso",
+      "capecId": "CAPEC-560",
+      "capecName": "Use of Known Domain Credentials",
+      "capecDescription": "Uso de credenciais comprometidas para autenticação em serviços externos",
+      "mitigationRecommendations": "Rotação automática de API keys, armazenamento seguro de credenciais (vault), monitoramento de uso anômalo, implementação de least privilege",
+      "impact": "CRITICAL",
+      "owaspTop10": "A07:2021-Identification and Authentication Failures"
+    }
+  ]
+}
+
+Exemplo 3 - Ameaças para FLUXOS DE DADOS (USAR ESTE para analisar fluxos cross-boundary):
+{
+  "threats": [
+    {
+      "elementName": "End User → Web Application (queries)",
+      "strideCategory": "Information Disclosure",
+      "threatScenario": "Atacante intercepta queries não criptografadas entre usuário e aplicação web no fluxo External→Internal para capturar dados sensíveis",
+      "capecId": "CAPEC-117",
+      "capecName": "Interception",
+      "capecDescription": "Interceptação de comunicação entre dois pontos para captura de dados sensíveis em trânsito",
+      "mitigationRecommendations": "Implementar TLS 1.3 para todas as comunicações, HSTS, certificate pinning e monitoramento de tentativas de downgrade",
+      "impact": "CRITICAL",
+      "owaspTop10": "A02:2021-Cryptographic Failures"
+    },
+    {
+      "elementName": "Backend Service → LLM Model (prompts)",
+      "strideCategory": "Tampering",
+      "threatScenario": "Atacante realiza Man-in-the-Middle no fluxo interno de prompts para manipular queries enviadas ao modelo LLM",
+      "capecId": "CAPEC-94",
+      "capecName": "Adversary in the Middle (AiTM)",
+      "capecDescription": "Interceptação e modificação de comunicação entre dois sistemas para falsificar dados ou identidade",
+      "mitigationRecommendations": "Implementar autenticação mútua TLS, assinatura digital de prompts, validação de integridade e segmentação de rede",
+      "impact": "HIGH",
+      "owaspTop10": "A02:2021-Cryptographic Failures"
+    },
+    {
+      "elementName": "LLM Model → OpenAI API (API calls)",
+      "strideCategory": "Information Disclosure",
+      "threatScenario": "Atacante realiza sniffing no fluxo Internal→Third-party para capturar API keys e dados sensíveis enviados à API externa",
+      "capecId": "CAPEC-157",
+      "capecName": "Sniffing Attacks",
+      "capecDescription": "Captura passiva de tráfego de rede para obter informações sensíveis como credenciais ou dados",
+      "mitigationRecommendations": "Usar HTTPS com TLS 1.3, implementar API key rotation automática, monitorar tráfego anômalo e usar VPN para comunicação externa",
+      "impact": "CRITICAL",
+      "owaspTop10": "A02:2021-Cryptographic Failures"
+    }
+  ]
+}
+
 ⚠️ ATENÇÃO: A resposta DEVE incluir TODOS os campos acima. NÃO omita nenhum campo.
 
 Analise e retorne JSON objeto com array de ameaças STRIDE:
 {"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
 
-5-6 ameaças em português, cada uma focada em um componente específico diferente do sistema.
+🎯 QUANTIDADE DE AMEAÇAS OBRIGATÓRIA:
+- MÍNIMO: 18-24 ameaças em português
+- OBRIGATÓRIO: Pelo menos 2-3 ameaças para CADA uma das 6 categorias STRIDE
+- OBRIGATÓRIO: Distribuir as ameaças entre:
+  * Componentes individuais (12-14 ameaças)
+  * Fluxos de dados entre componentes (6-10 ameaças)
+- OBRIGATÓRIO: Para sistemas com fluxos mapeados, incluir ameaças específicas para FLUXOS
+- OBRIGATÓRIO: Incluir múltiplas ameaças por componente quando aplicável
 
-🚨 VALIDAÇÃO FINAL OBRIGATÓRIA:
-- Cada ameaça DEVE ter: elementName, strideCategory, threatScenario, capecId, capecName, capecDescription, mitigationRecommendations, impact, owaspTop10
-- Use APENAS CAPECs do mapeamento fornecido acima
-- NÃO invente CAPECs
-- NÃO omita campos
-- Siga EXATAMENTE o formato do exemplo
+🚨 VALIDAÇÃO FINAL OBRIGATÓRIA (Verificar ANTES de retornar):
+
+1. UNICIDADE DE CAPECs:
+   ✅ Verificar: Nenhum CAPEC aparece mais de 1 vez na lista
+   ✅ Se CAPEC-125 está em Database, NÃO pode estar em Vector Database ou Web Application
+   ✅ Se CAPEC-416 está em Web Application, NÃO pode estar em OpenAI API
+   ✅ Se CAPEC-268 está em Backend Service, NÃO pode estar em LLM Model
+   
+2. COMPLETUDE:
+   ✅ Cada ameaça DEVE ter: elementName, strideCategory, threatScenario, capecId, capecName, capecDescription, mitigationRecommendations, impact, owaspTop10
+   ✅ DEVE haver ameaças de TODAS as 6 categorias STRIDE: Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege
+   
+3. CORREÇÃO:
+   ✅ Use APENAS CAPECs do mapeamento fornecido acima
+   ✅ Cada CAPEC deve corresponder à categoria STRIDE correta
+   ✅ NÃO invente CAPECs
+   ✅ NÃO omita campos
+   ✅ Siga EXATAMENTE o formato do exemplo
+
+4. CONTAGEM FINAL:
+   ✅ Total de ameaças: 12-18
+   ✅ Total de CAPECs únicos: ≥ 85% do total de ameaças (ex: se 16 ameaças, mínimo 13 CAPECs diferentes)
+   ✅ Todos os 7 componentes devem ter pelo menos 2 ameaças
 `;
   
   // Debug: verificar se o mapeamento está sendo enviado

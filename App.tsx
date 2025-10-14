@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import SystemInputForm from './src/components/SystemInputForm';
 import ReportDisplay from './src/components/ReportDisplay';
 import LoadingSpinner from './src/components/LoadingSpinner';
 import RAGPanel from './src/components/RAGPanel';
 import ModelSelector from './src/components/ModelSelector';
+import { VisualEditor } from './src/components/VisualEditor/VisualEditor';
 import { useThreatModeler } from './src/hooks/useThreatModeler';
 import { useModelSelection } from './src/hooks/useModelSelection';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { APP_TITLE, INITIAL_SYSTEM_INFO } from './constants';
+import { APP_TITLE } from './constants';
 import { SystemInfo } from './types';
 
 const App: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'form' | 'visual'>('form');
+  
   const {
     reportData,
     isLoading,
@@ -23,8 +25,7 @@ const App: React.FC = () => {
   const {
     selection,
     updateModel,
-    updateEmbedding,
-    getModelConfig
+    updateEmbedding
   } = useModelSelection();
 
   const handleFormSubmit = (data: { fullDescription: string }) => {
@@ -56,6 +57,11 @@ const App: React.FC = () => {
     refineThreatModel(markdown);
   };
 
+  const handleVisualAnalyze = (systemInfo: SystemInfo) => {
+    // Trocar para a aba do formulário para mostrar o relatório
+    setActiveTab('form');
+    generateThreatModel(systemInfo);
+  };
 
   return (
     <div className="min-h-screen bg-custom-black text-custom-yellow flex flex-col items-center p-4 md:p-8 selection:bg-custom-yellow selection:text-custom-black">
@@ -66,9 +72,34 @@ const App: React.FC = () => {
         <p className="text-z4l1nux-primary mt-2 text-sm md:text-base">
           Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
         </p>
+        
+        {/* Tabs de navegação */}
+        <div className="flex justify-center gap-2 mt-6">
+          <button
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              activeTab === 'form'
+                ? 'bg-z4l1nux-primary text-custom-black'
+                : 'bg-gray-800 text-z4l1nux-primary hover:bg-gray-700'
+            }`}
+            onClick={() => setActiveTab('form')}
+          >
+            📝 Formulário de Texto
+          </button>
+          <button
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              activeTab === 'visual'
+                ? 'bg-z4l1nux-primary text-custom-black'
+                : 'bg-gray-800 text-z4l1nux-primary hover:bg-gray-700'
+            }`}
+            onClick={() => setActiveTab('visual')}
+          >
+            🎨 Editor Visual de Diagramas
+          </button>
+        </div>
       </header>
 
-      <main className="w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4">
+      {/* Conteúdo principal com tabs - ambas montadas, apenas uma visível */}
+      <main className={`w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4 ${activeTab !== 'form' ? 'hidden' : ''}`}>
         <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8 space-y-4">
           <h2 id="system-input-heading" className="sr-only">Entrada de Informações do Sistema</h2>
           
@@ -125,6 +156,14 @@ const App: React.FC = () => {
           ))}
         </section>
       </main>
+
+      {/* Editor Visual - mantém montado mas oculto quando não ativo */}
+      <div className={`w-full ${activeTab !== 'visual' ? 'hidden' : ''}`} style={{ height: 'calc(100vh - 280px)' }}>
+        <VisualEditor 
+          onAnalyze={handleVisualAnalyze}
+          isAnalyzing={isLoading}
+        />
+      </div>
 
       <footer className="w-full mt-12 pt-8 border-t border-z4l1nux-primary/30 text-center text-z4l1nux-primary text-sm">
         <p>&copy; {new Date().getFullYear()} {APP_TITLE}. Análise de segurança aprimorada por IA.</p>
