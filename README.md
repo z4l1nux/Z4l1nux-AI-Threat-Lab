@@ -317,4 +317,4 @@ MIT License - Veja [LICENSE](LICENSE) para detalhes.
 
 ---
 
-**Desenvolvido com ❤️ por Z4l1nux**
+**Desenvolvido por Z4l1nux**
