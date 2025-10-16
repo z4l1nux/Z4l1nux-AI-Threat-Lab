@@ -35,7 +35,7 @@ export class ModelValidator {
     // Verificar compatibilidade entre provedores
     if (config.provider && config.embeddingProvider) {
       const compatibility = this.checkProviderCompatibility(config.provider, config.embeddingProvider);
-      if (!compatibility.isCompatible) {
+      if (!compatibility.isCompatible && compatibility.warning) {
         warnings.push(compatibility.warning);
       }
     }

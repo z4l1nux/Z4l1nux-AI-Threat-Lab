@@ -221,6 +221,24 @@ const parseJsonFromText = (text: string | undefined | any): any => {
       }
     }
     
+    // Mensagem de erro mais informativa
+    const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+    if (errorMsg.includes("Unexpected end of JSON input") || errorMsg.includes("Unterminated string")) {
+      throw new Error(
+        `⚠️ RESPOSTA INCOMPLETA DO MODELO DE IA\n\n` +
+        `O modelo "${modelConfig?.model || 'desconhecido'}" parou de gerar antes de completar o JSON.\n\n` +
+        `🔧 SOLUÇÃO:\n` +
+        `1. Troque para um modelo mais robusto:\n` +
+        `   • meta-llama/llama-3.3-70b-instruct:free (RECOMENDADO)\n` +
+        `   • deepseek/deepseek-chat-v3-0324:free\n` +
+        `   • google/gemini-2.0-flash-exp:free\n\n` +
+        `2. Abra "Configuração de Modelos" no painel lateral\n` +
+        `3. Selecione um modelo mais potente\n` +
+        `4. Tente gerar novamente\n\n` +
+        `⚠️ Modelos fracos (como gpt-oss-20b) não conseguem gerar relatórios completos.`
+      );
+    }
+    
     throw new Error(`Falha ao fazer parse da resposta JSON da IA: ${parseError}`);
   }
 };
@@ -248,11 +266,14 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
     // ===== 2. MONTAR QUERIES PARALELAS =====
     const searchQueries: Array<{ query: string; aspect: string; limit: number }> = [];
     
+    // 🔥 IMPORTANTE: Limites aumentados para garantir diversidade de CAPECs
+    // Isso garante que relatórios com 30-50+ ameaças tenham CAPECs únicos disponíveis
+    
     // Query 1: STRIDE geral (sempre inclui)
     searchQueries.push({
       query: `threat modeling STRIDE CAPEC security threats vulnerabilities ${systemInfo.systemName}`,
       aspect: 'STRIDE Geral',
-      limit: 3
+      limit: 10  // Aumentado de 3 para 10
     });
     
     // Query 2: Componentes específicos (se tiver)
@@ -261,7 +282,7 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
       searchQueries.push({
         query: `STRIDE threats ${components} security vulnerabilities`,
         aspect: 'Componentes',
-        limit: 2
+        limit: 8  // Aumentado de 2 para 8
       });
     }
     
@@ -271,7 +292,7 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
       searchQueries.push({
         query: `security vulnerabilities ${tech} threats`,
         aspect: 'Tecnologias',
-        limit: 2
+        limit: 8  // Aumentado de 2 para 8
       });
     }
     
@@ -280,7 +301,7 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
       searchQueries.push({
         query: `third-party integration security risks ${systemInfo.externalIntegrations}`,
         aspect: 'Integrações Externas',
-        limit: 2
+        limit: 8  // Aumentado de 2 para 8
       });
     }
     
@@ -290,7 +311,7 @@ const searchRAGContext = async (systemInfo: SystemInfo, modelConfig?: any): Prom
       searchQueries.push({
         query: aiQuery,
         aspect: `Ameaças de IA (${aiDetection.confidence})`,
-        limit: 3
+        limit: 10  // Aumentado de 3 para 10
       });
     }
     
@@ -489,10 +510,10 @@ ${aiContextSection}
 
 MAPEAMENTO STRIDE-CAPEC DISPONÍVEL (Use APENAS estes CAPECs):
 ${strideCapecMap.map(entry => 
-  `${entry.stride}:\n${entry.capecs.map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
+  `${entry.stride}:\n${entry.capecs.slice(0, 20).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
 ).join('\n\n')}
 
-🔍 DEBUG: Mapeamento STRIDE-CAPEC carregado com ${strideCapecMap.length} categorias
+🔍 DEBUG: Mapeamento STRIDE-CAPEC: ${strideCapecMap.length} categorias, total de ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)} CAPECs disponíveis (mostrando top 20 por categoria para economizar tokens)
 
 ⚠️ REGRA CRÍTICA DE MAPEAMENTO CAPEC→STRIDE:
 
@@ -947,7 +968,7 @@ export const summarizeSystemDescription = async (
   console.log(`[AI Service] Executando resumo do sistema com complexidade: ${complexity}`);
   
   const prompt = `
-Você é um especialista em análise de sistemas. Analise a descrição fornecida e extraia informações estruturadas.
+Você é um especialista em análise de sistemas. Analise a descrição fornecida e extraia/infira informações estruturadas.
 
 DESCRIÇÃO DO SISTEMA:
 ${fullDescription}
@@ -956,14 +977,33 @@ Extraia e retorne um JSON com:
 {
   "generalDescription": "Resumo claro do sistema em 2-3 frases",
   "components": "Lista de componentes principais separados por vírgula",
-  "sensitiveData": "Tipos de dados sensíveis identificados",
+  "sensitiveData": "Tipos de dados sensíveis identificados OU inferidos baseado nos componentes (ex: LLM → embeddings, prompts; Database → user data, credentials; Vector DB → embeddings; Web App → session tokens, user inputs)",
   "technologies": "Tecnologias e frameworks mencionados",
-  "authentication": "Métodos de autenticação identificados",
-  "userProfiles": "Perfis de usuário mencionados",
+  "authentication": "Métodos de autenticação identificados OU inferidos baseado no tipo de sistema (ex: Web App → JWT/OAuth; LLM API → API keys; Database → credentials)",
+  "userProfiles": "Perfis de usuário mencionados OU inferidos baseado no sistema (ex: Web App → End Users, Admin; LLM system → Data Scientists, Developers; Enterprise → Business Users, IT Admin)",
   "externalIntegrations": "Integrações externas identificadas"
 }
 
-Seja conciso e focado apenas no que está explicitamente mencionado.
+⚠️ IMPORTANTE - REGRAS DE INFERÊNCIA:
+1. Se "sensitiveData" NÃO estiver explicitamente mencionado:
+   - Para sistemas com LLM/Vector Database: presuma "embeddings, prompts, training data, model outputs"
+   - Para sistemas com Database: presuma "user credentials, personal data, session tokens"
+   - Para sistemas com Web Application: presuma "user inputs, authentication tokens, session data"
+   - Para sistemas com API externa: presuma "API keys, authentication tokens"
+
+2. Se "authentication" NÃO estiver explicitamente mencionado:
+   - Para Web Application: presuma "JWT tokens, session-based authentication"
+   - Para API integrations: presuma "API keys, OAuth 2.0"
+   - Para Database: presuma "username/password credentials"
+
+3. Se "userProfiles" NÃO estiver explicitamente mencionado:
+   - Para sistemas com interface web: presuma "End Users, Administrators"
+   - Para sistemas LLM/ML: presuma "Data Scientists, ML Engineers, End Users"
+   - Para sistemas enterprise: presuma "Business Users, IT Administrators, System Operators"
+
+4. NUNCA retorne "Não informado", "Não especificado", "None" ou similar.
+5. SEMPRE infira informações razoáveis baseado no contexto dos componentes.
+6. Seja específico e realista nas inferências.
 `;
 
   const backendResponse = await fetch('http://localhost:3001/api/generate-content', {

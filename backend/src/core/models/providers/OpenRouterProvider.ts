@@ -44,6 +44,7 @@ export class OpenRouterProvider implements ModelProvider {
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'HTTP-Referer': 'http://localhost:3001',
         'X-Title': 'Z4l1nux AI Threat Lab'
       },
@@ -58,21 +59,58 @@ export class OpenRouterProvider implements ModelProvider {
       throw new Error(`Erro ao gerar conteúdo com OpenRouter: ${response.statusText}`);
     }
 
-    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-    console.log(`🔧 OpenRouterProvider: Resposta recebida:`, JSON.stringify(data, null, 2));
+    // Ler como texto e tentar fazer parse manual para tolerar respostas incompletas
+    const rawText = await response.text();
+    let content: string | undefined;
     
-    if (!data.choices || data.choices.length === 0) {
-      console.error(`❌ OpenRouterProvider: Nenhuma escolha na resposta`);
-      throw new Error("Nenhuma escolha na resposta do OpenRouter");
+    try {
+      const data = JSON.parse(rawText) as { 
+        choices?: Array<{ 
+          message?: { 
+            content?: string;
+            tool_calls?: Array<{ function?: { arguments?: string } }>;
+          } 
+        }> 
+      };
+      
+      console.log(`🔧 OpenRouterProvider: Resposta recebida:`, JSON.stringify(data, null, 2));
+      
+      if (data.choices && data.choices.length > 0) {
+        const choice = data.choices[0];
+        
+        // 1. Tentar extrair de `message.content` (padrão)
+        if (choice.message?.content) {
+          content = choice.message.content;
+          console.log(`✅ OpenRouterProvider: Content extraído de message.content`);
+        }
+        // 2. Tentar extrair de `tool_calls` (alguns modelos como DeepSeek)
+        else if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+          const toolCall = choice.message.tool_calls[0];
+          if (toolCall.function?.arguments) {
+            content = toolCall.function.arguments;
+            console.log(`✅ OpenRouterProvider: Content extraído de tool_calls[0].function.arguments`);
+          }
+        }
+        // 3. Fallback: usar corpo bruto
+        else {
+          console.warn(`⚠️ OpenRouterProvider: choices ausentes. Usando corpo bruto como conteúdo.`);
+          content = rawText;
+        }
+      } else {
+        console.warn(`⚠️ OpenRouterProvider: choices ausentes. Usando corpo bruto como conteúdo.`);
+        content = rawText;
+      }
+    } catch (e) {
+      console.warn(`⚠️ OpenRouterProvider: JSON inválido. Usando corpo bruto como conteúdo.`);
+      content = rawText;
     }
-    
-    const content = data.choices[0].message.content;
-    console.log(`🔧 OpenRouterProvider: Content extraído:`, content);
     
     if (!content) {
       console.error(`❌ OpenRouterProvider: Content vazio`);
       throw new Error("Content vazio na resposta do OpenRouter");
     }
+    
+    console.log(`🔧 OpenRouterProvider: Content extraído (primeiros 500 chars):`, content.substring(0, 500));
     
     return content;
   }

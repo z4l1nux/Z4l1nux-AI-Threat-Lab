@@ -1,5 +1,5 @@
 import neo4j, { Driver, Session, Node, Integer } from 'neo4j-driver';
-import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { RecursiveCharacterTextSplitter, MarkdownTextSplitter } from "@langchain/textsplitters";
 import { Document } from "@langchain/core/documents";
 import * as crypto from 'crypto';
 import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '../../types/index';
@@ -7,6 +7,7 @@ import { Neo4jDocument, Neo4jChunk, Neo4jSearchResult, DocumentUpload } from '..
 export class Neo4jCacheManager {
   private driver: Driver;
   private splitter: RecursiveCharacterTextSplitter;
+  private markdownSplitter: MarkdownTextSplitter;
   private embeddingCache: Map<string, number[]> = new Map();
 
   constructor(
@@ -27,10 +28,17 @@ export class Neo4jCacheManager {
 
     this.driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
     
+    // Splitter padrão para textos genéricos
     this.splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 2000,
-      chunkOverlap: 500,
+      chunkSize: 4000,
+      chunkOverlap: 800,
       lengthFunction: (text: string) => text.length
+    });
+
+    // Splitter específico para Markdown que respeita headers e estrutura
+    this.markdownSplitter = new MarkdownTextSplitter({
+      chunkSize: 8000,  // Maior para manter seções completas
+      chunkOverlap: 1000
     });
   }
 
@@ -90,6 +98,12 @@ export class Neo4jCacheManager {
           FOR (c:Chunk) REQUIRE c.id IS UNIQUE
         `);
       }
+
+      // Evitar documentos duplicados por conteúdo
+      await session.run(`
+        CREATE CONSTRAINT document_hash_unique IF NOT EXISTS
+        FOR (d:Document) REQUIRE d.hash IS UNIQUE
+      `);
       
             // Criar índices vetoriais para cada provedor
             // Criar índice vetorial único para nomic-embed-text (768 dimensões)
@@ -128,7 +142,7 @@ export class Neo4jCacheManager {
       // Usar hash baseado no nome para ID consistente
       const documentId = crypto.createHash('md5').update(document.name).digest('hex');
       
-      // Verificar se documento já existe
+      // Verificar se documento já existe pelo ID (nome) ou pelo HASH (conteúdo)
       const existingDoc = await session.run(`
         MATCH (d:Document {id: $documentId})
         RETURN d.hash as hash
@@ -137,6 +151,22 @@ export class Neo4jCacheManager {
       const shouldUpdate = existingDoc.records.length > 0 && 
                           existingDoc.records[0].get('hash') !== documentHash;
       
+      // Se já existir um documento com o mesmo conteúdo (hash), pular reimportação
+      const existingByHash = await session.run(`
+        MATCH (d:Document {hash: $documentHash})
+        RETURN d.id as id, d.name as name
+      `, { documentHash });
+
+      if (existingByHash.records.length > 0) {
+        const existingId = existingByHash.records[0].get('id');
+        const existingName = existingByHash.records[0].get('name');
+        // Se o mesmo conteúdo já estiver presente (mesmo hash), não reprocessar
+        if (existingId !== documentId || !shouldUpdate) {
+          console.log(`⏭️ Documento com mesmo conteúdo já existe (${existingName}). Pulando: ${document.name}`);
+          return;
+        }
+      }
+
       if (existingDoc.records.length > 0) {
         if (shouldUpdate) {
           console.log(`🔄 Documento existente encontrado, atualizando: ${document.name}`);
@@ -151,8 +181,15 @@ export class Neo4jCacheManager {
         }
       }
       
-      // Dividir em chunks
-      const chunks = await this.splitter.createDocuments([document.content]);
+      // Dividir em chunks - usar MarkdownSplitter para arquivos .md
+      const isMarkdown = document.name.toLowerCase().endsWith('.md');
+      const splitterToUse = isMarkdown ? this.markdownSplitter : this.splitter;
+      
+      if (isMarkdown) {
+        console.log(`📝 Usando MarkdownTextSplitter para ${document.name} (respeita estrutura de headers)`);
+      }
+      
+      const chunks = await splitterToUse.createDocuments([document.content]);
       
       if (chunks.length === 0) {
         throw new Error(`Nenhum chunk gerado para: ${document.name}`);

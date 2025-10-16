@@ -25,9 +25,36 @@ const openrouterProvider = new OpenRouterProvider();
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
 
-// Configurar CORS
+// Configurar CORS - Aceitar múltiplas origens (dev, produção, WSL2)
+const allowedOrigins = [
+  'http://localhost:5173',  // Desenvolvimento (Vite dev server)
+  'http://localhost:4173',  // Produção (Vite preview)
+  'http://127.0.0.1:5173',  // Desenvolvimento (127.0.0.1)
+  'http://127.0.0.1:4173',  // Produção (127.0.0.1)
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Permitir requisições sem origin (ex: Postman, curl)
+    if (!origin) return callback(null, true);
+    
+    // Verificar se está na lista de origens permitidas
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Permitir qualquer IP local (WSL2, rede local)
+    // Exemplos: http://172.21.123.93:4173, http://10.255.255.254:4173
+    const isLocalNetwork = /^https?:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|172\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+):(5173|4173)$/i.test(origin);
+    
+    if (isLocalNetwork) {
+      return callback(null, true);
+    }
+    
+    console.warn(`⚠️ Origem bloqueada pelo CORS: ${origin}`);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -424,9 +451,11 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
     console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
 
     // Buscar documentos que contenham mapeamento STRIDE-CAPEC
+    // 🔥 IMPORTANTE: Limite aumentado para 150 chunks para garantir diversidade de CAPECs
+    // Isso evita repetição quando o relatório tiver 30-50+ ameaças
     let results;
     try {
-      results = await searchFactory.search('STRIDE CAPEC mapping categoria', 50);
+      results = await searchFactory.search('STRIDE CAPEC mapping categoria', 150);
     } catch (error) {
       console.warn('⚠️ Busca semântica falhou, tentando busca textual direta:', error);
       
@@ -517,14 +546,67 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
       });
     }
 
-    // Extrair e estruturar o mapeamento dos resultados
-    const mappingData = extractStrideCapecMapping(results);
+    // Extrair CAPECs diretamente via busca semântica por categoria
+    const strideCategories = ['Spoofing', 'Tampering', 'Repudiation', 'Information Disclosure', 'Denial of Service', 'Elevation of Privilege'];
+    const mappingData: any[] = [];
+
+    for (const category of strideCategories) {
+      try {
+        // Busca semântica específica para a categoria
+        // 🔥 IMPORTANTE: Limite aumentado para 150 chunks para garantir diversidade de CAPECs
+        // Isso garante que relatórios com 30-50+ ameaças tenham CAPECs únicos
+        const categoryResults = await searchFactory.search(
+          `STRIDE ${category} CAPEC attack pattern vulnerability threat`,
+          150
+        );
+
+        const capecs: any[] = [];
+        const capecSet = new Set<string>();
+
+        // Extrair CAPECs únicos dos chunks
+        for (const result of categoryResults) {
+          const content = result.documento?.pageContent || '';
+          const capecRegex = /CAPEC[- ](\d+)[:\-–\s]+([^\n\r]+)/gi;
+          let match;
+
+          while ((match = capecRegex.exec(content)) !== null) {
+            const id = `CAPEC-${match[1]}`;
+            if (!capecSet.has(id)) {
+              capecSet.add(id);
+              const name = match[2].trim()
+                .replace(/^[:\-–\s]+/, '')
+                .replace(/\]\(https?:\/\/[^)]+\)/g, '')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/https?:\/\/[^\s]+/g, '')
+                .substring(0, 200)
+                .trim();
+              
+              if (name) {
+                capecs.push({ id, name });
+              }
+            }
+          }
+        }
+
+        if (capecs.length > 0) {
+          mappingData.push({
+            stride: category,
+            capecs: capecs
+          });
+          console.log(`✅ ${category}: ${capecs.length} CAPECs extraídos`);
+        } else {
+          console.warn(`⚠️ ${category}: nenhum CAPEC encontrado`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Erro ao buscar ${category}:`, error);
+      }
+    }
 
     if (mappingData.length === 0) {
-      console.warn('⚠️ Mapeamento extraído está vazio');
+      console.warn('⚠️ Nenhum mapeamento STRIDE-CAPEC encontrado via busca semântica');
       return res.status(404).json({
-        error: 'Mapeamento STRIDE-CAPEC vazio',
-        message: 'O documento carregado não contém um mapeamento válido. Verifique o formato JSON.',
+        error: 'Mapeamento STRIDE-CAPEC não encontrado',
+        message: 'Nenhum documento com CAPECs foi encontrado. Faça upload de um documento de mapeamento STRIDE-CAPEC.',
         mapping: [],
         initialized: true
       });
@@ -547,6 +629,190 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
       mapping: [],
       initialized: searchFactory !== null
     });
+  }
+});
+
+// Deletar documento específico para reimportação
+app.delete('/api/documents/:documentId', async (req, res) => {
+  try {
+    const { documentId } = req.params;
+    const session = Neo4jClient.getSession();
+    
+    try {
+      // Deletar documento e seus chunks
+      const result = await session.run(`
+        MATCH (d:Document {id: $documentId})
+        OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+        DETACH DELETE d, c
+        RETURN count(*) as deleted
+      `, { documentId });
+
+      console.log(`🗑️ Documento ${documentId} deletado do Neo4j`);
+      
+      res.json({ 
+        success: true, 
+        documentId,
+        message: 'Documento deletado com sucesso. Faça upload novamente para reimportar.'
+      });
+    } finally {
+      await session.close();
+    }
+  } catch (error) {
+    console.error('❌ Erro ao deletar documento:', error);
+    res.status(500).json({ error: 'Erro ao deletar documento' });
+  }
+});
+
+// Diagnóstico: verificar origem dos CAPECs (se são reais ou mocks)
+app.get('/api/debug/capec-validation', async (req, res) => {
+  try {
+    if (!searchFactory) {
+      return res.status(503).json({ error: 'RAG não inicializado' });
+    }
+
+    // Buscar alguns CAPECs específicos que apareceram no resultado
+    const testCapecs = ['CAPEC-123', 'CAPEC-115', 'CAPEC-98', 'CAPEC-268', 'CAPEC-151'];
+    const validation: any = {};
+
+    for (const capecId of testCapecs) {
+      // Buscar no Neo4j se esse CAPEC realmente existe
+      const results = await searchFactory.search(`${capecId}`, 10);
+      
+      const found = results.some(r => 
+        r.documento?.pageContent?.includes(capecId)
+      );
+
+      validation[capecId] = {
+        foundInNeo4j: found,
+        chunksFound: results.length,
+        sampleContent: found ? results[0].documento.pageContent.substring(0, 200) : null
+      };
+    }
+
+    res.json({
+      validation,
+      conclusion: Object.values(validation).every((v: any) => v.foundInNeo4j) 
+        ? '✅ Todos os CAPECs testados existem na base Neo4j - NÃO SÃO MOCKS'
+        : '⚠️ Alguns CAPECs NÃO foram encontrados - podem ser mocks/inventados'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao validar CAPECs' });
+  }
+});
+
+// Diagnóstico: listar documentos e chunks
+app.get('/api/debug/documents', async (req, res) => {
+  try {
+    const session = Neo4jClient.getSession();
+    try {
+      const result = await session.run(`
+        MATCH (d:Document)
+        OPTIONAL MATCH (d)-[:CONTAINS]->(c:Chunk)
+        RETURN d.id as id, d.name as name, count(c) as chunks
+        ORDER BY d.name
+      `);
+
+      const documents = result.records.map(record => ({
+        id: record.get('id'),
+        name: record.get('name'),
+        chunks: record.get('chunks').toNumber()
+      }));
+
+      res.json({ documents, total: documents.reduce((sum, d) => sum + d.chunks, 0) });
+    } finally {
+      await session.close();
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao listar documentos' });
+  }
+});
+
+// Contar CAPECs por categoria STRIDE usando busca semântica RAG
+app.get('/api/stride-capec-counts', async (req, res) => {
+  try {
+    if (!searchFactory) {
+      return res.status(503).json({
+        error: 'Sistema RAG não inicializado',
+        counts: {},
+        initialized: false
+      });
+    }
+
+    console.log('🔍 Buscando CAPECs por categoria STRIDE via busca semântica...');
+
+    const strideCategories = [
+      'Spoofing',
+      'Tampering',
+      'Repudiation',
+      'Information Disclosure',
+      'Denial of Service',
+      'Elevation of Privilege'
+    ];
+
+    const counts: Record<string, Set<string>> = {};
+    const allChunksFound: string[] = [];
+
+    // Busca semântica para cada categoria STRIDE
+    for (const category of strideCategories) {
+      try {
+        // Busca semântica focada na categoria
+        // 🔥 IMPORTANTE: Limite aumentado para 150 chunks para garantir diversidade de CAPECs
+        // Isso garante que relatórios com 30-50+ ameaças tenham CAPECs únicos disponíveis
+        const results = await searchFactory.search(
+          `STRIDE ${category} CAPEC attack pattern security threat vulnerability`,
+          150  // Top 150 chunks mais relevantes (antes: 50)
+        );
+
+        console.log(`🔍 ${category}: ${results.length} chunks encontrados`);
+
+        // Extrair CAPECs de todos os chunks encontrados
+        const capecIds = new Set<string>();
+        
+        for (const result of results) {
+          const content = result.documento?.pageContent || '';
+          allChunksFound.push(content);
+          
+          // Extrair todos os CAPECs do chunk (formato: CAPEC-123 ou CAPEC 123)
+          const capecRegex = /CAPEC[- ](\d+)/gi;
+          let match;
+          
+          while ((match = capecRegex.exec(content)) !== null) {
+            capecIds.add(`CAPEC-${match[1]}`);
+          }
+        }
+
+        counts[category] = capecIds;
+        console.log(`✅ ${category}: ${capecIds.size} CAPECs únicos`);
+
+      } catch (error) {
+        console.warn(`⚠️ Erro ao buscar ${category}:`, error);
+        counts[category] = new Set();
+      }
+    }
+
+    // Converter Sets para counts
+    const finalCounts: Record<string, number> = {};
+    for (const [category, capecSet] of Object.entries(counts)) {
+      finalCounts[category] = capecSet.size;
+    }
+
+    // Deduplica chunks
+    const uniqueChunks = new Set(allChunksFound);
+    const totalContent = Array.from(uniqueChunks).join('\n\n');
+
+    res.json({
+      counts: finalCounts,
+      categories: Object.keys(finalCounts),
+      totalCategories: Object.keys(finalCounts).length,
+      totalChunksAnalyzed: uniqueChunks.size,
+      contentSize: totalContent.length,
+      timestamp: new Date().toISOString(),
+      initialized: true
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao contar CAPECs por STRIDE:', error);
+    res.status(500).json({ error: 'Falha ao contar CAPECs por STRIDE' });
   }
 });
 
@@ -604,15 +870,22 @@ function parseStructuredTextToMapping(content: string): any[] {
 
     for (const strideCategory of strideCategories) {
       // Procurar seções que mencionam a categoria STRIDE
+      // Regex melhorada: captura tudo até a PRÓXIMA categoria de nível 2 (## X.)
+      // Ignora sub-títulos (###, ####) dentro da seção
       const categoryRegex = new RegExp(
-        `(?:##?\\s*)?${strideCategory}[:\\s]*(?:\n|$)([\\s\\S]*?)(?=##?\\s*(?:Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege)|$)`,
+        `##\\s*\\d+\\.\\s*${strideCategory}[^\\n]*\\n([\\s\\S]*?)(?=##\\s*\\d+\\.\\s*(?:Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege)|---\\s*$|$)`,
         'i'
       );
       
       const categoryMatch = content.match(categoryRegex);
-      if (!categoryMatch) continue;
+      if (!categoryMatch) {
+        console.log(`⚠️ Categoria "${strideCategory}" não encontrada no conteúdo`);
+        continue;
+      }
 
       const categoryContent = categoryMatch[1];
+      console.log(`📋 Processando "${strideCategory}" (${categoryContent.length} caracteres)...`);
+      
       const capecs: any[] = [];
 
       // Extrair CAPECs da seção (formato: CAPEC-XXX: Nome ou CAPEC-XXX - Nome)
@@ -634,6 +907,8 @@ function parseStructuredTextToMapping(content: string): any[] {
           capecs.push({ id, name });
         }
       }
+
+      console.log(`   ✅ Encontrados ${capecs.length} CAPECs em "${strideCategory}"`);
 
       if (capecs.length > 0) {
         mapping.push({
@@ -884,6 +1159,61 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
       });
     }
 
+    // Sanitização opcional para respostas de ameaças: remover emojis e normalizar setas
+    const sanitizeArrowsAndEmojis = (text: string): string => {
+      try {
+        // Substituir vários símbolos/setas por uma seta padrão
+        const arrowPattern = /[\u2190-\u21FF\u2794\u27A1\u27F5-\u27FF\u2900-\u297F\u2B05-\u2B07]/gu;
+        let sanitized = text.replace(arrowPattern, '→');
+        // Remover variação emoji (FE0F)
+        sanitized = sanitized.replace(/\uFE0F/gu, '');
+        // Remover emojis comuns (faixas Unicode)
+        const emojiPattern = /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu;
+        sanitized = sanitized.replace(emojiPattern, '');
+        // Normalizar espaços
+        sanitized = sanitized.replace(/\s{2,}/g, ' ').trim();
+        return sanitized;
+      } catch {
+        return text;
+      }
+    };
+
+    const sanitizeThreatsJsonString = (raw: string): string => {
+      try {
+        // Remover cercas de código caso venham em bloco ```json ... ```
+        let cleaned = raw.trim().replace(/^```[a-zA-Z]*\n?/, '').replace(/```\s*$/,'');
+        const data = JSON.parse(cleaned);
+        if (data && Array.isArray(data.threats)) {
+          for (const t of data.threats) {
+            if (typeof t.elementName === 'string') {
+              t.elementName = sanitizeArrowsAndEmojis(t.elementName);
+            }
+            if (typeof t.threatScenario === 'string') {
+              t.threatScenario = sanitizeArrowsAndEmojis(t.threatScenario);
+            }
+            if (typeof t.capecName === 'string') {
+              t.capecName = sanitizeArrowsAndEmojis(t.capecName);
+            }
+            if (typeof t.capecDescription === 'string') {
+              t.capecDescription = sanitizeArrowsAndEmojis(t.capecDescription);
+            }
+            if (typeof t.mitigationRecommendations === 'string') {
+              t.mitigationRecommendations = sanitizeArrowsAndEmojis(t.mitigationRecommendations);
+            }
+          }
+          return JSON.stringify(data);
+        }
+        return raw; // não é o formato esperado
+      } catch {
+        return raw; // se falhar parsing, retorna original
+      }
+    };
+
+    // Se o schema indica que é análise de ameaças, sanitizar os campos de texto
+    if (format && (format.properties?.threats || (typeof format === 'object' && 'threats' in (format.properties || {})))) {
+      content = sanitizeThreatsJsonString(content);
+    }
+
     console.log(`🔧 Content final: "${content}"`);
     console.log(`🔧 Content length: ${content.length}`);
     console.log(`🔧 Content type: ${typeof content}`);
@@ -943,8 +1273,84 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// Função para inicialização automática do RAG
+async function autoInitializeRAG() {
+  try {
+    console.log('\n🔄 Iniciando sistema RAG automaticamente...');
+    
+    // 1. Inicializar o RAG
+    if (!searchFactory) {
+      await ModelFactory.initialize();
+      
+      const neo4jConnected = await Neo4jClient.testConnection();
+      if (!neo4jConnected) {
+        throw new Error('Não foi possível conectar ao Neo4j');
+      }
+      
+      searchFactory = SemanticSearchFactory.createSearch();
+      await searchFactory.initialize();
+      console.log('✅ RAG inicializado com sucesso');
+    }
+    
+    // 2. Fazer upload dos arquivos de knowledge base
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Caminho para a pasta knowledge-base (relativo ao backend)
+    const knowledgeBasePath = path.join(__dirname, '../../src/knowledge-base');
+    
+    if (fs.existsSync(knowledgeBasePath)) {
+      console.log('📚 Carregando arquivos de conhecimento...');
+      
+      const files = fs.readdirSync(knowledgeBasePath)
+        .filter((file: string) => file.endsWith('.md'))
+        .sort((a: string, b: string) => {
+          // Priorizar capec-stride-mapping-completo.md
+          if (a.includes('capec-stride-mapping')) return -1;
+          if (b.includes('capec-stride-mapping')) return 1;
+          return a.localeCompare(b);
+        });
+      
+      let successCount = 0;
+      
+      for (const file of files) {
+        try {
+          const filePath = path.join(knowledgeBasePath, file);
+          const content = fs.readFileSync(filePath, 'utf-8');
+          
+          console.log(`  📄 Processando: ${file}...`);
+          
+          // Processar documento usando DocumentLoaderFactory
+          await searchFactory!.processDocument({
+            name: file,
+            content,
+            metadata: {
+              uploadedAt: new Date().toISOString(),
+              source: 'auto-initialization'
+            }
+          });
+          
+          console.log(`  ✅ ${file} carregado com sucesso`);
+          successCount++;
+        } catch (fileError) {
+          console.error(`  ❌ Erro ao processar ${file}:`, fileError);
+        }
+      }
+      
+      console.log(`\n✅ ${successCount}/${files.length} arquivos de conhecimento carregados com sucesso!\n`);
+    } else {
+      console.warn(`⚠️ Pasta knowledge-base não encontrada: ${knowledgeBasePath}`);
+      console.warn(`   Caminho esperado: ${knowledgeBasePath}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro na inicialização automática do RAG:', error);
+    console.log('💡 O sistema continuará rodando, mas você precisará inicializar manualmente no painel lateral.');
+  }
+}
+
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Servidor RAG rodando na porta ${PORT}`);
   console.log(`📡 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
   console.log(`🔗 Neo4j URI: ${process.env.NEO4J_URI || 'bolt://localhost:7687'}`);
@@ -957,6 +1363,9 @@ app.listen(PORT, () => {
   console.log('  POST /api/search/context - Contexto RAG');
   console.log('  GET  /api/statistics - Estatísticas');
   console.log('  DELETE /api/cache - Limpar cache');
+  
+  // Inicializar RAG automaticamente
+  await autoInitializeRAG();
 });
 
 export default app;

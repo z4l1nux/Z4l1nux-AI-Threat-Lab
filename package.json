@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "dev:backend": "cd backend && ts-node --project tsconfig.json src/server.ts",
-    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev\"",
-    "build": "vite build",
+    "dev:full": "concurrently --kill-others --names \"BACKEND,FRONTEND\" --prefix-colors \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:backend\" \"npm run dev\"",
+    "build": "npm run build:backend && vite build",
     "build:backend": "cd backend && tsc",
+    "start": "concurrently --kill-others --names \"BACKEND,FRONTEND\" --prefix-colors \"bgBlue.bold,bgMagenta.bold\" \"npm run start:backend\" \"npm run preview\"",
+    "start:backend": "cd backend && node dist/server.js",
     "preview": "vite preview",
     "create-neo4j": "cd backend && ts-node --project tsconfig.json src/scripts/initNeo4j.ts",
     "test-rag": "cd backend && ts-node --project tsconfig.json src/scripts/testRAG.ts",

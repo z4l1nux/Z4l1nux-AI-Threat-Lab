@@ -25,14 +25,14 @@ export const useThreatModeler = () => {
         if (!response.ok) {
           if (response.status === 503) {
             console.warn('⚠️ Sistema RAG não inicializado');
-            setError("⚠️ Sistema RAG não inicializado. Por favor:\n1. Inicialize o sistema RAG no painel lateral\n2. Faça upload do arquivo JSON de mapeamento STRIDE-CAPEC\n3. Tente gerar o modelo novamente");
+            setError("⚠️ Sistema RAG não inicializado. Por favor:\n\n1. Inicialize o sistema RAG no painel lateral (botão laranja)\n2. Faça upload do arquivo 'capec-stride-mapping-completo.md' da pasta src/knowledge-base/\n3. Tente gerar o modelo novamente\n\nCertifique-se que o backend está rodando (npm run dev:full)");
             setStrideCapecMap([]);
             return;
           }
           
           if (response.status === 404) {
             console.warn('⚠️ Mapeamento STRIDE-CAPEC não encontrado no RAG');
-            setError("⚠️ Mapeamento STRIDE-CAPEC não encontrado. Por favor:\n1. Faça upload de um documento (JSON, PDF, MD, TXT, DOCX) contendo o mapeamento STRIDE-CAPEC\n2. Aguarde o processamento no painel RAG\n3. Recarregue a página ou tente gerar o modelo novamente\n\nFormatos aceitos: JSON, PDF, Markdown, TXT, DOCX, DOC");
+            setError("⚠️ Mapeamento STRIDE-CAPEC não encontrado. Por favor:\n\n1. Faça upload do arquivo 'capec-stride-mapping-completo.md' (pasta src/knowledge-base/)\n2. Aguarde o processamento no painel RAG (status: verde)\n3. Recarregue a página ou tente gerar o modelo novamente\n\n📁 Arquivo recomendado: src/knowledge-base/capec-stride-mapping-completo.md\n📦 Formatos aceitos: JSON, PDF, Markdown, TXT, DOCX, DOC");
             setStrideCapecMap([]);
             return;
           }
