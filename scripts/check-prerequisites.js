@@ -10,8 +10,8 @@
  * - Ollama (opcional, mas recomendado)
  */
 
-const { execSync } = require('child_process');
-const http = require('http');
+import { execSync } from 'child_process';
+import http from 'http';
 
 const colors = {
   reset: '\x1b[0m',

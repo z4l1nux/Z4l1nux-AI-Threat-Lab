@@ -10,9 +10,13 @@
  * - Prepara o ambiente para execução
  */
 
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Cores para terminal (funciona em ambos os ambientes)
 const colors = {
@@ -55,16 +59,24 @@ function checkNodeVersion() {
   log(`✅ Node.js ${nodeVersion} detectado`, 'green');
 }
 
-function checkNeo4j() {
-  log('\n🔍 Verificando configuração do Neo4j...', 'cyan');
+function checkEnvFile() {
+  log('\n🔍 Verificando arquivo .env...', 'cyan');
   
   const envPath = path.join(__dirname, '..', 'backend', '.env');
+  const envExamplePath = path.join(__dirname, '..', 'backend', '.env.example');
   
   if (!fs.existsSync(envPath)) {
     log('⚠️  Arquivo .env não encontrado no backend', 'yellow');
-    log('   Criando .env a partir do template...', 'yellow');
     
-    const envExample = `# Neo4j Configuration
+    // Tenta copiar do .env.example
+    if (fs.existsSync(envExamplePath)) {
+      log('   Copiando .env.example para .env...', 'yellow');
+      fs.copyFileSync(envExamplePath, envPath);
+      log('✅ Arquivo .env criado a partir do template', 'green');
+    } else {
+      log('   Criando .env com valores padrão...', 'yellow');
+      
+      const envContent = `# Neo4j Configuration
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
@@ -76,41 +88,37 @@ EMBEDDING_MODEL=nomic-embed-text:latest
 OLLAMA_TIMEOUT=180000
 OLLAMA_MAX_RETRIES=2
 
-# OpenRouter Configuration (opcional)
+# OpenRouter Configuration
 OPENROUTER_API_KEY=
-MODEL_OPENROUTER=openai/gpt-4o-mini
+MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
 
 # Server Configuration
 PORT=3001
 FRONTEND_URL=http://localhost:5173
 `;
+      
+      fs.writeFileSync(envPath, envContent);
+      log('✅ Arquivo .env criado com valores padrão', 'green');
+    }
     
-    fs.writeFileSync(envPath, envExample);
-    log('✅ Arquivo .env criado com valores padrão', 'green');
-    log('   ⚠️  IMPORTANTE: Configure suas credenciais do Neo4j no arquivo:', 'yellow');
+    log('   ⚠️  IMPORTANTE: Configure suas credenciais no arquivo:', 'yellow');
     log(`   📄 ${envPath}`, 'bright');
   } else {
     log('✅ Arquivo .env encontrado', 'green');
   }
 }
 
-function installDependencies(directory, name) {
-  log(`\n📦 Instalando dependências do ${name}...`, 'cyan');
-  
+function checkDependencies(directory, name) {
   const fullPath = path.join(__dirname, '..', directory);
+  const nodeModulesPath = path.join(fullPath, 'node_modules');
   
-  if (!fs.existsSync(path.join(fullPath, 'node_modules'))) {
-    log(`   Instalando em ${directory}...`, 'yellow');
-    try {
-      execCommand('npm install', { cwd: fullPath });
-      log(`✅ Dependências do ${name} instaladas com sucesso`, 'green');
-    } catch (error) {
-      log(`❌ Erro ao instalar dependências do ${name}`, 'red');
-      throw error;
-    }
-  } else {
-    log(`✅ Dependências do ${name} já instaladas`, 'green');
+  if (!fs.existsSync(nodeModulesPath)) {
+    log(`⚠️  Dependências do ${name} não encontradas`, 'yellow');
+    log(`   Execute: npm install`, 'yellow');
+    return false;
   }
+  
+  return true;
 }
 
 function buildBackend() {
@@ -162,14 +170,14 @@ async function main() {
     // 1. Verificar Node.js
     checkNodeVersion();
     
-    // 2. Instalar dependências raiz
-    installDependencies('.', 'projeto raiz');
+    // 2. Instalar dependências raiz (skip - já feito pelo postinstall)
+    // installDependencies('.', 'projeto raiz');
     
-    // 3. Instalar dependências backend
-    installDependencies('backend', 'backend');
+    // 3. Instalar dependências backend (skip - já feito pelo postinstall)
+    // installDependencies('backend', 'backend');
     
-    // 4. Verificar Neo4j
-    checkNeo4j();
+    // 4. Verificar arquivo .env
+    checkEnvFile();
     
     // 5. Compilar backend
     buildBackend();
