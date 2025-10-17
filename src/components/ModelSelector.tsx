@@ -159,14 +159,29 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
           )}
         </div>
 
-        {/* Status dos Provedores */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-          <div className={`p-2 rounded ${models.some(m => m.provider === 'ollama') ? 'bg-green-900/20 text-green-300' : 'bg-red-900/20 text-red-300'}`}>
-            <span className="font-medium">Ollama:</span> {models.some(m => m.provider === 'ollama') ? 'Configurado' : 'Não configurado'}
-          </div>
-          <div className={`p-2 rounded ${models.some(m => m.provider === 'openrouter') ? 'bg-green-900/20 text-green-300' : 'bg-red-900/20 text-red-300'}`}>
-            <span className="font-medium">OpenRouter:</span> {models.some(m => m.provider === 'openrouter') ? 'Configurado' : 'Não configurado'}
-          </div>
+        {/* Status compacto dos Provedores */}
+        <div className="flex items-center gap-6 text-xs text-gray-300">
+          {(() => {
+            const hasOllama = models.some(m => m.provider === 'ollama') || embeddings.some(e => e.provider === 'ollama');
+            const hasOpenRouter = models.some(m => m.provider === 'openrouter') || embeddings.some(e => e.provider === 'openrouter');
+            const hasGemini = models.some(m => m.provider === 'gemini') || embeddings.some(e => e.provider === 'gemini');
+            return (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${hasOllama ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span>Ollama</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${hasOpenRouter ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span>OpenRouter</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 rounded-full ${hasGemini ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span>Gemini</span>
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
