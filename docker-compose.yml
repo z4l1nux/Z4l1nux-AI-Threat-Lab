@@ -12,14 +12,14 @@ services:
       - "7687:7687"  # Bolt Protocol
     environment:
       # Configuração para desenvolvimento local
-      - NEO4J_AUTH=neo4j/!2NS£A82p5Y
+      - NEO4J_AUTH=neo4j/choose-your-password
       - NEO4JLABS_PLUGINS=["apoc"]
       - NEO4J_apoc_import_file_enabled=true
       - NEO4J_apoc_export_file_enabled=true
       - NEO4J_apoc_import_file_use__neo4j__config=true
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "!2NS£A82p5Y", "RETURN 1"]
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "choose-your-password", "RETURN 1"]
       interval: 30s
       timeout: 10s
       retries: 5
