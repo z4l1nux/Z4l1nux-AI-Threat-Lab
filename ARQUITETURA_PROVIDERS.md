@@ -2,7 +2,7 @@
 
 ## 📊 **Resumo Executivo**
 
-O sistema **Threat Modeling Co-Pilot with AI** agora possui uma **arquitetura extensível e modular** para providers de IA, permitindo adicionar novos modelos de forma simples e padronizada.
+O sistema **Z4l1nux AI Threat Lab** agora possui uma **arquitetura extensível e modular** para providers de IA, permitindo adicionar novos modelos de forma simples e padronizada.
 
 ---
 

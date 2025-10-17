@@ -127,6 +127,6 @@ if (Test-Path "package.json") {
     Write-Host "`n🚀 Para iniciar o projeto:" -ForegroundColor Cyan
     Write-Host "   npm run dev:full" -ForegroundColor White
 } else {
-    Write-Host "`n⚠️ Este não parece ser o diretório do projeto Threat Modeling Co-Pilot" -ForegroundColor Yellow
+    Write-Host "`n⚠️ Este não parece ser o diretório do projeto Z4l1nux AI Threat Lab" -ForegroundColor Yellow
     Write-Host "   Execute este script no diretório raiz do projeto" -ForegroundColor Yellow
 }

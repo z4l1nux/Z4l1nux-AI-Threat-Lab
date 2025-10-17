@@ -1,7 +1,7 @@
-# Script universal para executar o Threat Modeling Co-Pilot
+# Script universal para executar o Z4l1nux AI Threat Lab
 # Detecta automaticamente o sistema operacional e executa o comando apropriado
 
-Write-Host "🚀 Iniciando Threat Modeling Co-Pilot..." -ForegroundColor Green
+Write-Host "🚀 Iniciando Z4l1nux AI Threat Lab..." -ForegroundColor Green
 
 # Verificar se estamos no diretório correto
 if (-not (Test-Path "package.json")) {
@@ -84,7 +84,7 @@ try {
 }
 
 # Iniciar o projeto
-Write-Host "`n🚀 Iniciando Threat Modeling Co-Pilot..." -ForegroundColor Green
+Write-Host "`n🚀 Iniciando Z4l1nux AI Threat Lab..." -ForegroundColor Green
 Write-Host "   Frontend: http://localhost:5173" -ForegroundColor White
 Write-Host "   Backend: http://localhost:3001" -ForegroundColor White
 Write-Host "   Neo4j: http://localhost:7474" -ForegroundColor White

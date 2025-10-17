@@ -153,7 +153,7 @@ EMBEDDING_MODEL=nomic-embed-text:latest
 1. **Clone o repositório:**
    ```bash
    git clone <url-do-repo>
-   cd threat-modeling-co-pilot-with-ai-3
+   cd z4l1nux-ai-threat-lab
    ```
 
 2. **Instale as dependências:**
@@ -304,7 +304,7 @@ Acesse: `http://localhost:5173`
 ## Estrutura do Projeto
 
 ```
-threat-modeling-co-pilot-with-ai-3/
+z4l1nux-ai-threat-lab/
 ├── src/                              # Frontend React
 │   ├── components/
 │   │   ├── VisualEditor/            # 🎨 Editor Visual

@@ -1,4 +1,4 @@
-# 🔍 Guia de Queries Neo4j para Threat Modeling Co-Pilot
+# 🔍 Guia de Queries Neo4j para Z4l1nux AI Threat Lab
 
 ## 📊 **Queries Básicas de Visualização**
 

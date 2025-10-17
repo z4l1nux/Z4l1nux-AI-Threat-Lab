@@ -1,6 +1,6 @@
 /**
  * Tipos para o Editor Visual de Threat Modeling
- * Adaptado para o projeto Threat Modeling Co-Pilot with AI
+ * Adaptado para o projeto Z4l1nux AI Threat Lab
  */
 
 export type AssetCategory = 'ai' | 'data' | 'service' | 'external' | 'storage' | 'user';

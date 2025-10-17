@@ -1,7 +1,7 @@
-# Script de setup completo para Threat Modeling Co-Pilot
+# Script de setup completo para Z4l1nux AI Threat Lab
 # PowerShell equivalente ao setup.js
 
-Write-Host "🚀 Configurando Threat Modeling Co-Pilot..." -ForegroundColor Green
+Write-Host "🚀 Configurando Z4l1nux AI Threat Lab..." -ForegroundColor Green
 
 # Verificar se Node.js está instalado
 try {
@@ -116,7 +116,7 @@ if (-not (Test-Path ".env.local")) {
     
     $envContent = @"
 # ===========================================
-# CONFIGURAÇÕES DO THREAT MODELING CO-PILOT
+# CONFIGURAÇÕES DO Z4L1NUX AI THREAT LAB
 # ===========================================
 
 # ===========================================

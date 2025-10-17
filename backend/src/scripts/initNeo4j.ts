@@ -8,7 +8,7 @@ console.log('🔍 GEMINI_API_KEY presente:', !!process.env.GEMINI_API_KEY);
 
 async function main() {
   try {
-    console.log("🚀 Inicializando Neo4j para Threat Modeling Co-Pilot...");
+    console.log("🚀 Inicializando Neo4j para Z4l1nux AI Threat Lab...");
     
     // Verificar variáveis de ambiente
     if (!process.env.GEMINI_API_KEY) {

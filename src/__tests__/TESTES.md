@@ -1,4 +1,4 @@
-# 🧪 Guia de Testes - Threat Modeling Co-Pilot
+# 🧪 Guia de Testes - Z4l1nux AI Threat Lab
 
 ## 📋 Tipos de Testes
 
@@ -213,7 +213,7 @@ open coverage/index.html
 ## 📊 Estrutura de Testes
 
 ```
-threat-modeling-co-pilot-with-ai-3/
+z4l1nux-ai-threat-lab/
 ├── vitest.config.ts              # Configuração Vitest
 ├── src/
 │   └── __tests__/                # 🎯 Todos os testes centralizados aqui
