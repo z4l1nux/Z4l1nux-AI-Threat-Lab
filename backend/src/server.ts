@@ -1195,15 +1195,30 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
           message: 'API key do Gemini não está configurada'
         });
       }
-      
       const geminiModel = modelConfig?.model || process.env.MODEL_GEMINI || 'gemini-1.5-flash';
       console.log(`🔧 Usando modelo Gemini: ${geminiModel}`);
       console.log(`🔧 Format fornecido:`, format);
-      content = await geminiProvider.generateContent(prompt, geminiModel, format);
-      console.log(`🔧 Resposta do Gemini: ${content.substring(0, 100)}...`);
-      console.log(`🔧 Content length: ${content.length}`);
-      console.log(`🔧 Content type: ${typeof content}`);
-      model = geminiModel;
+      try {
+        content = await geminiProvider.generateContent(prompt, geminiModel, format);
+        console.log(`🔧 Resposta do Gemini: ${content.substring(0, 100)}...`);
+        console.log(`🔧 Content length: ${content.length}`);
+        console.log(`🔧 Content type: ${typeof content}`);
+        model = geminiModel;
+      } catch (geminiError) {
+        console.warn('⚠️ Gemini falhou ao gerar conteúdo, tentando fallback para OpenRouter...', geminiError);
+        const isOpenRouterAvailable = await openrouterProvider.isAvailable();
+        if (!isOpenRouterAvailable) {
+          throw geminiError; // sem fallback disponível
+        }
+        const openrouterModel = process.env.MODEL_OPENROUTER;
+        if (!openrouterModel) {
+          throw new Error('OpenRouter não configurado para fallback');
+        }
+        content = await openrouterProvider.generateContent(prompt, openrouterModel, format);
+        console.log(`✅ OpenRouter: Resposta gerada com sucesso via fallback`);
+        model = openrouterModel;
+        provider = 'openrouter';
+      }
       
     } else if (provider === 'openrouter') {
       const isOpenRouterAvailable = await openrouterProvider.isAvailable();
@@ -1369,9 +1384,12 @@ async function autoInitializeRAG() {
       searchFactory = SemanticSearchFactory.createSearch();
       await searchFactory.initialize();
       console.log('✅ RAG inicializado com sucesso');
+      // Marcar como inicializado imediatamente; carga de documentos continuará em background
+      ragAutoInitialized = true;
+      ragInitializationInProgress = false;
     }
     
-    // 2. Fazer upload dos arquivos de knowledge base
+    // 2. Fazer upload dos arquivos de knowledge base (em background)
     const fs = require('fs');
     const path = require('path');
     
@@ -1392,29 +1410,28 @@ async function autoInitializeRAG() {
       
       let successCount = 0;
       
-      for (const file of files) {
-        try {
-          const filePath = path.join(knowledgeBasePath, file);
-          const content = fs.readFileSync(filePath, 'utf-8');
-          
-          console.log(`  📄 Processando: ${file}...`);
-          
-          // Processar documento usando DocumentLoaderFactory
-          await searchFactory!.processDocument({
-            name: file,
-            content,
-            metadata: {
-              uploadedAt: new Date().toISOString(),
-              source: 'auto-initialization'
-            }
-          });
-          
-          console.log(`  ✅ ${file} carregado com sucesso`);
-          successCount++;
-        } catch (fileError) {
-          console.error(`  ❌ Erro ao processar ${file}:`, fileError);
+      (async () => {
+        for (const file of files) {
+          try {
+            const filePath = path.join(knowledgeBasePath, file);
+            const content = fs.readFileSync(filePath, 'utf-8');
+            console.log(`  📄 Processando: ${file}...`);
+            await searchFactory!.processDocument({
+              name: file,
+              content,
+              metadata: {
+                uploadedAt: new Date().toISOString(),
+                source: 'auto-initialization'
+              }
+            });
+            console.log(`  ✅ ${file} carregado com sucesso`);
+            successCount++;
+          } catch (fileError) {
+            console.error(`  ❌ Erro ao processar ${file}:`, fileError);
+          }
         }
-      }
+        console.log(`\n✅ ${successCount}/${files.length} arquivos de conhecimento carregados com sucesso!\n`);
+      })();
       
       console.log(`\n✅ ${successCount}/${files.length} arquivos de conhecimento carregados com sucesso!\n`);
     } else {
@@ -1422,10 +1439,7 @@ async function autoInitializeRAG() {
       console.warn(`   Caminho esperado: ${knowledgeBasePath}`);
     }
     
-    // Marcar como inicializado
-    ragAutoInitialized = true;
-    ragInitializationInProgress = false;
-    console.log('✅ Sistema RAG completamente inicializado e pronto para uso!\n');
+    console.log('✅ Sistema RAG iniciado; carregamento de conhecimento segue em background.\n');
     
   } catch (error) {
     console.error('❌ Erro na inicialização automática do RAG:', error);

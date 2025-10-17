@@ -60,7 +60,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({ onFileUpload, isLoading
         <div className="text-sm text-gray-300">
           <p className="mb-2">Para análise de ameaças mais precisa, consulte:</p>
           <a 
-            href="https://www.ostering.com/media/files/docs/capec-stride-mapping.md" 
+            href="https://www.ostering.com/capec-stride-mapping/index.html" 
             target="_blank" 
             rel="noopener noreferrer"
             className="text-z4l1nux-primary hover:text-orange-400 underline"

@@ -112,7 +112,7 @@ const App: React.FC = () => {
 
       {/* Conteúdo principal com tabs - ambas montadas, apenas uma visível */}
       <main className={`w-full max-w-full min-h-[calc(100vh-200px)] flex flex-col lg:flex-row items-stretch gap-4 ${activeTab !== 'form' ? 'hidden' : ''}`}>
-        <section aria-labelledby="system-input-heading" className="w-full lg:max-w-md lg:w-2/5 h-full flex flex-col mt-6 lg:mt-8 space-y-4">
+        <section aria-labelledby="system-input-heading" className="w-full lg:w-2/5 h-full flex flex-col space-y-4 mt-2 lg:mt-6">
           <h2 id="system-input-heading" className="sr-only">Entrada de Informações do Sistema</h2>
           
           {/* Seletor de Modelos */}

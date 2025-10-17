@@ -9,6 +9,7 @@ export class Neo4jCacheManager {
   private splitter: RecursiveCharacterTextSplitter;
   private markdownSplitter: MarkdownTextSplitter;
   private embeddingCache: Map<string, number[]> = new Map();
+  private ollamaUnavailableUntil: number | null = null; // circuit breaker simples
 
   constructor(
     neo4jUri: string,
@@ -46,6 +47,20 @@ export class Neo4jCacheManager {
   private getEmbeddingLabels(embeddingProvider: string): { documentLabel: string; chunkLabel: string } {
     // Sempre usar labels simples, independente do provedor
     return { documentLabel: 'Document', chunkLabel: 'Chunk' };
+  }
+
+  private async pingOllama(timeoutMs: number = 1000): Promise<boolean> {
+    try {
+      const base = process.env.OLLAMA_BASE_URL;
+      if (!base) return false;
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      const res = await fetch(`${base}/api/tags`, { signal: controller.signal });
+      clearTimeout(t);
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
   // Método para obter dimensões do embedding (apenas nomic-embed-text)
@@ -95,8 +110,8 @@ export class Neo4jCacheManager {
 
   // Método para obter modelo de embedding baseado na configuração e provider
   private getEmbeddingModel(modelConfig?: any, provider?: string): string {
-    // Se modelo específico fornecido no config, usar ele
-    if (modelConfig?.embedding) {
+    // Usar modelo do modelConfig APENAS se o provider coincidir
+    if (modelConfig?.embedding && modelConfig?.embeddingProvider && provider && modelConfig.embeddingProvider === provider) {
       return modelConfig.embedding;
     }
     
@@ -257,7 +272,9 @@ export class Neo4jCacheManager {
         throw new Error(`Nenhum chunk gerado para: ${document.name}`);
       }
 
-      console.log(`📄 Gerando embeddings ${provider} para ${chunks.length} chunks...`);
+      // Escolher provider efetivo por documento; se falhar uma vez, alterna e mantém
+      let workingProvider: 'ollama' | 'gemini' | 'openai' = provider as any;
+      console.log(`📄 Gerando embeddings ${workingProvider} para ${chunks.length} chunks...`);
       
       // Gerar embeddings para todos os chunks
       const embeddings: number[][] = [];
@@ -265,11 +282,12 @@ export class Neo4jCacheManager {
         try {
           let embedding: number[];
           
-          if (provider === 'ollama') {
-            // Usar Ollama para embeddings
+          if (workingProvider === 'ollama') {
+            // Usar Ollama com fallback automático
             console.log(`🔗 Usando Ollama para embedding do chunk ${i + 1}`);
             try {
-              const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+              const baseUrl = process.env.OLLAMA_BASE_URL ?? '';
+              const response = await fetch(`${baseUrl}/api/embeddings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -277,18 +295,29 @@ export class Neo4jCacheManager {
                   prompt: chunks[i].pageContent
                 })
               });
-              
-              if (response.ok) {
-                const data = await response.json() as { embedding: number[] };
-                embedding = data.embedding;
-              } else {
-                throw new Error(`Ollama embedding failed: ${response.statusText}`);
-              }
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              const data = await response.json() as { embedding: number[] };
+              embedding = data.embedding;
             } catch (error) {
-              console.error(`❌ Erro com Ollama embedding:`, error);
-              throw new Error(`Falha ao gerar embedding com Ollama: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              console.warn(`⚠️ Ollama embedding falhou no chunk ${i + 1}, tentando fallback...`, error);
+              // FALLBACK 1: Gemini
+              try {
+                console.log(`↪️ Fallback: Gemini (chunk ${i + 1})`);
+                const { GoogleGenerativeAI } = await import('@google/generative-ai');
+                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+                const embeddingModel = genAI.getGenerativeModel({ 
+                  model: this.getEmbeddingModel(modelConfig, 'gemini')
+                });
+                const result = await embeddingModel.embedContent(chunks[i].pageContent);
+                embedding = result.embedding.values;
+                // após sucesso, manter Gemini para os próximos chunks
+                workingProvider = 'gemini';
+              } catch (gerr) {
+                // Não usar terceiros por padrão; propagar erro para tratamento externo
+                throw gerr;
+              }
             }
-          } else if (provider === 'gemini') {
+          } else if (workingProvider === 'gemini') {
             // Usar Gemini para embeddings
             console.log(`🔗 Usando Gemini para embedding do chunk ${i + 1}`);
             try {
@@ -301,8 +330,22 @@ export class Neo4jCacheManager {
               const result = await embeddingModel.embedContent(chunks[i].pageContent);
               embedding = result.embedding.values;
             } catch (error) {
-              console.error(`❌ Erro com Gemini embedding:`, error);
-              throw new Error(`Falha ao gerar embedding com Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              console.warn(`⚠️ Erro com Gemini embedding, tentando fallback para Ollama...`, error);
+              // Fallback para Ollama
+              const response = await fetch(`${process.env.OLLAMA_BASE_URL ?? ''}/api/embeddings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  model: this.getEmbeddingModel(modelConfig, 'ollama'),
+                  prompt: chunks[i].pageContent
+                })
+              });
+              if (!response.ok) throw new Error(`Ollama embedding failed: ${response.statusText}`);
+              const data = await response.json() as { embedding: number[] };
+              embedding = data.embedding;
+              // após sucesso, manter Ollama para os próximos chunks
+              workingProvider = 'ollama';
+              // sem cache por chunk neste fluxo
             }
           } else if (provider === 'openai' || provider === 'openrouter') {
             // Usar OpenAI para embeddings (OpenRouter não suporta embeddings)
@@ -335,7 +378,7 @@ export class Neo4jCacheManager {
                 throw new Error(`OpenAI embedding failed: ${response.statusText}`);
               }
             } catch (error) {
-              console.error(`❌ Erro com OpenAI embedding:`, error);
+              console.warn(`⚠️ Erro com OpenAI embedding:`, error);
               throw new Error(`Falha ao gerar embedding com OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           } else {
@@ -432,14 +475,14 @@ export class Neo4jCacheManager {
     try {
       // Detectar provider disponível automaticamente
       const requestedProvider = modelConfig?.embeddingProvider;
-      const provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
-      
-      console.log(`🔍 Gerando embedding ${provider} para query: "${query.substring(0, 50)}..."`);
+      let provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
+      const baseProvider = provider;
+      console.log(`🔍 Gerando embedding (com fallback) iniciando por ${provider} para query: "${query.substring(0, 50)}..."`);
       
       let queryEmbedding: number[];
       
       // Verificar cache primeiro
-      const cacheKey = `${provider}:${query}`;
+      const cacheKey = `${baseProvider}:${query}`;
       if (this.embeddingCache.has(cacheKey)) {
         console.log(`⚡ Cache hit para embedding: "${query.substring(0, 30)}..."`);
         queryEmbedding = this.embeddingCache.get(cacheKey)!;
@@ -447,10 +490,20 @@ export class Neo4jCacheManager {
         console.log(`🔄 Cache miss, gerando novo embedding...`);
         
         if (provider === 'ollama') {
+          // Se Ollama está marcado indisponível ou ping falhar, usar Gemini direto
+          const canTry = !this.ollamaUnavailableUntil || Date.now() > this.ollamaUnavailableUntil;
+          const reachable = canTry ? await this.pingOllama(800) : false;
+          if (!reachable) {
+            console.warn('⚠️ Ollama indisponível, utilizando Gemini diretamente para esta query');
+            provider = 'gemini';
+          }
+        }
+
+        if (provider === 'ollama') {
           // Usar Ollama para embeddings
           console.log(`🔗 Usando Ollama para embedding da query`);
           try {
-            const response = await fetch(`${process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434'}/api/embeddings`, {
+            const response = await fetch(`${process.env.OLLAMA_BASE_URL ?? ''}/api/embeddings`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -472,20 +525,24 @@ export class Neo4jCacheManager {
               throw new Error(`Ollama embedding failed: ${response.statusText}`);
             }
           } catch (error) {
-            console.error(`❌ Erro com Ollama embedding:`, error);
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            
-            // Mensagem mais específica para modelo não encontrado
-            if (errorMsg.includes('Not Found') || errorMsg.includes('404')) {
-              const model = this.getEmbeddingModel(modelConfig, 'ollama');
-              throw new Error(
-                `❌ Modelo de embedding "${model}" não encontrado no Ollama.\n` +
-                `   Execute: ollama pull ${model}\n` +
-                `   Ou configure outro modelo em EMBEDDING_MODEL no .env.local`
-              );
+            console.warn(`⚠️ Ollama embedding falhou, tentando fallback...`);
+            this.ollamaUnavailableUntil = Date.now() + 5 * 60 * 1000; // 5 min cooldown
+            // FALLBACK: Gemini somente
+            try {
+              console.log(`↪️ Fallback: Gemini embedding`);
+              const { GoogleGenerativeAI } = await import('@google/generative-ai');
+              const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+              const embeddingModel = genAI.getGenerativeModel({ model: this.getEmbeddingModel(modelConfig, 'gemini') });
+              const result = await embeddingModel.embedContent(query);
+              queryEmbedding = result.embedding.values;
+              if (this.embeddingCache.size < 100) {
+                this.embeddingCache.set(cacheKey, queryEmbedding);
+                console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
+              }
+            } catch (gerr) {
+              // sem OpenAI por padrão para evitar terceiros; propagar erro para escolha do outro caminho
+              throw gerr;
             }
-            
-            throw new Error(`Falha ao gerar embedding com Ollama: ${errorMsg}`);
           }
         } else if (provider === 'gemini') {
           // Usar Gemini para embeddings
@@ -506,8 +563,23 @@ export class Neo4jCacheManager {
               console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
             }
           } catch (error) {
-            console.error(`❌ Erro com Gemini embedding:`, error);
-            throw new Error(`Falha ao gerar embedding com Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.warn(`⚠️ Erro com Gemini embedding, tentando fallback para Ollama...`, error);
+            // Fallback para Ollama
+            const response = await fetch(`${process.env.OLLAMA_BASE_URL ?? ''}/api/embeddings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: this.getEmbeddingModel(modelConfig, 'ollama'),
+                prompt: query
+              })
+            });
+            if (!response.ok) throw new Error(`Ollama embedding failed: ${response.statusText}`);
+            const data = await response.json() as { embedding: number[] };
+            queryEmbedding = data.embedding;
+            if (this.embeddingCache.size < 100) {
+              this.embeddingCache.set(cacheKey, queryEmbedding);
+              console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
+            }
           }
         } else if (provider === 'openai' || provider === 'openrouter') {
           // Usar OpenAI para embeddings (OpenRouter não suporta embeddings)
@@ -546,7 +618,7 @@ export class Neo4jCacheManager {
               throw new Error(`OpenAI embedding failed: ${response.statusText}`);
             }
           } catch (error) {
-            console.error(`❌ Erro com OpenAI embedding:`, error);
+            console.warn(`⚠️ Erro com OpenAI embedding:`, error);
             throw new Error(`Falha ao gerar embedding com OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         } else {

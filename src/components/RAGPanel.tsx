@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DocumentUpload from './DocumentUpload';
 import { useRAGSystem } from '../hooks/useRAGSystem';
 
@@ -29,29 +29,37 @@ const RAGPanel: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [checkSystemHealth]);
 
-  // Polling: Verificar status periodicamente enquanto está inicializando
+  // Polling com backoff: verifica status enquanto está inicializando
+  const [pollMs, setPollMs] = useState(1000);
+  const maxPollMs = 10000;
+  const lastStatusRef = useRef<string | null>(null);
+
   useEffect(() => {
     let intervalId: NodeJS.Timeout | null = null;
 
+    const tick = async () => {
+      await checkSystemHealth();
+    };
+
+    const status = isInitialized ? 'initialized' : (isLoading ? 'initializing' : 'idle');
+    const statusChanged = lastStatusRef.current !== status;
+    lastStatusRef.current = status;
+
     if (isLoading) {
-      // Verificar a cada 2 segundos enquanto está carregando
-      intervalId = setInterval(() => {
-        console.log('🔄 Verificando status do RAG automaticamente...');
-        checkSystemHealth();
-      }, 2000);
+      if (statusChanged) {
+        setPollMs(2000); // reset backoff quando status muda
+      } else {
+        setPollMs(prev => Math.min(prev + 1000, maxPollMs)); // aumentar gradual até 10s
+      }
+      intervalId = setInterval(tick, pollMs);
     } else if (isInitialized) {
-      // Quando finalizar o loading, fazer uma última verificação e buscar estatísticas
-      console.log('✅ RAG inicializado! Atualizando estatísticas...');
       refreshStatistics();
     }
 
-    // Limpar intervalo quando o componente desmontar ou quando parar de carregar
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [isLoading, isInitialized, checkSystemHealth, refreshStatistics]);
+  }, [isLoading, isInitialized, pollMs, checkSystemHealth, refreshStatistics]);
 
   const handleFileUpload = async (file: File) => {
     try {

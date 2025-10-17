@@ -46,12 +46,14 @@ export const useRAGSystem = (): UseRAGSystemReturn => {
     setState(prev => ({ ...prev, cacheStats }));
   }, []);
 
-  // Verificar status do sistema
+  // Verificar status do sistema (com latch para evitar logs repetidos)
+  const lastHealthStatusRef = useRef<string | null>(null);
   const checkSystemHealth = useCallback(async () => {
     try {
       const health = await ragService.checkHealth();
-      const isRAGInitialized = health.services.rag === 'initialized' || health.services.rag === 'initializing';
-      const isRAGInitializing = health.services.rag === 'initializing';
+      const currentStatus: string = health.services.rag;
+      const isRAGInitialized = currentStatus === 'initialized' || currentStatus === 'initializing';
+      const isRAGInitializing = currentStatus === 'initializing';
       
       setState(prev => ({
         ...prev,
@@ -59,6 +61,16 @@ export const useRAGSystem = (): UseRAGSystemReturn => {
         isLoading: isRAGInitializing,
         error: health.services.neo4j === 'disconnected' ? 'Neo4j desconectado' : null
       }));
+
+      // Logar apenas quando status mudar
+      if (lastHealthStatusRef.current !== currentStatus) {
+        if (currentStatus === 'initializing') {
+          console.log('⏳ Aguardando RAG inicializar...');
+        } else if (currentStatus === 'initialized') {
+          console.log('✅ RAG inicializado! Pronto para buscar mapeamento STRIDE-CAPEC.');
+        }
+        lastHealthStatusRef.current = currentStatus;
+      }
 
       updateCacheStats();
       return health;
