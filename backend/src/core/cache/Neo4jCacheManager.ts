@@ -54,6 +54,45 @@ export class Neo4jCacheManager {
     return 768;
   }
 
+  // Método para determinar o melhor provedor de embedding disponível
+  private getBestAvailableEmbeddingProvider(requestedProvider?: string): string {
+    // Se um provedor específico foi solicitado e está disponível, usar ele
+    if (requestedProvider) {
+      if (requestedProvider === 'ollama' && process.env.OLLAMA_BASE_URL) {
+        return 'ollama';
+      }
+      if (requestedProvider === 'gemini' && process.env.GEMINI_API_KEY) {
+        return 'gemini';
+      }
+      if (requestedProvider === 'openrouter' && (process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY)) {
+        return 'openai'; // OpenRouter usa OpenAI para embeddings
+      }
+    }
+
+    // Fallback: verificar provedores disponíveis na ordem de prioridade
+    // 1. Ollama (local, mais rápido)
+    if (process.env.OLLAMA_BASE_URL && process.env.EMBEDDING_MODEL) {
+      console.log('🔄 Usando Ollama para embeddings (fallback automático)');
+      return 'ollama';
+    }
+    
+    // 2. Gemini (bom custo-benefício)
+    if (process.env.GEMINI_API_KEY) {
+      console.log('🔄 Usando Gemini para embeddings (fallback automático)');
+      return 'gemini';
+    }
+    
+    // 3. OpenAI (via OpenRouter config ou direto)
+    if (process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY) {
+      console.log('🔄 Usando OpenAI para embeddings (fallback automático)');
+      return 'openai';
+    }
+
+    // Se nenhum disponível, usar Ollama como padrão (vai falhar mas com mensagem clara)
+    console.warn('⚠️ Nenhum provedor de embedding configurado, tentando Ollama...');
+    return 'ollama';
+  }
+
   // Método para obter modelo de embedding baseado na configuração e provider
   private getEmbeddingModel(modelConfig?: any, provider?: string): string {
     // Se modelo específico fornecido no config, usar ele
@@ -64,7 +103,7 @@ export class Neo4jCacheManager {
     // Caso contrário, usar modelo específico do provider
     if (provider === 'gemini' && process.env.EMBEDDING_MODEL_GEMINI) {
       return process.env.EMBEDDING_MODEL_GEMINI;
-    } else if (provider === 'openrouter' && process.env.EMBEDDING_MODEL_OPENROUTER) {
+    } else if ((provider === 'openrouter' || provider === 'openai') && process.env.EMBEDDING_MODEL_OPENROUTER) {
       return process.env.EMBEDDING_MODEL_OPENROUTER;
     } else if (provider === 'ollama' && process.env.EMBEDDING_MODEL) {
       return process.env.EMBEDDING_MODEL;
@@ -73,7 +112,7 @@ export class Neo4jCacheManager {
     // Fallback padrão por provider
     if (provider === 'gemini') {
       return 'text-embedding-004';
-    } else if (provider === 'openrouter') {
+    } else if (provider === 'openrouter' || provider === 'openai') {
       return 'text-embedding-3-small';
     } else {
       return 'nomic-embed-text:latest';
@@ -154,18 +193,8 @@ export class Neo4jCacheManager {
     
     try {
       // Detectar provider de embedding disponível automaticamente
-      let provider = modelConfig?.embeddingProvider;
-      
-      if (!provider) {
-        // Tentar detectar provider disponível
-        if (process.env.GEMINI_API_KEY && process.env.EMBEDDING_MODEL_GEMINI) {
-          provider = 'gemini';
-        } else if (process.env.OPENROUTER_API_KEY) {
-          provider = 'openrouter';
-        } else {
-          provider = 'ollama';  // Fallback final
-        }
-      }
+      const requestedProvider = modelConfig?.embeddingProvider;
+      const provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
       
       console.log(`🧠 Processando documento com embedding ${provider}: ${document.name}`);
       
@@ -275,18 +304,24 @@ export class Neo4jCacheManager {
               console.error(`❌ Erro com Gemini embedding:`, error);
               throw new Error(`Falha ao gerar embedding com Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
-          } else if (provider === 'openrouter') {
-            // Usar OpenRouter para embeddings
-            console.log(`🔗 Usando OpenRouter para embedding do chunk ${i + 1}`);
+          } else if (provider === 'openai' || provider === 'openrouter') {
+            // Usar OpenAI para embeddings (OpenRouter não suporta embeddings)
+            console.log(`🔗 Usando OpenAI para embedding do chunk ${i + 1}`);
+            const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
+            
+            if (!apiKey) {
+              throw new Error('OPENAI_API_KEY ou OPENROUTER_API_KEY não configurada');
+            }
+            
             try {
-              const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+              const response = await fetch('https://api.openai.com/v1/embeddings', {
                 method: 'POST',
                 headers: {
-                  'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                  'Authorization': `Bearer ${apiKey}`,
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                  model: this.getEmbeddingModel(modelConfig, 'openrouter'),
+                  model: this.getEmbeddingModel(modelConfig, provider),
                   input: chunks[i].pageContent
                 })
               });
@@ -295,14 +330,16 @@ export class Neo4jCacheManager {
                 const data = await response.json() as { data: Array<{ embedding: number[] }> };
                 embedding = data.data[0].embedding;
               } else {
-                throw new Error(`OpenRouter embedding failed: ${response.statusText}`);
+                const errorText = await response.text();
+                console.error(`❌ Erro na resposta da OpenAI:`, errorText);
+                throw new Error(`OpenAI embedding failed: ${response.statusText}`);
               }
             } catch (error) {
-              console.error(`❌ Erro com OpenRouter embedding:`, error);
-              throw new Error(`Falha ao gerar embedding com OpenRouter: ${error instanceof Error ? error.message : 'Unknown error'}`);
+              console.error(`❌ Erro com OpenAI embedding:`, error);
+              throw new Error(`Falha ao gerar embedding com OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           } else {
-            throw new Error(`Provider de embedding não suportado: ${provider}. Use 'ollama', 'gemini' ou 'openrouter'.`);
+            throw new Error(`Provider de embedding não suportado: ${provider}. Use 'ollama', 'gemini' ou 'openai'.`);
           }
           embeddings.push(embedding);
           
@@ -394,18 +431,8 @@ export class Neo4jCacheManager {
     
     try {
       // Detectar provider disponível automaticamente
-      let provider = modelConfig?.embeddingProvider;
-      
-      if (!provider) {
-        // Tentar detectar provider disponível (mesma lógica do processDocument)
-        if (process.env.GEMINI_API_KEY && process.env.EMBEDDING_MODEL_GEMINI) {
-          provider = 'gemini';
-        } else if (process.env.OPENROUTER_API_KEY) {
-          provider = 'openrouter';
-        } else {
-          provider = 'ollama';  // Fallback final
-        }
-      }
+      const requestedProvider = modelConfig?.embeddingProvider;
+      const provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
       
       console.log(`🔍 Gerando embedding ${provider} para query: "${query.substring(0, 50)}..."`);
       
@@ -482,18 +509,24 @@ export class Neo4jCacheManager {
             console.error(`❌ Erro com Gemini embedding:`, error);
             throw new Error(`Falha ao gerar embedding com Gemini: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
-        } else if (provider === 'openrouter') {
-          // Usar OpenRouter para embeddings
-          console.log(`🔗 Usando OpenRouter para embedding da query`);
+        } else if (provider === 'openai' || provider === 'openrouter') {
+          // Usar OpenAI para embeddings (OpenRouter não suporta embeddings)
+          console.log(`🔗 Usando OpenAI para embedding da query`);
+          const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
+          
+          if (!apiKey) {
+            throw new Error('OPENAI_API_KEY ou OPENROUTER_API_KEY não configurada');
+          }
+          
           try {
-            const response = await fetch('https://openrouter.ai/api/v1/embeddings', {
+            const response = await fetch('https://api.openai.com/v1/embeddings', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                model: this.getEmbeddingModel(modelConfig, 'openrouter'),
+                model: this.getEmbeddingModel(modelConfig, provider),
                 input: query
               })
             });
@@ -508,14 +541,16 @@ export class Neo4jCacheManager {
                 console.log(`💾 Embedding armazenado no cache (${this.embeddingCache.size}/100)`);
               }
             } else {
-              throw new Error(`OpenRouter embedding failed: ${response.statusText}`);
+              const errorText = await response.text();
+              console.error(`❌ Erro na resposta da OpenAI:`, errorText);
+              throw new Error(`OpenAI embedding failed: ${response.statusText}`);
             }
           } catch (error) {
-            console.error(`❌ Erro com OpenRouter embedding:`, error);
-            throw new Error(`Falha ao gerar embedding com OpenRouter: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error(`❌ Erro com OpenAI embedding:`, error);
+            throw new Error(`Falha ao gerar embedding com OpenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         } else {
-          throw new Error(`Provider de embedding não suportado: ${provider}. Use 'ollama', 'gemini' ou 'openrouter'.`);
+          throw new Error(`Provider de embedding não suportado: ${provider}. Use 'ollama', 'gemini' ou 'openai'.`);
         }
       }
       
