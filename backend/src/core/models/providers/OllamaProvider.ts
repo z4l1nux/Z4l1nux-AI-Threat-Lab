@@ -15,6 +15,27 @@ export class OllamaProvider implements ModelProvider {
     console.log(`🔧 OllamaProvider baseUrl: ${this.baseUrl}, timeout: ${this.timeout}ms, maxRetries: ${this.maxRetries}`);
   }
 
+  /**
+   * Calcula contexto otimizado baseado no modelo e configurações do .env.local
+   */
+  private getOptimalContextSize(model: string): number {
+    // Configuração padrão do .env.local
+    const defaultContextSize = parseInt(process.env.OLLAMA_DEFAULT_CONTEXT_SIZE || '8192');
+    
+    // Configurações específicas por modelo (se definidas no .env.local)
+    const modelContextSize = process.env[`OLLAMA_CONTEXT_${model.replace(/[^A-Z0-9]/g, '_').toUpperCase()}`];
+    
+    if (modelContextSize) {
+      const contextSize = parseInt(modelContextSize);
+      console.log(`🔧 Contexto específico para ${model}: ${contextSize} tokens (via .env.local)`);
+      return contextSize;
+    }
+    
+    // Usar configuração padrão
+    console.log(`🔧 Contexto padrão para ${model}: ${defaultContextSize} tokens (via OLLAMA_DEFAULT_CONTEXT_SIZE)`);
+    return defaultContextSize;
+  }
+
   async isAvailable(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/api/tags`);
@@ -101,9 +122,12 @@ export class OllamaProvider implements ModelProvider {
           // SOLUÇÃO FINAL: Usar apenas JSON mode simples, ignorar schema complexo
           const simplePrompt = this.createSimpleJsonPrompt(prompt, format);
           
+          // Comprimir prompt para modelos locais
+          const compressedPrompt = this.compressPromptForLocalModel(simplePrompt, model);
+          
           requestBody = {
             model,
-            prompt: simplePrompt,
+            prompt: compressedPrompt,
             stream: false,
             format: "json",
             options: {
@@ -113,7 +137,7 @@ export class OllamaProvider implements ModelProvider {
               stop: ["\n\n\n"]
             }
           };
-          console.log(`🔧 OllamaProvider: Usando JSON mode simples (ignorando schema complexo)`);
+          console.log(`🔧 OllamaProvider: Usando JSON mode simples com compressão (ignorando schema complexo)`);
         } else {
           requestBody = {
             model,
@@ -354,29 +378,161 @@ export class OllamaProvider implements ModelProvider {
   }
 
   /**
-   * Cria prompt simples para JSON mode - IGNORA schema complexo
+   * Compressa o prompt para modelos locais com contexto limitado
+   */
+  private compressPromptForLocalModel(prompt: string, model: string): string {
+    // Verificar se compressão está habilitada
+    const autoCompress = process.env.OLLAMA_AUTO_COMPRESS === 'true';
+    if (!autoCompress) {
+      console.log(`🔧 Compressão automática desabilitada para ${model}`);
+      return prompt;
+    }
+
+    const contextSize = this.getOptimalContextSize(model);
+    const compressionRatio = parseInt(process.env.OLLAMA_COMPRESSION_RATIO || '3');
+    const maxChars = contextSize * compressionRatio; // Configurável via .env.local
+    
+    if (prompt.length <= maxChars) {
+      console.log(`🔧 Prompt dentro do limite: ${prompt.length} chars (limite: ${maxChars})`);
+      return prompt;
+    }
+
+    console.log(`🔧 Comprimindo prompt: ${prompt.length} → ${maxChars} chars para ${model} (ratio: ${compressionRatio})`);
+    
+    // Verificar se modelo tem compressão agressiva configurada
+    const aggressiveCompression = process.env[`OLLAMA_AGGRESSIVE_COMPRESS_${model.replace(/[^A-Z0-9]/g, '_').toUpperCase()}`] === 'true';
+    
+    if (aggressiveCompression) {
+      console.log(`🔧 Compressão AGRESSIVA para ${model} (configurado via .env.local)`);
+      return this.aggressiveCompression(prompt, maxChars);
+    }
+    
+    // Compressão normal para outros modelos
+    return this.normalCompression(prompt, maxChars);
+  }
+
+  /**
+   * Compressão agressiva para modelos com contexto limitado
+   */
+  private aggressiveCompression(prompt: string, maxChars: number): string {
+    const lines = prompt.split('\n');
+    const criticalSections: string[] = [];
+    const optionalSections: string[] = [];
+    
+    let inCriticalSection = false;
+    let inOptionalSection = false;
+    
+    for (const line of lines) {
+      if (line.includes('MAPEAMENTO STRIDE-CAPEC DISPONÍVEL') || 
+          line.includes('INSTRUÇÕES CRÍTICAS') ||
+          line.includes('SISTEMA:') ||
+          line.includes('COMPONENTES ESPECÍFICOS')) {
+        inCriticalSection = true;
+        inOptionalSection = false;
+      } else if (line.includes('CONTEXTO RAG') || 
+                 line.includes('📚 CONTEXTO RAG')) {
+        inOptionalSection = true;
+        inCriticalSection = false;
+      }
+      
+      if (inCriticalSection) {
+        criticalSections.push(line);
+      } else if (inOptionalSection) {
+        // Compressão MUITO agressiva do contexto RAG
+        if (line.length > 100) {
+          optionalSections.push(line.substring(0, 100) + '...');
+        } else {
+          optionalSections.push(line);
+        }
+      } else {
+        criticalSections.push(line);
+      }
+    }
+    
+    // Combinar seções críticas + contexto RAG MUITO comprimido
+    const compressedPrompt = [
+      ...criticalSections,
+      ...optionalSections.slice(0, 5) // Máximo 5 linhas de contexto RAG
+    ].join('\n');
+    
+    // Se ainda estiver muito grande, cortar mais
+    if (compressedPrompt.length > maxChars) {
+      const finalPrompt = compressedPrompt.substring(0, maxChars - 100) + '...';
+      console.log(`✅ Prompt COMPRIMIDO AGRESSIVAMENTE: ${finalPrompt.length} chars (redução: ${((1 - finalPrompt.length / prompt.length) * 100).toFixed(1)}%)`);
+      return finalPrompt;
+    }
+    
+    console.log(`✅ Prompt comprimido agressivamente: ${compressedPrompt.length} chars (redução: ${((1 - compressedPrompt.length / prompt.length) * 100).toFixed(1)}%)`);
+    return compressedPrompt;
+  }
+
+  /**
+   * Compressão normal para modelos com contexto adequado
+   */
+  private normalCompression(prompt: string, maxChars: number): string {
+    const lines = prompt.split('\n');
+    const criticalSections: string[] = [];
+    const optionalSections: string[] = [];
+    
+    let inCriticalSection = false;
+    let inOptionalSection = false;
+    
+    for (const line of lines) {
+      if (line.includes('MAPEAMENTO STRIDE-CAPEC DISPONÍVEL') || 
+          line.includes('INSTRUÇÕES CRÍTICAS') ||
+          line.includes('SISTEMA:') ||
+          line.includes('COMPONENTES ESPECÍFICOS')) {
+        inCriticalSection = true;
+        inOptionalSection = false;
+      } else if (line.includes('CONTEXTO RAG') || 
+                 line.includes('📚 CONTEXTO RAG')) {
+        inOptionalSection = true;
+        inCriticalSection = false;
+      }
+      
+      if (inCriticalSection) {
+        criticalSections.push(line);
+      } else if (inOptionalSection) {
+        // Compressão normal do contexto RAG
+        if (line.length > 200) {
+          optionalSections.push(line.substring(0, 200) + '...');
+        } else {
+          optionalSections.push(line);
+        }
+      } else {
+        criticalSections.push(line);
+      }
+    }
+    
+    // Combinar seções críticas + contexto RAG comprimido
+    const compressedPrompt = [
+      ...criticalSections,
+      ...optionalSections.slice(0, 10) // Máximo 10 linhas de contexto RAG
+    ].join('\n');
+    
+    console.log(`✅ Prompt comprimido: ${compressedPrompt.length} chars (redução: ${((1 - compressedPrompt.length / prompt.length) * 100).toFixed(1)}%)`);
+    return compressedPrompt;
+  }
+
+  /**
+   * Cria prompt simples para JSON mode - PRESERVA o prompt original
    */
   private createSimpleJsonPrompt(prompt: string, format: any): string {
     if (format.properties?.threats) {
       return `${prompt}
 
-Responda com um JSON contendo um array de ameaças. Cada ameaça deve ter:
+IMPORTANTE: Responda com um JSON contendo um array de ameaças. Cada ameaça deve ter TODOS os campos obrigatórios:
 - elementName: nome do componente
 - strideCategory: categoria STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
 - threatScenario: descrição da ameaça
+- capecId: ID do CAPEC (ex: CAPEC-123, CAPEC-242, etc.)
+- capecName: nome do CAPEC
+- capecDescription: descrição do CAPEC
+- mitigationRecommendations: recomendações de mitigação
 - impact: nível de impacto (CRITICAL, HIGH, MEDIUM, LOW)
+- owaspTop10: categoria OWASP (A01:2021, A02:2021, etc. para componentes tradicionais OU LLM01, LLM02, etc. para componentes de IA)
 
-Exemplo:
-{
-  "threats": [
-    {
-      "elementName": "Banco de Dados PostgreSQL",
-      "strideCategory": "Information Disclosure",
-      "threatScenario": "SQL Injection permite acesso não autorizado aos dados",
-      "impact": "CRITICAL"
-    }
-  ]
-}
+OBRIGATÓRIO: Use APENAS os CAPECs fornecidos no mapeamento STRIDE-CAPEC acima. NÃO invente CAPECs.
 
 Responda APENAS com o JSON, sem texto adicional:`;
     }

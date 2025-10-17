@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '../types';
 import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/aiService';
 import { useModelSelection } from './useModelSelection';
+import { ragService } from '../services/ragService';
 
 
 export const useThreatModeler = () => {
@@ -11,10 +12,58 @@ export const useThreatModeler = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [strideCapecMap, setStrideCapecMap] = useState<StrideCapecMapType | null>(null);
+  const [ragInitialized, setRagInitialized] = useState<boolean>(false);
   
   const { getModelConfig } = useModelSelection();
 
+  // Verificar se o RAG está inicializado antes de buscar o mapeamento
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    const checkRAGStatus = async () => {
+      try {
+        const health = await ragService.checkHealth();
+        const isInitialized = health.services.rag === 'initialized';
+        setRagInitialized(isInitialized);
+        
+        if (isInitialized) {
+          console.log('✅ RAG inicializado! Pronto para buscar mapeamento STRIDE-CAPEC.');
+          // Parar o polling quando o RAG estiver inicializado
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        } else {
+          console.log('⏳ Aguardando RAG inicializar...');
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar status do RAG:', error);
+        setRagInitialized(false);
+      }
+    };
+
+    // Verificar imediatamente
+    checkRAGStatus();
+
+    // Verificar periodicamente até o RAG estar pronto (apenas se não estiver inicializado)
+    if (!ragInitialized) {
+      intervalId = setInterval(checkRAGStatus, 2000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [ragInitialized]);
+
+  useEffect(() => {
+    // Só buscar o mapeamento quando o RAG estiver inicializado
+    if (!ragInitialized) {
+      console.log('⏳ Aguardando RAG inicializar antes de buscar mapeamento STRIDE-CAPEC...');
+      return;
+    }
+
     const fetchMapping = async () => {
       try {
         const BACKEND_URL = 'http://localhost:3001';
@@ -24,9 +73,8 @@ export const useThreatModeler = () => {
         
         if (!response.ok) {
           if (response.status === 503) {
-            console.warn('⚠️ Sistema RAG não inicializado');
-            setError("⚠️ Sistema RAG não inicializado. Por favor:\n\n1. Inicialize o sistema RAG no painel lateral (botão laranja)\n2. Faça upload do arquivo 'capec-stride-mapping-completo.md' da pasta src/knowledge-base/\n3. Tente gerar o modelo novamente\n\nCertifique-se que o backend está rodando (npm run dev:full)");
-            setStrideCapecMap([]);
+            console.warn('⚠️ Sistema RAG não inicializado (ainda processando)');
+            // Não mostrar erro imediatamente, aguardar mais um pouco
             return;
           }
           
@@ -66,7 +114,7 @@ export const useThreatModeler = () => {
       }
     };
     fetchMapping();
-  }, []);
+  }, [ragInitialized]); // Executar quando ragInitialized mudar para true
 
   const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo) => {
     if (!strideCapecMap) {
@@ -83,8 +131,18 @@ export const useThreatModeler = () => {
     setError(null);
 
     try {
-      // Obter configuração do modelo
+      // Aguardar um pouco para garantir que o estado do modelo seja atualizado
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Obter configuração do modelo FRESCAMENTE (não usar cache)
       const modelConfig = getModelConfig();
+      console.log('🤖 Configuração do modelo atual:', modelConfig);
+      console.log('🔍 Enviando para backend:', JSON.stringify(modelConfig, null, 2));
+      console.log('⏰ Timestamp da análise:', new Date().toISOString());
+      
+      // Verificar se o modelo mudou desde a última análise
+      const currentTime = Date.now();
+      console.log('🕐 Timestamp atual:', currentTime);
       
       // 0. Enviar descrição do sistema ao backend RAG para processamento automático
       try {
@@ -176,7 +234,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
     } finally {
       setIsLoading(false);
     }
-  }, [strideCapecMap, error]);
+  }, [strideCapecMap, error]); // Remover getModelConfig para evitar cache
   
   const updateReportMarkdown = useCallback((markdown: string) => {
       console.log("Markdown do relatório atualizado (no hook, se necessário):", markdown.substring(0,100) + "...");
@@ -216,8 +274,21 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
     } finally {
       setIsLoading(false);
     }
-  }, [systemInfo, strideCapecMap]);
+  }, [systemInfo, strideCapecMap]); // Remover getModelConfig para evitar cache
 
+
+  // Função para resetar todo o estado e começar uma nova modelagem
+  const resetThreatModel = useCallback(() => {
+    console.log('🔄 Resetando modelagem de ameaças...');
+    setSystemInfo(null);
+    setThreats(null);
+    setReportData(null);
+    setError(null);
+    // Manter strideCapecMap e ragInitialized (não precisam ser recarregados)
+    console.log('✅ Estado resetado! Pronto para nova modelagem.');
+    console.log('💡 Dica: Troque o modelo no seletor se necessário, depois faça nova análise.');
+    console.log('⏳ Aguarde 1 segundo após trocar o modelo antes de analisar para garantir sincronização.');
+  }, []);
 
   return {
     systemInfo,
@@ -228,6 +299,7 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
     generateThreatModel,
     updateReportMarkdown,
     refineThreatModel,
-    setSystemInfo 
+    setSystemInfo,
+    resetThreatModel  // Nova função para limpar o estado
   };
 };

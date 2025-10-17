@@ -60,37 +60,47 @@ function checkNodeVersion() {
 }
 
 function checkEnvFile() {
-  log('\n🔍 Verificando arquivo .env...', 'cyan');
+  log('\n🔍 Verificando arquivo .env.local...', 'cyan');
   
-  const envPath = path.join(__dirname, '..', 'backend', '.env');
-  const envExamplePath = path.join(__dirname, '..', 'backend', '.env.example');
+  const envPath = path.join(__dirname, '..', '.env.local');
+  const envExamplePath = path.join(__dirname, '..', '.env.example');
   
   if (!fs.existsSync(envPath)) {
-    log('⚠️  Arquivo .env não encontrado no backend', 'yellow');
+    log('⚠️  Arquivo .env.local não encontrado', 'yellow');
     
     // Tenta copiar do .env.example
     if (fs.existsSync(envExamplePath)) {
-      log('   Copiando .env.example para .env...', 'yellow');
+      log('   Copiando .env.example para .env.local...', 'yellow');
       fs.copyFileSync(envExamplePath, envPath);
-      log('✅ Arquivo .env criado a partir do template', 'green');
+      log('✅ Arquivo .env.local criado a partir do template', 'green');
     } else {
-      log('   Criando .env com valores padrão...', 'yellow');
+      log('   Criando .env.local com valores padrão...', 'yellow');
       
       const envContent = `# Neo4j Configuration
 NEO4J_URI=bolt://localhost:7687
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=password
 
-# Ollama Configuration
+# Ollama Configuration (Local - Recomendado)
 OLLAMA_BASE_URL=http://localhost:11434
 MODEL_OLLAMA=llama3.1:latest
-EMBEDDING_MODEL=nomic-embed-text:latest
+EMBEDDING_MODEL_OLLAMA=nomic-embed-text:latest
 OLLAMA_TIMEOUT=180000
 OLLAMA_MAX_RETRIES=2
 
-# OpenRouter Configuration
+# OpenRouter Configuration (Cloud - Fallback)
 OPENROUTER_API_KEY=
 MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+EMBEDDING_MODEL_OPENROUTER=text-embedding-3-small
+
+# Gemini Configuration (Google - Opcional)
+GEMINI_API_KEY=
+MODEL_GEMINI=gemini-1.5-flash
+EMBEDDING_MODEL_GEMINI=text-embedding-004
+
+# Embedding Configuration (Provider padrão: ollama)
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=nomic-embed-text:latest
 
 # Server Configuration
 PORT=3001
@@ -98,13 +108,13 @@ FRONTEND_URL=http://localhost:5173
 `;
       
       fs.writeFileSync(envPath, envContent);
-      log('✅ Arquivo .env criado com valores padrão', 'green');
+      log('✅ Arquivo .env.local criado com valores padrão', 'green');
     }
     
     log('   ⚠️  IMPORTANTE: Configure suas credenciais no arquivo:', 'yellow');
     log(`   📄 ${envPath}`, 'bright');
   } else {
-    log('✅ Arquivo .env encontrado', 'green');
+    log('✅ Arquivo .env.local encontrado', 'green');
   }
 }
 
@@ -192,7 +202,7 @@ async function main() {
     log('╚═══════════════════════════════════════════════════════════╝\n', 'green');
     
     log('📋 Próximos passos:', 'cyan');
-    log('   1. Configure suas credenciais Neo4j em backend/.env', 'yellow');
+    log('   1. Configure suas credenciais Neo4j em .env.local (raiz)', 'yellow');
     log('   2. Inicie o Neo4j (Desktop ou Docker)', 'yellow');
     log('   3. Execute:', 'yellow');
     log('      - npm run dev:full    (modo desenvolvimento)', 'bright');

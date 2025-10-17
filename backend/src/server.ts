@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import neo4j from 'neo4j-driver';
 import { OllamaProvider } from './core/models/providers/OllamaProvider';
 import { OpenRouterProvider } from './core/models/providers/OpenRouterProvider';
+import { GeminiProvider } from './core/models/providers/GeminiProvider';
 import { SemanticSearchFactory } from './core/search/SemanticSearchFactory';
 import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
@@ -17,10 +18,12 @@ const dotenvResult = dotenv.config({ path: '../.env.local' });
 console.log('🔧 Dotenv resultado:', dotenvResult.error ? dotenvResult.error.message : 'Carregado com sucesso');
 console.log('🔧 OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL);
 console.log('🔧 OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
+console.log('🔧 GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurado' : 'Não configurado');
 
 // Inicializar providers APÓS carregar variáveis de ambiente
 const ollamaProvider = new OllamaProvider();
 const openrouterProvider = new OpenRouterProvider();
+const geminiProvider = new GeminiProvider();
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -81,6 +84,10 @@ const upload = multer({
 // Instância global do sistema de busca
 let searchFactory: SemanticSearchFactory | null = null;
 
+// Flag para rastrear o status de inicialização automática
+let ragAutoInitialized = false;
+let ragInitializationInProgress = false;
+
 // Middleware para verificar se o sistema está inicializado
 const requireInitialized = (req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (!searchFactory) {
@@ -98,14 +105,15 @@ const requireInitialized = (req: express.Request, res: express.Response, next: e
 app.get('/api/health', async (req, res) => {
   try {
     const neo4jConnected = await Neo4jClient.testConnection();
-    const ragInitialized = searchFactory !== null;
+    const ragInitialized = searchFactory !== null || ragAutoInitialized;
+    const ragStatus = ragInitializationInProgress ? 'initializing' : (ragInitialized ? 'initialized' : 'not_initialized');
     
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       services: {
         neo4j: neo4jConnected ? 'connected' : 'disconnected',
-        rag: ragInitialized ? 'initialized' : 'not_initialized'
+        rag: ragStatus
       }
     });
   } catch (error) {
@@ -127,6 +135,8 @@ app.get('/api/models/available', async (req, res) => {
     console.log('OLLAMA_MAX_RETRIES:', process.env.OLLAMA_MAX_RETRIES || '2');
     console.log('OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
     console.log('MODEL_OPENROUTER:', process.env.MODEL_OPENROUTER || 'Não configurado');
+    console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurado' : 'Não configurado');
+    console.log('MODEL_GEMINI:', process.env.MODEL_GEMINI || 'Não configurado');
     
     const models = [];
     const embeddings = [];
@@ -137,7 +147,7 @@ app.get('/api/models/available', async (req, res) => {
     // Ollama models - verificar disponibilidade
     const ollamaBaseUrl = process.env.OLLAMA_BASE_URL || 'http://172.21.112.1:11434';
     const ollamaModel = process.env.MODEL_OLLAMA || 'llama3.1:latest';
-    const ollamaEmbedding = process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest';
+    const ollamaEmbedding = process.env.EMBEDDING_MODEL || process.env.EMBEDDING_MODEL_OLLAMA || 'nomic-embed-text:latest';
     
     const isOllamaAvailable = await ollamaProvider.isAvailable();
     
@@ -160,6 +170,7 @@ app.get('/api/models/available', async (req, res) => {
     // OpenRouter models - verificar disponibilidade
     const openrouterApiKey = process.env.OPENROUTER_API_KEY;
     const openrouterModel = process.env.MODEL_OPENROUTER;
+    const openrouterEmbedding = process.env.EMBEDDING_MODEL_OPENROUTER || 'text-embedding-3-small';
     
     const isOpenRouterAvailable = await openrouterProvider.isAvailable();
     
@@ -168,6 +179,36 @@ app.get('/api/models/available', async (req, res) => {
         id: openrouterModel,
         name: `OpenRouter: ${openrouterModel.split('/').pop()}`,
         provider: 'openrouter',
+        available: true
+      });
+
+      embeddings.push({
+        id: openrouterEmbedding,
+        name: `OpenRouter: ${openrouterEmbedding}`,
+        provider: 'openrouter',
+        available: true
+      });
+    }
+
+    // Gemini models - verificar disponibilidade
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const geminiModel = process.env.MODEL_GEMINI;
+    const geminiEmbedding = process.env.EMBEDDING_MODEL_GEMINI || 'text-embedding-004';
+    
+    const isGeminiAvailable = await geminiProvider.isAvailable();
+    
+    if (isGeminiAvailable && geminiModel) {
+      models.push({
+        id: geminiModel,
+        name: `Gemini: ${geminiModel}`,
+        provider: 'gemini',
+        available: true
+      });
+
+      embeddings.push({
+        id: geminiEmbedding,
+        name: `Gemini: ${geminiEmbedding}`,
+        provider: 'gemini',
         available: true
       });
     }
@@ -182,11 +223,11 @@ app.get('/api/models/available', async (req, res) => {
 
     // Adicionar validações se não há modelos configurados
     if (models.length === 0) {
-      errors.push('Nenhum modelo configurado. Configure OLLAMA_BASE_URL + MODEL_OLLAMA ou OPENROUTER_API_KEY + MODEL_OPENROUTER');
+      errors.push('Nenhum modelo configurado. Configure pelo menos um provider: OLLAMA_BASE_URL + MODEL_OLLAMA, OPENROUTER_API_KEY + MODEL_OPENROUTER ou GEMINI_API_KEY + MODEL_GEMINI');
     }
 
     if (embeddings.length === 0) {
-      warnings.push('Nenhum modelo de embedding configurado. Configure EMBEDDING_MODEL ou use o padrão nomic-embed-text:latest');
+      warnings.push('Nenhum modelo de embedding configurado. Configure EMBEDDING_MODEL ou use um dos padrões');
     }
 
     const response = {
@@ -194,7 +235,8 @@ app.get('/api/models/available', async (req, res) => {
       embeddings,
       providers: {
         ollama: isOllamaAvailable,
-        openrouter: isOpenRouterAvailable
+        openrouter: isOpenRouterAvailable,
+        gemini: isGeminiAvailable
       },
       defaultConfig,
       validation: {
@@ -218,6 +260,7 @@ app.get('/api/models/available', async (req, res) => {
 app.post('/api/initialize', async (req, res) => {
   try {
     console.log('🚀 Inicializando sistema RAG...');
+    ragInitializationInProgress = true;
     
     // Inicializar ModelFactory primeiro
     await ModelFactory.initialize();
@@ -227,12 +270,17 @@ app.post('/api/initialize', async (req, res) => {
     console.log(`🔍 Resultado do teste Neo4j: ${neo4jConnected} (tipo: ${typeof neo4jConnected})`);
     
     if (!neo4jConnected) {
+      ragInitializationInProgress = false;
       throw new Error('Não foi possível conectar ao Neo4j');
     }
     
     // Inicializar sistema de busca
     searchFactory = SemanticSearchFactory.createSearch();
     await searchFactory.initialize();
+    
+    // Marcar como inicializado
+    ragAutoInitialized = true;
+    ragInitializationInProgress = false;
     
     // Obter estatísticas
     const stats = await searchFactory.getStatistics();
@@ -246,6 +294,8 @@ app.post('/api/initialize', async (req, res) => {
   } catch (error) {
     console.error('❌ Erro ao inicializar sistema RAG:', error);
     searchFactory = null;
+    ragAutoInitialized = false;
+    ragInitializationInProgress = false;
     
     res.status(500).json({
       error: 'Falha ao inicializar sistema RAG',
@@ -1011,14 +1061,18 @@ app.delete('/api/cache', requireInitialized, async (req, res) => {
 // Função para detectar o melhor provider automaticamente
 async function detectBestProvider(): Promise<string> {
   const isOllamaAvailable = await ollamaProvider.isAvailable();
+  const isGeminiAvailable = await geminiProvider.isAvailable();
   const isOpenRouterAvailable = await openrouterProvider.isAvailable();
   
-  console.log(`🔍 Detecção de providers: Ollama=${isOllamaAvailable}, OpenRouter=${isOpenRouterAvailable}`);
+  console.log(`🔍 Detecção de providers: Ollama=${isOllamaAvailable}, Gemini=${isGeminiAvailable}, OpenRouter=${isOpenRouterAvailable}`);
   
-  // Prioridade: Ollama (local) > OpenRouter (nuvem)
+  // Prioridade: Ollama (local) > Gemini > OpenRouter (nuvem)
   if (isOllamaAvailable) {
     console.log(`✅ Usando Ollama (local) como provider preferido`);
     return 'ollama';
+  } else if (isGeminiAvailable) {
+    console.log(`✅ Usando Gemini (Google) como provider preferido`);
+    return 'gemini';
   } else if (isOpenRouterAvailable) {
     console.log(`✅ Usando OpenRouter (nuvem) como provider preferido`);
     return 'openrouter';
@@ -1036,16 +1090,22 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
     }
     
     console.log(`🤖 Gerando conteúdo com modelo: ${modelConfig?.model || 'padrão'} (${modelConfig?.provider || 'auto'})`);
+    console.log(`🔍 Backend recebeu modelConfig:`, JSON.stringify(modelConfig, null, 2));
     
     let content: string = '';
     let model: string = '';
 
     // Determinar qual provider usar
     let provider = modelConfig?.provider || 'auto';
+    console.log(`🔧 Provider do frontend: ${provider}`);
     
     // Detectar automaticamente o melhor provider se 'auto'
     if (provider === 'auto') {
+      console.log(`🔄 Provider é 'auto', detectando automaticamente...`);
       provider = await detectBestProvider();
+      console.log(`🔄 Provider detectado automaticamente: ${provider}`);
+    } else {
+      console.log(`✅ Usando provider do frontend: ${provider}`);
     }
     
     console.log(`🔧 Provider selecionado: ${provider}`);
@@ -1127,6 +1187,24 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
         }
       }
       
+    } else if (provider === 'gemini') {
+      const isGeminiAvailable = await geminiProvider.isAvailable();
+      if (!isGeminiAvailable) {
+        return res.status(500).json({
+          error: 'Gemini não disponível',
+          message: 'API key do Gemini não está configurada'
+        });
+      }
+      
+      const geminiModel = modelConfig?.model || process.env.MODEL_GEMINI || 'gemini-1.5-flash';
+      console.log(`🔧 Usando modelo Gemini: ${geminiModel}`);
+      console.log(`🔧 Format fornecido:`, format);
+      content = await geminiProvider.generateContent(prompt, geminiModel, format);
+      console.log(`🔧 Resposta do Gemini: ${content.substring(0, 100)}...`);
+      console.log(`🔧 Content length: ${content.length}`);
+      console.log(`🔧 Content type: ${typeof content}`);
+      model = geminiModel;
+      
     } else if (provider === 'openrouter') {
       const isOpenRouterAvailable = await openrouterProvider.isAvailable();
       if (!isOpenRouterAvailable) {
@@ -1155,7 +1233,7 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
     } else {
       return res.status(400).json({
         error: 'Provider não suportado',
-        message: 'Apenas "ollama" e "openrouter" são suportados'
+        message: 'Apenas "ollama", "gemini" e "openrouter" são suportados'
       });
     }
 
@@ -1277,6 +1355,7 @@ process.on('SIGINT', async () => {
 async function autoInitializeRAG() {
   try {
     console.log('\n🔄 Iniciando sistema RAG automaticamente...');
+    ragInitializationInProgress = true;
     
     // 1. Inicializar o RAG
     if (!searchFactory) {
@@ -1343,9 +1422,16 @@ async function autoInitializeRAG() {
       console.warn(`   Caminho esperado: ${knowledgeBasePath}`);
     }
     
+    // Marcar como inicializado
+    ragAutoInitialized = true;
+    ragInitializationInProgress = false;
+    console.log('✅ Sistema RAG completamente inicializado e pronto para uso!\n');
+    
   } catch (error) {
     console.error('❌ Erro na inicialização automática do RAG:', error);
     console.log('💡 O sistema continuará rodando, mas você precisará inicializar manualmente no painel lateral.');
+    ragInitializationInProgress = false;
+    ragAutoInitialized = false;
   }
 }
 

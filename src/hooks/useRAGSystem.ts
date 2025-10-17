@@ -50,11 +50,13 @@ export const useRAGSystem = (): UseRAGSystemReturn => {
   const checkSystemHealth = useCallback(async () => {
     try {
       const health = await ragService.checkHealth();
-      const isRAGInitialized = health.services.rag === 'initialized';
+      const isRAGInitialized = health.services.rag === 'initialized' || health.services.rag === 'initializing';
+      const isRAGInitializing = health.services.rag === 'initializing';
       
       setState(prev => ({
         ...prev,
         isInitialized: isRAGInitialized,
+        isLoading: isRAGInitializing,
         error: health.services.neo4j === 'disconnected' ? 'Neo4j desconectado' : null
       }));
 

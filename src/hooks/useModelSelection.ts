@@ -36,21 +36,25 @@ export const useModelSelection = () => {
 
   const updateModel = useCallback((model: string, provider: string) => {
     const newSelection = { ...selection, model, provider };
+    console.log('💾 Salvando nova seleção de modelo:', newSelection);
     saveSelection(newSelection);
   }, [selection, saveSelection]);
 
   const updateEmbedding = useCallback((embedding: string, provider: string) => {
-    const newSelection = { ...selection, embedding, provider };
+    const newSelection = { ...selection, embedding, embeddingProvider: provider };
+    console.log('💾 Salvando nova seleção de embedding:', newSelection);
     saveSelection(newSelection);
   }, [selection, saveSelection]);
 
   const getModelConfig = useCallback(() => {
-    return {
+    const config = {
       model: selection.model,
       provider: selection.provider,
       embedding: selection.embedding,
       embeddingProvider: selection.embeddingProvider
     };
+    console.log('📋 getModelConfig retornando:', config);
+    return config;
   }, [selection]);
 
   return {

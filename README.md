@@ -42,27 +42,91 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 - **Banco de Dados**: Neo4j (vetorial + grafos)
 - **RAG**: Busca semântica com embeddings + cache inteligente
 
-### Provedores de IA Suportados
+### 🔌 Provedores de IA - Arquitetura Extensível
 
-#### 1. Ollama (Modelos Locais)
-- **Modelos**: Qualquer modelo do Ollama (llama3.1, granite3.3, etc.)
-- **Embeddings**: nomic-embed-text:latest
-- **Configuração**: 
-  ```env
-  OLLAMA_BASE_URL=http://172.21.112.1:11434
-  MODEL_OLLAMA=llama3.1:latest
-  EMBEDDING_MODEL=nomic-embed-text:latest
-  OLLAMA_TIMEOUT=180000  # 3 minutos
-  ```
+O sistema possui uma **arquitetura modular e extensível** que facilita a adição de novos providers de IA.
 
-#### 2. OpenRouter (Modelos Cloud)
-- **Modelos**: Meta Llama 3.3 70B (free), Claude, GPT-4, etc.
-- **Embeddings**: Fallback para Ollama
-- **Configuração**:
-  ```env
-  OPENROUTER_API_KEY=sk-or-v1-...
-  MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
-  ```
+#### Providers Disponíveis
+
+| Provider | Status | Geração | Embeddings | Prioridade |
+|----------|--------|---------|------------|------------|
+| **Ollama** | ✅ Ativo | ✅ Sim | ✅ Sim | 🥇 Alta (local) |
+| **OpenRouter** | ✅ Ativo | ✅ Sim | ❌ Não | 🥉 Baixa (nuvem) |
+| **Gemini** | ✅ Ativo | ✅ Sim | ❌ Não | 🥈 Média |
+
+#### Recursos do Sistema de Providers
+
+- ✅ **Auto-registro**: Providers são detectados automaticamente
+- ✅ **Fallback automático**: Se um falhar, tenta outro
+- ✅ **Detecção de disponibilidade**: Verifica configuração antes de usar
+- ✅ **Sistema de prioridades**: Ollama (local) → Gemini → OpenRouter (nuvem)
+- ✅ **Interface padronizada**: Todos seguem a mesma interface
+- ✅ **Template documentado**: Pronto para criar novos providers
+
+#### Configuração
+
+**1. Ollama (Recomendado - Local)**
+```env
+OLLAMA_BASE_URL=http://172.21.112.1:11434
+MODEL_OLLAMA=llama3.1:latest
+EMBEDDING_MODEL_OLLAMA=nomic-embed-text:latest
+OLLAMA_TIMEOUT=180000
+```
+
+**2. OpenRouter (Cloud - Fallback)**
+```env
+OPENROUTER_API_KEY=sk-or-v1-...
+MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+EMBEDDING_MODEL_OPENROUTER=text-embedding-3-small
+```
+
+**3. Gemini (Google - Opcional)**
+```env
+GEMINI_API_KEY=AIza...
+MODEL_GEMINI=gemini-1.5-flash
+EMBEDDING_MODEL_GEMINI=text-embedding-004
+```
+
+**4. Configuração Global de Embeddings (Flexível)**
+```env
+# Escolha o provider de embeddings (ollama, gemini, openrouter)
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL=nomic-embed-text:latest
+```
+
+> 💡 **Dica**: Você pode usar **providers diferentes** para geração de texto e embeddings!  
+> Exemplo: `MODEL_PROVIDER=openrouter` + `EMBEDDING_PROVIDER=ollama`
+
+#### 🚀 Adicionar Novo Provider
+
+É extremamente simples adicionar um novo provider (Anthropic, OpenAI, Cohere, etc.):
+
+1. **Copie o template:**
+   ```bash
+   cd backend/src/core/models/providers
+   cp TemplateProvider.ts AnthropicProvider.ts
+   ```
+
+2. **Implemente 3 métodos:**
+   - `isAvailable()` - Verifica se está configurado
+   - `generateContent()` - Gera texto
+   - `generateEmbedding()` - Gera embeddings (ou lança erro)
+
+3. **Registre no ModelFactory:**
+   ```typescript
+   const anthropicProvider = new AnthropicProvider();
+   this.registerProvider(anthropicProvider);
+   ```
+
+4. **Configure o .env:**
+   ```env
+   ANTHROPIC_API_KEY=sk-ant-xxxxx
+   MODEL_ANTHROPIC=claude-3-5-sonnet-20241022
+   ```
+
+5. **Pronto!** O sistema detecta e usa automaticamente. 🎉
+
+📖 **Documentação completa**: [`ARQUITETURA_PROVIDERS.md`](ARQUITETURA_PROVIDERS.md) e [`backend/src/core/models/providers/README.md`](backend/src/core/models/providers/README.md)
 
 ### Sistema RAG Avançado
 - **Queries Paralelas**: 5 queries simultâneas para análise completa
@@ -79,6 +143,11 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
   - Ollama: Instalação local (https://ollama.ai)
   - OpenRouter: Conta + API key (https://openrouter.ai)
 
+> **⚠️ IMPORTANTE - Arquivo de Configuração:**  
+> Este projeto usa **APENAS** o arquivo `.env.local` localizado na **raiz do projeto**.  
+> **NÃO** crie arquivos `.env` dentro da pasta `backend/`.  
+> O backend carrega automaticamente as variáveis de `../env.local` (raiz do projeto).
+
 ## Instalação
 
 1. **Clone o repositório:**
@@ -88,44 +157,69 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
    ```
 
 2. **Instale as dependências:**
+   
+   **Linux/Mac (Bash):**
    ```bash
    npm install
    ```
+   
+   **Windows (PowerShell):**
+   ```powershell
+   npm install
+   ```
+   
+   **Ou use o script automático:**
+   ```bash
+   # Linux/Mac
+   ./scripts/setup.sh
+   
+   # Windows
+   .\scripts\setup.ps1
+   ```
 
-3. **Configure o `.env.local`:**
-   ```env
+3. **Configure o `.env.local` (na raiz do projeto):**
+   ```bash
+   # Copie o template (se existir)
+   cp .env.example .env.local
+   
+   # Ou crie manualmente com:
+   ```
+   
+     ```env
    # Neo4j (OBRIGATÓRIO)
-   NEO4J_URI=bolt://localhost:7687
-   NEO4J_USER=neo4j
-   NEO4J_PASSWORD=sua_senha_segura_aqui
-   
-   # Backend
-   BACKEND_PORT=3001
-   FRONTEND_URL=http://localhost:5173
-   
-   # Ollama (modelos locais)
-   OLLAMA_BASE_URL=http://172.21.112.1:11434
+     NEO4J_URI=bolt://localhost:7687
+     NEO4J_USER=neo4j
+     NEO4J_PASSWORD=sua_senha_segura_aqui
+     
+   # Ollama (Local - Recomendado)
+   OLLAMA_BASE_URL=http://localhost:11434
    MODEL_OLLAMA=llama3.1:latest
-   EMBEDDING_MODEL=nomic-embed-text:latest
+   EMBEDDING_MODEL_OLLAMA=nomic-embed-text:latest
    OLLAMA_TIMEOUT=180000
    
-   # OpenRouter (modelos cloud - OPCIONAL)
-   OPENROUTER_API_KEY=sk-or-v1-...
+   # OpenRouter (Cloud - Opcional)
+   OPENROUTER_API_KEY=
    MODEL_OPENROUTER=meta-llama/llama-3.3-70b-instruct:free
+   EMBEDDING_MODEL_OPENROUTER=text-embedding-3-small
    
-   # Cache e Upload
-   RESPONSE_CACHE_TTL_MS=300000
-   MAX_FILE_SIZE=10485760
+   # Gemini (Google - Opcional)
+   GEMINI_API_KEY=
+   MODEL_GEMINI=gemini-1.5-flash
+   EMBEDDING_MODEL_GEMINI=text-embedding-004
+   
+   # Embedding Configuration
+   EMBEDDING_PROVIDER=ollama
+     EMBEDDING_MODEL=nomic-embed-text:latest
+     
+   # Server
+   PORT=3001
+   BACKEND_PORT=3001
+   FRONTEND_URL=http://localhost:5173
    ```
 
 4. **Inicie o Neo4j:**
    ```bash
    docker-compose up -d
-   ```
-
-5. **Inicialize o RAG:**
-   ```bash
-   npm run create-neo4j
    ```
 
 ## Uso
@@ -237,7 +331,15 @@ threat-modeling-co-pilot-with-ai-3/
 ├── backend/src/
 │   ├── server.ts                    # Express server + endpoints
 │   ├── core/
-│   │   ├── models/providers/        # Provedores IA (Ollama, OpenRouter)
+│   │   ├── models/                  # 🔌 Sistema de Providers (Extensível)
+│   │   │   ├── ModelProvider.ts     # Interface base
+│   │   │   ├── ModelFactory.ts      # Auto-registro e fallback
+│   │   │   └── providers/
+│   │   │       ├── README.md        # 📖 Guia completo
+│   │   │       ├── TemplateProvider.ts # Template documentado
+│   │   │       ├── OllamaProvider.ts   # Ollama (local)
+│   │   │       ├── OpenRouterProvider.ts # OpenRouter (cloud)
+│   │   │       └── GeminiProvider.ts    # Gemini (Google)
 │   │   ├── search/                  # Busca semântica
 │   │   ├── cache/                   # Cache manager
 │   │   └── graph/                   # Neo4j client
@@ -271,10 +373,18 @@ npm run test:integration  # Testes E2E
 
 ## Documentação
 
+### 📚 Geral
+- **[ARQUITETURA_PROVIDERS.md](ARQUITETURA_PROVIDERS.md)** - 🔌 Sistema extensível de providers de IA
+
+### 🧪 Testes e Validação
 - **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes
 - **[QUERIES_NEO4J.md](src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis
 - **[GUIA_RAPIDO_NEO4J.md](src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
 - **[VALIDACAO_RAG.md](src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
+
+### 🔌 Desenvolvimento de Providers
+- **[backend/src/core/models/providers/README.md](backend/src/core/models/providers/README.md)** - Guia completo para criar providers
+- **[backend/src/core/models/providers/TemplateProvider.ts](backend/src/core/models/providers/TemplateProvider.ts)** - Template documentado com exemplos
 
 ## Configurações Avançadas
 

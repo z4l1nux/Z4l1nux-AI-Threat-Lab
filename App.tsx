@@ -19,7 +19,8 @@ const App: React.FC = () => {
     error,
     generateThreatModel,
     updateReportMarkdown,
-    refineThreatModel
+    refineThreatModel,
+    resetThreatModel
   } = useThreatModeler();
 
   const {
@@ -73,8 +74,8 @@ const App: React.FC = () => {
           Utilize IA para analisar seu sistema, identificar ameaças STRIDE, mapear para CAPEC e sugerir mitigações.
         </p>
         
-        {/* Tabs de navegação */}
-        <div className="flex justify-center gap-2 mt-6">
+        {/* Tabs de navegação e botão de reset */}
+        <div className="flex justify-center items-center gap-2 mt-6 flex-wrap">
           <button
             className={`px-6 py-3 rounded-lg font-semibold transition-all ${
               activeTab === 'form'
@@ -95,6 +96,17 @@ const App: React.FC = () => {
           >
             🎨 Editor Visual de Diagramas
           </button>
+          
+          {/* Botão Nova Modelagem - apenas visível quando há um relatório */}
+          {reportData && (
+            <button
+              className="px-6 py-3 rounded-lg font-semibold transition-all bg-orange-600 text-white hover:bg-orange-700 border-2 border-orange-500"
+              onClick={resetThreatModel}
+              title="Limpar modelagem atual e começar uma nova análise"
+            >
+              🔄 Nova Modelagem
+            </button>
+          )}
         </div>
       </header>
 

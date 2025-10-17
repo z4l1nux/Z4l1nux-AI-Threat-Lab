@@ -74,6 +74,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     const selectedId = event.target.value;
     const model = models.find(m => m.id === selectedId);
     if (model) {
+      console.log('🔄 Modelo alterado:', { id: model.id, provider: model.provider });
       onModelChange(model.id, model.provider);
     }
   };
@@ -82,6 +83,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     const selectedId = event.target.value;
     const embedding = embeddings.find(e => e.id === selectedId);
     if (embedding) {
+      console.log('🔄 Embedding alterado:', { id: embedding.id, provider: embedding.provider });
       onEmbeddingChange(embedding.id, embedding.provider);
     }
   };

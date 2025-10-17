@@ -12,12 +12,15 @@ dist
 dist-ssr
 
 # Environment variables (SECURITY: Never commit these!)
+# Este projeto usa APENAS .env.local na raiz do projeto
 .env
 .env.local
 .env.production
 .env.development
 .env.test
 .env*.local
+backend/.env
+backend/.env.*
 
 # Editor directories and files
 .vscode/*

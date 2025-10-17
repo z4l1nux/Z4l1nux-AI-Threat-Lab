@@ -226,16 +226,18 @@ const parseJsonFromText = (text: string | undefined | any): any => {
     if (errorMsg.includes("Unexpected end of JSON input") || errorMsg.includes("Unterminated string")) {
       throw new Error(
         `⚠️ RESPOSTA INCOMPLETA DO MODELO DE IA\n\n` +
-        `O modelo "${modelConfig?.model || 'desconhecido'}" parou de gerar antes de completar o JSON.\n\n` +
-        `🔧 SOLUÇÃO:\n` +
-        `1. Troque para um modelo mais robusto:\n` +
-        `   • meta-llama/llama-3.3-70b-instruct:free (RECOMENDADO)\n` +
-        `   • deepseek/deepseek-chat-v3-0324:free\n` +
-        `   • google/gemini-2.0-flash-exp:free\n\n` +
-        `2. Abra "Configuração de Modelos" no painel lateral\n` +
-        `3. Selecione um modelo mais potente\n` +
-        `4. Tente gerar novamente\n\n` +
-        `⚠️ Modelos fracos (como gpt-oss-20b) não conseguem gerar relatórios completos.`
+        `O modelo parou de gerar antes de completar o JSON (resposta truncada).\n\n` +
+        `🔧 POSSÍVEIS CAUSAS:\n` +
+        `• Limite de tokens de saída do modelo atingido\n` +
+        `• Modelo tentou gerar ameaças demais ou muito detalhadas\n\n` +
+        `💡 SOLUÇÃO:\n` +
+        `1. Tente novamente (pode funcionar na próxima tentativa)\n` +
+        `2. Ou troque para um modelo com maior limite de tokens:\n` +
+        `   • meta-llama/llama-3.3-70b-instruct:free (OpenRouter)\n` +
+        `   • deepseek/deepseek-chat-v3-0324:free (OpenRouter)\n\n` +
+        `3. Abra "Configuração de Modelos" no painel lateral\n` +
+        `4. Selecione o modelo desejado e tente novamente\n\n` +
+        `📊 Tamanho da resposta truncada: ${text.length} caracteres`
       );
     }
     
@@ -428,7 +430,25 @@ export const analyzeThreatsAndMitigations = async (
   
   // Construir contexto RAG para o prompt (versão ultra-otimizada)
   // Reduzir contexto RAG se sistema tem IA (para economizar tokens)
-  const contextLimit = aiDetection.hasAI ? 600 : 1000;
+  // Reduzir ainda mais para modelos locais (Ollama)
+  const isLocalModel = modelConfig?.provider === 'ollama';
+  
+  // Verificar se modelo tem contexto limitado configurado
+  const modelName = modelConfig?.model || '';
+  const limitedContext = modelName ? 
+    (process.env[`OLLAMA_LIMITED_CONTEXT_${modelName.replace(/[^A-Z0-9]/g, '_').toUpperCase()}`] === 'true') : false;
+  
+  let contextLimit: number;
+  if (limitedContext) {
+    contextLimit = parseInt(process.env.OLLAMA_LIMITED_CONTEXT_LIMIT || '150'); // Configurável via .env.local
+  } else if (isLocalModel) {
+    contextLimit = parseInt(process.env.OLLAMA_LOCAL_CONTEXT_LIMIT || '300'); // Configurável via .env.local
+  } else if (aiDetection.hasAI) {
+    contextLimit = parseInt(process.env.OLLAMA_AI_SYSTEM_CONTEXT_LIMIT || '600'); // Configurável via .env.local
+  } else {
+    contextLimit = parseInt(process.env.OLLAMA_DEFAULT_CONTEXT_LIMIT || '1000'); // Configurável via .env.local
+  }
+  
   const ragContextSection = ragContext ? `
 CONTEXTO RAG (${ragContext.sources.length} fontes, confiança: ${ragContext.confidence?.toFixed(1) || '0.0'}%):
 ${ragContext.context.substring(0, contextLimit)}...
@@ -509,13 +529,17 @@ ${systemInfo.additionalContext}
 ${aiContextSection}
 
 MAPEAMENTO STRIDE-CAPEC DISPONÍVEL (Use APENAS estes CAPECs):
-${strideCapecMap.map(entry => 
-  `${entry.stride}:\n${entry.capecs.slice(0, 20).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`
-).join('\n\n')}
+${strideCapecMap.map(entry => {
+  // Reduzir CAPECs para modelos locais
+  const maxCapecs = isLocalModel ? 10 : 20;
+  return `${entry.stride}:\n${entry.capecs.slice(0, maxCapecs).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`;
+}).join('\n\n')}
 
-🔍 DEBUG: Mapeamento STRIDE-CAPEC: ${strideCapecMap.length} categorias, total de ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)} CAPECs disponíveis (mostrando top 20 por categoria para economizar tokens)
+🔍 DEBUG: Mapeamento STRIDE-CAPEC: ${strideCapecMap.length} categorias, total de ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)} CAPECs disponíveis (mostrando top ${isLocalModel ? 10 : 20} por categoria para economizar tokens)
 
 ⚠️ REGRA CRÍTICA DE MAPEAMENTO CAPEC→STRIDE:
+
+IMPORTANTE: Use APENAS os CAPECs listados acima. NÃO invente IDs ou nomes.
 
 Spoofing - Use CAPECs DIFERENTES para cada componente:
 - CAPEC-98 (Phishing), CAPEC-151 (Identity Spoofing), CAPEC-194 (Fake the Source of Data)
@@ -524,6 +548,14 @@ Spoofing - Use CAPECs DIFERENTES para cada componente:
 Tampering - Use CAPECs DIFERENTES para cada componente:
 - CAPEC-123 (Buffer Manipulation), CAPEC-242 (Code Injection), CAPEC-272 (Protocol Manipulation)
 - CAPEC-153 (Input Data Manipulation), CAPEC-250 (XML Injection), CAPEC-66 (SQL Injection)
+
+VALIDAÇÃO OBRIGATÓRIA:
+- Use APENAS os CAPECs listados acima
+- Verifique que o ID corresponde ao nome (ex: CAPEC-122 = Injection Flaws)
+- Se houver dúvida, use o primeiro CAPEC da categoria STRIDE
+- NÃO use IDs que não estão na lista acima
+- NÃO invente IDs ou nomes de CAPECs
+- Se não encontrar CAPEC apropriado, use "CAPEC-NOT-FOUND" como ID
 
 Repudiation - Use CAPECs DIFERENTES para cada componente:
 - CAPEC-268 (Audit Log Manipulation), CAPEC-93 (Log Injection-Tampering-Forging)
@@ -686,17 +718,24 @@ Exemplo 3 - Ameaças para FLUXOS DE DADOS (USAR ESTE para analisar fluxos cross-
 
 ⚠️ ATENÇÃO: A resposta DEVE incluir TODOS os campos acima. NÃO omita nenhum campo.
 
+⚠️ INSTRUÇÕES DE FORMATO CRÍTICAS:
+- Cada descrição: MÁXIMO 150 caracteres (1 linha curta)
+- threatScenario: Descrever ameaça em 1 frase curta
+- capecDescription: Definição breve do CAPEC em 1 linha
+- mitigationRecommendations: Listar 2-3 controles principais (ex: "Usar TLS, RBAC e logs")
+- SEJA EXTREMAMENTE CONCISO: Evite parágrafos longos
+
 Analise e retorne JSON objeto com array de ameaças STRIDE:
 {"threats":[{"elementName":"COMPONENTE_ESPECÍFICO_DO_SISTEMA","strideCategory":"Spoofing|Tampering|Repudiation|Information Disclosure|Denial of Service|Elevation of Privilege","threatScenario":"string","capecId":"string","capecName":"string","capecDescription":"string","mitigationRecommendations":"string","impact":"CRITICAL|HIGH|MEDIUM|LOW","owaspTop10":"string"}]}
 
 🎯 QUANTIDADE DE AMEAÇAS OBRIGATÓRIA:
-- MÍNIMO: 12-18 ameaças em português (priorize qualidade sobre quantidade)
-- OBRIGATÓRIO: Pelo menos 2 ameaças para CADA uma das 6 categorias STRIDE
+- EXATAMENTE: 12 ameaças em português (2 por categoria STRIDE)
+- OBRIGATÓRIO: 2 ameaças para CADA categoria STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
 - OBRIGATÓRIO: Distribuir as ameaças entre:
-  * Componentes individuais (8-10 ameaças)
-  * Fluxos de dados entre componentes (4-8 ameaças)
-- OBRIGATÓRIO: Para sistemas com fluxos mapeados, incluir ameaças específicas para FLUXOS
-- IMPORTANTE: Mant resolution concisa para não exceder limite de tokens
+  * Componentes individuais (6-7 ameaças)
+  * Fluxos de dados entre componentes (5-6 ameaças)
+- CRÍTICO: Descrições MUITO CONCISAS (máximo 1 linha por campo) para não exceder limite de tokens
+- FORMATO: Cada campo deve ter no máximo 150 caracteres
 
 🚨 VALIDAÇÃO FINAL OBRIGATÓRIA (Verificar ANTES de retornar):
 
@@ -772,21 +811,19 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
     throw new Error("A resposta da IA para ameaças não estava no formato de array esperado.");
   }
 
-  // Validar e processar ameaças
+  // Validar e processar ameaças com correção de CAPECs
   const threats: IdentifiedThreat[] = threatsArray.map((threat: any, index: number) => {
-    // Validar se todos os campos obrigatórios estão presentes
-    if (!threat.capecId || !threat.capecName || !threat.capecDescription) {
-      console.warn(`⚠️ Ameaça ${index + 1} com dados CAPEC incompletos:`, threat);
-    }
+    // Validar e corrigir CAPEC
+    const validatedCapec = validateAndFixCapec(threat, index);
     
     return {
       id: `threat-${Date.now()}-${index}`,
       elementName: threat.elementName || `Elemento ${index + 1}`,
       strideCategory: threat.strideCategory || 'Information Disclosure',
       threatScenario: threat.threatScenario || 'Cenário de ameaça não especificado',
-      capecId: threat.capecId || 'CAPEC-NOT-FOUND',
-      capecName: threat.capecName || 'CAPEC não encontrado',
-      capecDescription: threat.capecDescription || 'Descrição CAPEC não disponível',
+      capecId: validatedCapec.capecId,
+      capecName: validatedCapec.capecName,
+      capecDescription: validatedCapec.capecDescription,
       mitigationRecommendations: threat.mitigationRecommendations || 'Implementar controles de segurança apropriados',
       impact: threat.impact || 'MEDIUM',
       owaspTop10: threat.owaspTop10 || 'A1:2021 - Broken Access Control'
@@ -796,6 +833,133 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
   console.log(`✅ Análise de ameaças concluída: ${threats.length} ameaças identificadas`);
   return threats;
 };
+
+/**
+ * Valida e corrige dados CAPEC para evitar IDs incorretos
+ */
+function validateAndFixCapec(threat: any, index: number): { capecId: string; capecName: string; capecDescription: string } {
+  // Lista de CAPECs válidos conhecidos
+  const validCapecs = [
+    'CAPEC-122', 'CAPEC-116', 'CAPEC-156', 'CAPEC-153', 'CAPEC-157', 'CAPEC-125', 'CAPEC-233',
+    'CAPEC-416', 'CAPEC-560', 'CAPEC-94', 'CAPEC-123', 'CAPEC-242', 'CAPEC-272', 'CAPEC-250',
+    'CAPEC-66', 'CAPEC-268', 'CAPEC-93', 'CAPEC-571', 'CAPEC-195', 'CAPEC-98', 'CAPEC-151',
+    'CAPEC-194', 'CAPEC-473', 'CAPEC-89', 'CAPEC-148'
+  ];
+  
+  // Verificar se CAPEC é válido
+  const hasValidCapec = threat.capecId && 
+    threat.capecId.trim() !== '' && 
+    threat.capecId !== 'CAPEC-NOT-FOUND' &&
+    threat.capecName && 
+    threat.capecName.trim() !== '' &&
+    threat.capecName !== 'CAPEC não encontrado';
+
+  if (hasValidCapec) {
+    const capecId = threat.capecId.trim();
+    const capecName = threat.capecName.trim();
+    
+    // Verificar se ID está na lista de CAPECs válidos
+    if (!validCapecs.includes(capecId)) {
+      console.warn(`⚠️ CAPEC ID inválido para ameaça ${index + 1}: ${capecId} (não está na lista de CAPECs válidos)`);
+      return getFallbackCapec(threat.strideCategory, threat.threatScenario);
+    }
+    
+    // Validar se ID corresponde ao nome
+    if (isCapecIdNameMismatch(capecId, capecName)) {
+      console.warn(`⚠️ CAPEC ID/Nome inconsistente para ameaça ${index + 1}: ${capecId} vs ${capecName}`);
+      return getFallbackCapec(threat.strideCategory, threat.threatScenario);
+    }
+    
+    return {
+      capecId,
+      capecName,
+      capecDescription: threat.capecDescription || 'Descrição CAPEC não disponível'
+    };
+  }
+  
+  // Se CAPEC inválido, usar mapeamento STRIDE-CAPEC
+  console.warn(`⚠️ CAPEC inválido para ameaça ${index + 1}, usando mapeamento STRIDE-CAPEC`);
+  return getFallbackCapec(threat.strideCategory, threat.threatScenario);
+}
+
+/**
+ * Verifica se ID e nome do CAPEC são inconsistentes
+ */
+function isCapecIdNameMismatch(capecId: string, capecName: string): boolean {
+  // Mapeamento de IDs conhecidos para nomes esperados
+  const knownMappings: { [key: string]: string[] } = {
+    'CAPEC-122': ['injection', 'flaws'],
+    'CAPEC-116': ['excessive', 'information', 'exposure'],
+    'CAPEC-156': ['deceptive', 'interactions'],
+    'CAPEC-153': ['input', 'data', 'manipulation'],
+    'CAPEC-157': ['log', 'injection'],
+    'CAPEC-125': ['flooding'],
+    'CAPEC-233': ['privilege', 'escalation'],
+    'CAPEC-416': ['injection', 'untrusted', 'data'],
+    'CAPEC-560': ['known', 'domain', 'credentials'],
+    'CAPEC-94': ['adversary', 'middle', 'aitm']
+  };
+  
+  const expectedKeywords = knownMappings[capecId];
+  if (!expectedKeywords) {
+    return false; // ID não conhecido, assumir válido
+  }
+  
+  const nameLower = capecName.toLowerCase();
+  const hasExpectedKeywords = expectedKeywords.some(keyword => nameLower.includes(keyword));
+  
+  if (!hasExpectedKeywords) {
+    console.warn(`⚠️ CAPEC ID/Nome inconsistente: ${capecId} vs "${capecName}"`);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Obtém CAPEC de fallback baseado na categoria STRIDE
+ */
+function getFallbackCapec(strideCategory: string, _threatScenario: string): { capecId: string; capecName: string; capecDescription: string } {
+  const strideCapecMap: { [key: string]: { capecId: string; capecName: string; capecDescription: string } } = {
+    'Spoofing': {
+      capecId: 'CAPEC-156',
+      capecName: 'Engage In Deceptive Interactions',
+      capecDescription: 'Ataques que envolvem enganar usuários ou sistemas através de identidades falsas'
+    },
+    'Tampering': {
+      capecId: 'CAPEC-153',
+      capecName: 'Input Data Manipulation',
+      capecDescription: 'Manipulação de dados de entrada para causar comportamento não intencional'
+    },
+    'Repudiation': {
+      capecId: 'CAPEC-157',
+      capecName: 'Log Injection',
+      capecDescription: 'Injeção de dados falsos em logs para mascarar atividades maliciosas'
+    },
+    'Information Disclosure': {
+      capecId: 'CAPEC-116',
+      capecName: 'Excessive Information Exposure',
+      capecDescription: 'Exposição excessiva de informações confidenciais do sistema'
+    },
+    'Denial of Service': {
+      capecId: 'CAPEC-125',
+      capecName: 'Flooding',
+      capecDescription: 'Ataques de negação de serviço através de sobrecarga de recursos'
+    },
+    'Elevation of Privilege': {
+      capecId: 'CAPEC-233',
+      capecName: 'Privilege Escalation',
+      capecDescription: 'Escalação de privilégios para obter acesso não autorizado'
+    }
+  };
+  
+  return strideCapecMap[strideCategory] || {
+    capecId: 'CAPEC-1000',
+    capecName: 'General Attack Pattern',
+    capecDescription: 'Padrão de ataque geral não especificado'
+  };
+}
+
 
 /**
  * Gera um diagrama Mermaid de árvore de ataque baseado nas ameaças identificadas.

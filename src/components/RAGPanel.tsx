@@ -16,10 +16,42 @@ const RAGPanel: React.FC = () => {
   } = useRAGSystem();
 
 
-  // Verificar status do sistema ao carregar
+  // Verificar status do sistema ao carregar (imediatamente e repetidamente)
   useEffect(() => {
+    // Verificação inicial imediata
     checkSystemHealth();
+
+    // Verificar novamente após 1 segundo (caso o backend ainda esteja inicializando)
+    const timeoutId = setTimeout(() => {
+      checkSystemHealth();
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
   }, [checkSystemHealth]);
+
+  // Polling: Verificar status periodicamente enquanto está inicializando
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+
+    if (isLoading) {
+      // Verificar a cada 2 segundos enquanto está carregando
+      intervalId = setInterval(() => {
+        console.log('🔄 Verificando status do RAG automaticamente...');
+        checkSystemHealth();
+      }, 2000);
+    } else if (isInitialized) {
+      // Quando finalizar o loading, fazer uma última verificação e buscar estatísticas
+      console.log('✅ RAG inicializado! Atualizando estatísticas...');
+      refreshStatistics();
+    }
+
+    // Limpar intervalo quando o componente desmontar ou quando parar de carregar
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isLoading, isInitialized, checkSystemHealth, refreshStatistics]);
 
   const handleFileUpload = async (file: File) => {
     try {
