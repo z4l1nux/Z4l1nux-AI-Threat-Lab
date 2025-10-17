@@ -449,6 +449,17 @@ export const analyzeThreatsAndMitigations = async (
     contextLimit = parseInt(process.env.OLLAMA_DEFAULT_CONTEXT_LIMIT || '1000'); // Configurável via .env.local
   }
   
+  // =====================
+  // CAPECs mencionados no RAG (auditoria)
+  // =====================
+  const extractCapecIdsFromText = (text: string): Set<string> => {
+    const matches = text.match(/CAPEC-\d{1,4}/g) || [];
+    return new Set(matches);
+  };
+  const capecsMentionedInRag = extractCapecIdsFromText(ragContext?.context || '');
+  console.log(`[AI Service] CAPECs mencionados no RAG: ${Array.from(capecsMentionedInRag).join(', ') || 'nenhum'}`);
+  console.log(`[AI Service] Total de CAPECs disponíveis no mapeamento: ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)}`);
+
   const ragContextSection = ragContext ? `
 CONTEXTO RAG (${ragContext.sources.length} fontes, confiança: ${ragContext.confidence?.toFixed(1) || '0.0'}%):
 ${ragContext.context.substring(0, contextLimit)}...
@@ -528,57 +539,23 @@ ${systemInfo.additionalContext}
 
 ${aiContextSection}
 
-MAPEAMENTO STRIDE-CAPEC DISPONÍVEL (Use APENAS estes CAPECs):
-${strideCapecMap.map(entry => {
-  // Reduzir CAPECs para modelos locais
-  const maxCapecs = isLocalModel ? 10 : 20;
-  return `${entry.stride}:\n${entry.capecs.slice(0, maxCapecs).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`;
-}).join('\n\n')}
+MAPEAMENTO STRIDE-CAPEC DISPONÍVEL:
+${(() => {
+  const maxCapecs = isLocalModel ? 15 : 30;
+  return strideCapecMap.map(entry => `${entry.stride}:\n${entry.capecs.slice(0, maxCapecs).map(c => `  - ${c.id}: ${c.name}`).join('\n')}`).join('\n\n');
+})()}
 
-🔍 DEBUG: Mapeamento STRIDE-CAPEC: ${strideCapecMap.length} categorias, total de ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)} CAPECs disponíveis (mostrando top ${isLocalModel ? 10 : 20} por categoria para economizar tokens)
+🔍 DEBUG: Total de ${strideCapecMap.reduce((sum, e) => sum + e.capecs.length, 0)} CAPECs no mapeamento (mostrando top ${isLocalModel ? 15 : 30} por categoria). Use CAPECs mencionados no CONTEXTO RAG quando mais relevantes ao cenário.
 
-⚠️ REGRA CRÍTICA DE MAPEAMENTO CAPEC→STRIDE:
+⚠️ REGRAS DE SELEÇÃO DE CAPEC (semântica RAG):
 
-IMPORTANTE: Use APENAS os CAPECs listados acima. NÃO invente IDs ou nomes.
+1) Use o CAPEC que melhor se encaixar no cenário de ameaça específico. Priorize CAPECs mencionados no CONTEXTO RAG se forem mais relevantes.
+2) Selecione da lista acima (MAPEAMENTO STRIDE-CAPEC) conforme a categoria STRIDE correta.
+3) Não invente IDs ou nomes. Se não encontrar um CAPEC adequado, use "CAPEC-NOT-FOUND".
 
-Spoofing - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-98 (Phishing), CAPEC-151 (Identity Spoofing), CAPEC-194 (Fake the Source of Data)
-- CAPEC-473 (Signature Spoof), CAPEC-89 (Pharming), CAPEC-148 (Content Spoofing)
-
-Tampering - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-123 (Buffer Manipulation), CAPEC-242 (Code Injection), CAPEC-272 (Protocol Manipulation)
-- CAPEC-153 (Input Data Manipulation), CAPEC-250 (XML Injection), CAPEC-66 (SQL Injection)
-
-VALIDAÇÃO OBRIGATÓRIA:
-- Use APENAS os CAPECs listados acima
-- Verifique que o ID corresponde ao nome (ex: CAPEC-122 = Injection Flaws)
-- Se houver dúvida, use o primeiro CAPEC da categoria STRIDE
-- NÃO use IDs que não estão na lista acima
-- NÃO invente IDs ou nomes de CAPECs
-- Se não encontrar CAPEC apropriado, use "CAPEC-NOT-FOUND" como ID
-
-Repudiation - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-268 (Audit Log Manipulation), CAPEC-93 (Log Injection-Tampering-Forging)
-- CAPEC-571 (Block Logging), CAPEC-195 (Principal Spoof)
-
-Information Disclosure - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-116 (Excavation), CAPEC-117 (Interception), CAPEC-129 (Pointer Manipulation)
-- CAPEC-212 (Functionality Misuse), CAPEC-169 (Footprinting), CAPEC-224 (Fingerprinting)
-
-Denial of Service - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-125 (Flooding), CAPEC-482 (TCP Flood), CAPEC-488 (HTTP Flood)
-- CAPEC-130 (Excessive Allocation), CAPEC-492 (Regex Exponential Blowup), CAPEC-469 (HTTP DoS)
-
-Elevation of Privilege - Use CAPECs DIFERENTES para cada componente:
-- CAPEC-560 (Use of Known Domain Credentials), CAPEC-248 (Command Injection), CAPEC-66 (SQL Injection)
-- CAPEC-122 (Privilege Abuse), CAPEC-21 (Exploitation of Trusted Identifiers), CAPEC-233 (Privilege Escalation)
-
-🚨 REGRA ABSOLUTA DE UNICIDADE:
-❌ NÃO REPITA o mesmo CAPEC mais de UMA VEZ no relatório inteiro!
-❌ NÃO USE CAPEC-125 para Database, Vector Database E Web Application - escolha UM componente!
-❌ NÃO USE CAPEC-416 para múltiplos componentes - use CAPEC-98, CAPEC-151, CAPEC-194 para variar!
-❌ Se já usou CAPEC-123 para Web Application, use CAPEC-250 ou CAPEC-272 para Vector Database!
-✅ CADA ameaça DEVE ter um CAPEC ÚNICO e DIFERENTE das demais!
+🚨 UNICIDADE OBRIGATÓRIA:
+✅ Não repita o mesmo CAPEC em mais de uma ameaça no relatório.
+✅ Evite aplicar o mesmo CAPEC em múltiplos componentes; distribua CAPECs diferentes quando possível.
 
 INSTRUÇÕES CRÍTICAS - OBRIGATÓRIO SEGUIR TODAS:
 
@@ -590,12 +567,9 @@ ANÁLISE DE COMPONENTES:
 ANÁLISE DE FLUXOS E ZONAS (CRÍTICO):
 4. OBRIGATÓRIO: Identifique ameaças para FLUXOS DE DADOS entre componentes, não apenas componentes isolados
 5. OBRIGATÓRIO: Para fluxos cross-boundary (External→Internal, Internal→Third-party), considere:
-   - CAPEC-94 (Adversary in the Middle) para interceptação
-   - CAPEC-117 (Interception) para escuta de dados em trânsito
-   - CAPEC-620 (Drop Encryption Level) para downgrade de criptografia
+   - CAPECs de interceptação/man-in-the-middle presentes na shortlist/RAG (ex: Interception, Adversary-in-the-Middle, Downgrade/Drop Encryption Level) — escolha apenas IDs/nome que estejam na shortlist ou citados no CONTEXTO RAG.
 6. OBRIGATÓRIO: Para fluxos não criptografados, identifique:
-   - CAPEC-157 (Sniffing Attacks) para captura de dados
-   - CAPEC-158 (Sniffing Network Traffic) para análise de tráfego
+   - CAPECs de sniffing/escuta de rede presentes na shortlist/RAG — escolha apenas IDs/nome que estejam na shortlist ou citados no CONTEXTO RAG.
 7. OBRIGATÓRIO: Ao descrever ameaças, mencione o FLUXO específico (ex: "no fluxo de prompts entre Backend e LLM")
 
 USO DE CAPECs:
@@ -831,6 +805,33 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
   });
 
   console.log(`✅ Análise de ameaças concluída: ${threats.length} ameaças identificadas`);
+  
+  // =====================
+  // Pós-processamento: garantir unicidade de CAPECs por relatório
+  // =====================
+  const usedCapecs = new Set<string>();
+  const pickAlternativeCapec = (stride: string): { capecId: string; capecName: string; capecDescription: string } => {
+    const candidate = (strideCapecMap.find(e => e.stride === stride)?.capecs || []).find(c => !usedCapecs.has(c.id));
+    return candidate
+      ? { capecId: candidate.id, capecName: candidate.name, capecDescription: 'Selecionado do mapeamento STRIDE→CAPEC' }
+      : getFallbackCapec(stride, '');
+  };
+
+  for (let i = 0; i < threats.length; i++) {
+    const t = threats[i];
+    const id = (t.capecId || '').trim();
+    if (id && !usedCapecs.has(id)) {
+      usedCapecs.add(id);
+      continue;
+    }
+    // Duplicado ou vazio → escolher alternativa
+    const alt = pickAlternativeCapec(t.strideCategory);
+    console.warn(`♻️ Substituindo CAPEC duplicado/ausente em "${t.elementName}" (${t.strideCategory}) → ${alt.capecId}`);
+    t.capecId = alt.capecId;
+    t.capecName = alt.capecName;
+    t.capecDescription = alt.capecDescription;
+    usedCapecs.add(alt.capecId);
+  }
   return threats;
 };
 
@@ -838,13 +839,6 @@ Analise e retorne JSON objeto com array de ameaças STRIDE:
  * Valida e corrige dados CAPEC para evitar IDs incorretos
  */
 function validateAndFixCapec(threat: any, index: number): { capecId: string; capecName: string; capecDescription: string } {
-  // Lista de CAPECs válidos conhecidos
-  const validCapecs = [
-    'CAPEC-122', 'CAPEC-116', 'CAPEC-156', 'CAPEC-153', 'CAPEC-157', 'CAPEC-125', 'CAPEC-233',
-    'CAPEC-416', 'CAPEC-560', 'CAPEC-94', 'CAPEC-123', 'CAPEC-242', 'CAPEC-272', 'CAPEC-250',
-    'CAPEC-66', 'CAPEC-268', 'CAPEC-93', 'CAPEC-571', 'CAPEC-195', 'CAPEC-98', 'CAPEC-151',
-    'CAPEC-194', 'CAPEC-473', 'CAPEC-89', 'CAPEC-148'
-  ];
   
   // Verificar se CAPEC é válido
   const hasValidCapec = threat.capecId && 
@@ -857,10 +851,11 @@ function validateAndFixCapec(threat: any, index: number): { capecId: string; cap
   if (hasValidCapec) {
     const capecId = threat.capecId.trim();
     const capecName = threat.capecName.trim();
-    
-    // Verificar se ID está na lista de CAPECs válidos
-    if (!validCapecs.includes(capecId)) {
-      console.warn(`⚠️ CAPEC ID inválido para ameaça ${index + 1}: ${capecId} (não está na lista de CAPECs válidos)`);
+
+    // Aceitar qualquer CAPEC-<número> (shortlist/RAG pode trazer IDs não listados aqui)
+    const idLooksLikeCapec = /^CAPEC-\d{1,4}$/.test(capecId);
+    if (!idLooksLikeCapec) {
+      console.warn(`⚠️ CAPEC ID com formato inválido para ameaça ${index + 1}: ${capecId}`);
       return getFallbackCapec(threat.strideCategory, threat.threatScenario);
     }
     
@@ -885,35 +880,9 @@ function validateAndFixCapec(threat: any, index: number): { capecId: string; cap
 /**
  * Verifica se ID e nome do CAPEC são inconsistentes
  */
-function isCapecIdNameMismatch(capecId: string, capecName: string): boolean {
-  // Mapeamento de IDs conhecidos para nomes esperados
-  const knownMappings: { [key: string]: string[] } = {
-    'CAPEC-122': ['injection', 'flaws'],
-    'CAPEC-116': ['excessive', 'information', 'exposure'],
-    'CAPEC-156': ['deceptive', 'interactions'],
-    'CAPEC-153': ['input', 'data', 'manipulation'],
-    'CAPEC-157': ['log', 'injection'],
-    'CAPEC-125': ['flooding'],
-    'CAPEC-233': ['privilege', 'escalation'],
-    'CAPEC-416': ['injection', 'untrusted', 'data'],
-    'CAPEC-560': ['known', 'domain', 'credentials'],
-    'CAPEC-94': ['adversary', 'middle', 'aitm']
-  };
-  
-  const expectedKeywords = knownMappings[capecId];
-  if (!expectedKeywords) {
-    return false; // ID não conhecido, assumir válido
-  }
-  
-  const nameLower = capecName.toLowerCase();
-  const hasExpectedKeywords = expectedKeywords.some(keyword => nameLower.includes(keyword));
-  
-  if (!hasExpectedKeywords) {
-    console.warn(`⚠️ CAPEC ID/Nome inconsistente: ${capecId} vs "${capecName}"`);
-    return true;
-  }
-  
-  return false;
+function isCapecIdNameMismatch(_capecId: string, capecName: string): boolean {
+  // Aceitar qualquer nome não vazio; nomes oficiais podem ser de 1 palavra (ex.: "Pretexting")
+  return !capecName || capecName.trim().length === 0;
 }
 
 /**
