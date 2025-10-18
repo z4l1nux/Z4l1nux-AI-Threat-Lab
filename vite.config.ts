@@ -16,6 +16,18 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        // Aumentar limite de warning para chunks grandes
+        chunkSizeWarningLimit: 1000,
+        // Otimizações de build
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true
+          }
+        }
       }
     };
 });

@@ -48,20 +48,11 @@ O sistema possui uma **arquitetura modular e extensível** que facilita a adiç�
 
 #### Providers Disponíveis
 
-| Provider | Status | Geração | Embeddings | Prioridade |
-|----------|--------|---------|------------|------------|
-| **Ollama** | ✅ Ativo | ✅ Sim | ✅ Sim | 🥇 Alta (local) |
-| **OpenRouter** | ✅ Ativo | ✅ Sim | ❌ Não | 🥉 Baixa (nuvem) |
-| **Gemini** | ✅ Ativo | ✅ Sim | ❌ Não | 🥈 Média |
-
-#### Recursos do Sistema de Providers
-
-- ✅ **Auto-registro**: Providers são detectados automaticamente
-- ✅ **Fallback automático**: Se um falhar, tenta outro
-- ✅ **Detecção de disponibilidade**: Verifica configuração antes de usar
-- ✅ **Sistema de prioridades**: Ollama (local) → Gemini → OpenRouter (nuvem)
-- ✅ **Interface padronizada**: Todos seguem a mesma interface
-- ✅ **Template documentado**: Pronto para criar novos providers
+| Provider | Status | Geração | Embeddings |
+|----------|--------|---------|------------|
+| **Ollama** | ✅ Ativo | ✅ Sim | ✅ Sim |
+| **OpenRouter** | ✅ Ativo | ✅ Sim | ❌ Não |
+| **Gemini** | ✅ Ativo | ✅ Sim | ✅ Sim |
 
 #### Configuração
 
@@ -256,7 +247,6 @@ Acesse: `http://localhost:5173`
    - `AI-TRiSM-Framework.md` (framework IA)
    - Outros documentos relevantes
 3. **Preencha o formulário** com descrição do sistema
-4. **Gere o modelo de ameaças** → Sistema detecta IA automaticamente
 
 ### Visualizar Resultados
 
