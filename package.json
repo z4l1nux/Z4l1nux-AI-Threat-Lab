@@ -6,8 +6,8 @@
   "scripts": {
     "check-prerequisites": "node scripts/check-prerequisites.js",
     "setup": "node scripts/setup.js",
-    "prestart": "ts-node --project src/backend/tsconfig.json src/backend/src/scripts/setup.ts",
-    "predev:full": "ts-node --project src/backend/tsconfig.json src/backend/src/scripts/setup.ts",
+    "prestart": "ts-node --project src/backend/src/scripts/tsconfig.json src/backend/src/scripts/setup.ts",
+    "predev:full": "ts-node --project src/backend/src/scripts/tsconfig.json src/backend/src/scripts/setup.ts",
     "dev": "cd src/frontend && vite",
     "dev:backend": "ts-node --project src/backend/tsconfig.json src/backend/src/server.ts",
     "dev:full": "concurrently --kill-others --names \"BACKEND,FRONTEND\" --prefix-colors \"bgBlue.bold,bgMagenta.bold\" \"npm run dev:backend\" \"npm run dev\"",
