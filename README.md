@@ -288,7 +288,7 @@ Acesse: `http://localhost:5173`
 - **Cache Inteligente**: TTL configurável, reduz latência
 - **Busca Vetorial**: Neo4j com índices otimizados
 
-![Arquitetura RAG](src/pictures/rag-arch.jpg)
+![Arquitetura RAG](src/frontend/src/pictures/rag-arch.jpg)
 *Arquitetura do sistema RAG com Neo4j, busca vetorial e cache inteligente*
 
 ## Estrutura do Projeto
@@ -376,17 +376,17 @@ npm run test:integration  # Testes E2E
 ## Documentação
 
 ### 📚 Geral
-- **[ARQUITETURA_PROVIDERS.md](ARQUITETURA_PROVIDERS.md)** - 🔌 Sistema extensível de providers de IA
+- **[ARQUITETURA_PROVIDERS.md](src/docs/ARQUITETURA_PROVIDERS.md)** - 🔌 Sistema extensível de providers de IA
 
 ### 🧪 Testes e Validação
-- **[TESTES.md](src/__tests__/TESTES.md)** - Guia completo de testes
-- **[QUERIES_NEO4J.md](src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis
-- **[GUIA_RAPIDO_NEO4J.md](src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
-- **[VALIDACAO_RAG.md](src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
+- **[TESTES.md](src/frontend/src/__tests__/TESTES.md)** - Guia completo de testes
+- **[QUERIES_NEO4J.md](src/frontend/src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis
+- **[GUIA_RAPIDO_NEO4J.md](src/frontend/src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
+- **[VALIDACAO_RAG.md](src/frontend/src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
 
 ### 🔌 Desenvolvimento de Providers
-- **[backend/src/core/models/providers/README.md](backend/src/core/models/providers/README.md)** - Guia completo para criar providers
-- **[backend/src/core/models/providers/TemplateProvider.ts](backend/src/core/models/providers/TemplateProvider.ts)** - Template documentado com exemplos
+- **[backend/src/core/models/providers/README.md](src/backend/src/core/models/providers/README.md)** - Guia completo para criar providers
+- **[backend/src/core/models/providers/TemplateProvider.ts](src/backend/src/core/models/providers/TemplateProvider.ts)** - Template documentado com exemplos
 
 ## Configurações Avançadas
 
