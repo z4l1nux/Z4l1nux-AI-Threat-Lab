@@ -1117,12 +1117,12 @@ app.post('/api/generate-content', requireInitialized, async (req, res) => {
     let model: string = '';
 
     // Determinar qual provider usar
-    let provider = modelConfig?.provider || 'auto';
-    console.log(`🔧 Provider do frontend: ${provider}`);
+    let provider = modelConfig?.provider;
+    console.log(`🔧 Provider do frontend: ${provider || 'não especificado'}`);
     
-    // Detectar automaticamente o melhor provider se 'auto'
-    if (provider === 'auto') {
-      console.log(`🔄 Provider é 'auto', detectando automaticamente...`);
+    // Se não há provider especificado, detectar automaticamente
+    if (!provider) {
+      console.log(`🔄 Provider não especificado, detectando automaticamente...`);
       provider = await detectBestProvider();
       console.log(`🔄 Provider detectado automaticamente: ${provider}`);
     } else {
@@ -1356,11 +1356,53 @@ app.get('/api/supported-extensions', (req, res) => {
   });
 });
 
+// Debug endpoint para providers
+app.get('/api/debug/providers', async (req, res) => {
+  try {
+    const providers = ModelFactory.getAvailableProviders();
+    const providerDetails: Record<string, any> = {};
+    
+    for (const providerName of providers) {
+      const provider = ModelFactory.getProvider(providerName);
+      if (provider) {
+        try {
+          const isAvailable = await provider.isAvailable();
+          providerDetails[providerName] = {
+            available: isAvailable,
+            name: provider.name,
+            config: {
+              provider: providerName,
+              model: providerName === 'ollama' ? process.env.MODEL_OLLAMA : 
+                     providerName === 'gemini' ? process.env.MODEL_GEMINI :
+                     process.env.MODEL_OPENROUTER
+            }
+          };
+        } catch (error) {
+          providerDetails[providerName] = {
+            available: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+      }
+    }
+    
+    res.json({
+      providers: providerDetails,
+      bestProvider: await ModelFactory.detectBestProvider()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Erro ao verificar providers',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Middleware de tratamento de erros
 // ========================================
 // ENDPOINT: Análise de Ameaças com ReAct Agent
 // ========================================
-app.post('/api/analyze-threats-react', requireInitialized, async (req, res) => {
+app.post('/api/analyze-threats-react', async (req, res) => {
   try {
     const { systemInfo, modelConfig, ragContext } = req.body;
     
@@ -1374,10 +1416,26 @@ app.post('/api/analyze-threats-react', requireInitialized, async (req, res) => {
     console.log(`   Sistema: ${systemInfo.systemName}`);
     console.log(`   Provider: ${modelConfig?.provider || 'auto-detect'}`);
     
+    // Usar configuração do frontend ou detectar automaticamente
+    let providerName = modelConfig?.provider;
+    let modelName = modelConfig?.model;
+    
+    if (!providerName || !modelName) {
+      console.log('   🔍 Detectando provider automaticamente...');
+      const bestProvider = await ModelFactory.detectBestProvider();
+      providerName = bestProvider?.name || 'mock';
+      modelName = bestProvider?.name === 'ollama' 
+        ? (process.env.MODEL_OLLAMA || 'phi4-mini:latest')
+        : (bestProvider?.name === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-instruct:free');
+    }
+    
+    console.log(`   🤖 Provider detectado: ${providerName}`);
+    console.log(`   🎯 Modelo: ${modelName}`);
+    
     // Criar e configurar o agente
     const agent = new SimpleReActAgent({
-      provider: modelConfig?.provider || 'ollama',
-      model: modelConfig?.model || process.env.MODEL_OLLAMA || 'llama3.1:latest',
+      provider: providerName,
+      model: modelName,
       embeddingModel: modelConfig?.embedding,
       embeddingProvider: modelConfig?.embeddingProvider,
       maxIterations: 15,
@@ -1544,8 +1602,19 @@ app.listen(PORT, async () => {
   console.log('  GET  /api/statistics - Estatísticas');
   console.log('  DELETE /api/cache - Limpar cache');
   
-  // Inicializar RAG automaticamente
-  await autoInitializeRAG();
+  // Inicializar ModelFactory para ReAct Agent (independente do RAG)
+  console.log('\n🤖 Inicializando providers para ReAct Agent...');
+  try {
+    await ModelFactory.initialize();
+    console.log('✅ Providers inicializados para ReAct Agent');
+  } catch (error) {
+    console.warn('⚠️ Aviso: Falha ao inicializar providers, ReAct Agent usará modo mock:', error);
+  }
+  
+  // Inicializar RAG automaticamente (em background)
+  autoInitializeRAG().catch(error => {
+    console.warn('⚠️ RAG não pôde ser inicializado automaticamente:', error);
+  });
 });
 
 export default app;

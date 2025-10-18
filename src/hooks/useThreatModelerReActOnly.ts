@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
-import { SystemInfo, IdentifiedThreat, ReportData } from '../../types';
+import { SystemInfo, IdentifiedThreat, ReportData } from '../types';
 import { refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/aiService';
 import { useModelSelection } from './useModelSelection';
+import { ragService } from '../services/ragService';
 import { ReActAgentConfig, analyzeWithReActAgent } from '../services/reactAgentService';
 
 export const useThreatModeler = () => {
@@ -14,14 +15,49 @@ export const useThreatModeler = () => {
   
   const { getModelConfig } = useModelSelection();
 
-  // ReAct Agent sempre disponível (independente do RAG)
+  // Verificar se o RAG está inicializado
   useEffect(() => {
-    console.log('🤖 ReAct Agent sempre disponível - independente do RAG');
-    setRagInitialized(true); // Sempre true para ReAct Agent
-  }, []);
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    const checkRAGStatus = async () => {
+      try {
+        const health = await ragService.checkHealth();
+        const isInitialized = health.services.rag === 'initialized';
+        setRagInitialized(isInitialized);
+        
+        if (isInitialized) {
+          console.log('✅ RAG inicializado! Pronto para análise com ReAct Agent.');
+          if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+          }
+        } else {
+          console.log('⏳ Aguardando RAG inicializar...');
+        }
+      } catch (error) {
+        console.error('❌ Erro ao verificar status do RAG:', error);
+        setRagInitialized(false);
+      }
+    };
+
+    checkRAGStatus();
+
+    if (!ragInitialized) {
+      intervalId = setInterval(checkRAGStatus, 2000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [ragInitialized]);
 
   const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo, reactAgentConfig?: ReActAgentConfig) => {
-    console.log('🤖 ReAct Agent sempre pronto para análise!');
+    if (!ragInitialized) {
+      console.log('⏳ Aguardando RAG inicializar...');
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -45,10 +81,10 @@ export const useThreatModeler = () => {
         const systemId = `${currentSystemInfo.systemName || 'Sistema'}_${currentSystemInfo.generalDescription?.substring(0, 50) || 'Descricao'}_${new Date().toISOString().split('T')[0]}`;
         console.log('📤 Enviando informações do sistema ao RAG:', systemId);
         
-        // Upload do documento para RAG (comentado por enquanto)
-        // await ragService.uploadDocument(
-        //   currentSystemInfo.generalDescription || ""
-        // );
+        await ragService.uploadSystemDescription(
+          currentSystemInfo.generalDescription || "",
+          systemId
+        );
         
         console.log('✅ Informações do sistema processadas no RAG com sucesso');
       } catch (ragError) {
@@ -63,7 +99,7 @@ export const useThreatModeler = () => {
       // Usar apenas ReAct Agent
       console.log('🤖 Usando ReAct Agent para análise...');
       try {
-        const reactResult = await analyzeWithReActAgent(currentSystemInfo, modelConfig, undefined, reactAgentConfig);
+        const reactResult = await analyzeWithReActAgent(currentSystemInfo, modelConfig, reactAgentConfig);
         identifiedThreats = reactResult.threats;
         console.log(`✅ ReAct Agent concluído: ${identifiedThreats.length} ameaças`);
       } catch (reactError) {
@@ -81,7 +117,7 @@ export const useThreatModeler = () => {
       const finalSystemInfo: SystemInfo = {
         ...currentSystemInfo,
         systemName: summarizedInfo.systemName || currentSystemInfo.systemName,
-        generalDescription: summarizedInfo.generalDescription || currentSystemInfo.generalDescription,
+        generalDescription: summarizedInfo.description || currentSystemInfo.generalDescription,
         components: summarizedInfo.components || currentSystemInfo.components,
         sensitiveData: summarizedInfo.sensitiveData || currentSystemInfo.sensitiveData,
         technologies: summarizedInfo.technologies || currentSystemInfo.technologies,
@@ -104,14 +140,16 @@ export const useThreatModeler = () => {
       
       // 3. Gerar árvore de ataque em Mermaid
       console.log('🌳 Gerando árvore de ataque...');
-      const attackTreeMermaid = await generateAttackTreeMermaid(identifiedThreats, finalSystemInfo.systemName || 'Sistema', modelConfig);
+      const attackTreeMermaid = await generateAttackTreeMermaid(identifiedThreats, modelConfig);
       
       // 4. Criar dados do relatório
       const newReportData: ReportData = {
         systemInfo: finalSystemInfo,
         threats: identifiedThreats,
         attackTreeMermaid,
-        generatedAt: new Date().toISOString()
+        generatedAt: new Date().toISOString(),
+        modelUsed: modelConfig.model || 'unknown',
+        providerUsed: modelConfig.provider || 'unknown'
       };
       
       setReportData(newReportData);
@@ -119,7 +157,7 @@ export const useThreatModeler = () => {
       
     } catch (e) {
       console.error("Erro ao gerar modelo de ameaças:", e);
-      setError(e instanceof Error ? e.message : "Ocorreu um erro desconhecido durante a geração do modelo de ameaças.");
+      setError(e.message || "Ocorreu um erro desconhecido durante a geração do modelo de ameaças.");
     } finally {
       setIsLoading(false);
     }
@@ -148,16 +186,15 @@ export const useThreatModeler = () => {
       const modelConfig = getModelConfig();
       
       // Refinar a análise usando o markdown fornecido
-      const refinedMarkdown = await refineAnalysis(markdown, modelConfig);
+      const refinedThreats = await refineAnalysis(markdown, modelConfig);
       
-      // Por enquanto, manter as ameaças existentes
-      // TODO: Implementar parsing do markdown refinado para extrair ameaças
-      console.log('✅ Análise refinada:', refinedMarkdown.substring(0, 100) + '...');
+      setThreats(refinedThreats);
       
       // Atualizar dados do relatório
       if (reportData) {
         const updatedReportData: ReportData = {
           ...reportData,
+          threats: refinedThreats,
           generatedAt: new Date().toISOString()
         };
         setReportData(updatedReportData);
@@ -167,7 +204,7 @@ export const useThreatModeler = () => {
       
     } catch (e) {
       console.error("Erro ao refinar análise:", e);
-      setError(e instanceof Error ? e.message : "Ocorreu um erro desconhecido durante o refinamento da análise.");
+      setError(e.message || "Ocorreu um erro desconhecido durante o refinamento da análise.");
     } finally {
       setIsLoading(false);
     }

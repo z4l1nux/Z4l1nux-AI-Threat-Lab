@@ -5,7 +5,6 @@ import LoadingSpinner from './src/components/LoadingSpinner';
 import RAGPanel from './src/components/RAGPanel';
 import ModelSelector from './src/components/ModelSelector';
 import { VisualEditor } from './src/components/VisualEditor/VisualEditor';
-import ReActAgentToggle from './src/components/ReActAgentToggle';
 import { useThreatModeler } from './src/hooks/useThreatModeler';
 import { useModelSelection } from './src/hooks/useModelSelection';
 import { APP_TITLE } from './constants';
@@ -14,8 +13,8 @@ import { ReActAgentConfig } from './src/services/reactAgentService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'form' | 'visual'>('form');
-  const [reactAgentConfig, setReactAgentConfig] = useState<ReActAgentConfig>({
-    enabled: false,
+  const [reactAgentConfig] = useState<ReActAgentConfig>({
+    enabled: true,
     timeout: 90000,
     autoFallback: true,
     verbose: false
@@ -37,10 +36,6 @@ const App: React.FC = () => {
     updateEmbedding
   } = useModelSelection();
 
-  const handleReActAgentConfigChange = (config: ReActAgentConfig) => {
-    setReactAgentConfig(config);
-    console.log('🤖 ReAct Agent configurado:', config);
-  };
 
   const handleFormSubmit = (data: { fullDescription: string }) => {
     // Extrair nome do sistema da descrição completa
@@ -136,12 +131,18 @@ const App: React.FC = () => {
             selectedEmbedding={selection.embedding}
           />
           
-          {/* ReAct Agent Toggle */}
+          {/* ReAct Agent sempre habilitado */}
           <div className="bg-gray-900 rounded-lg p-4">
-            <ReActAgentToggle
-              onConfigChange={handleReActAgentConfigChange}
-              showAdvanced={true}
-            />
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">🤖 ReAct Agent</h3>
+                <p className="text-sm text-gray-400">Análise inteligente de ameaças sempre ativa</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-green-400 text-sm font-medium">Ativo</span>
+              </div>
+            </div>
           </div>
           
           {/* Painel RAG */}

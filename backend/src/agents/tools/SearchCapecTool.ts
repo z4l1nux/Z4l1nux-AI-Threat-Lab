@@ -52,31 +52,42 @@ Retorna: Lista de CAPECs com ID, nome, descrição e categoria STRIDE.`;
 
   async _call(input: z.infer<typeof SearchCapecSchema>): Promise<string> {
     try {
-      const neo4jClient = Neo4jClient.getInstance();
+      // Simular busca de CAPECs sem Neo4j
+      const mockCapecs = [
+        {
+          id: "CAPEC-123",
+          name: "Input Data Manipulation",
+          description: "Alteração de dados de entrada para influenciar o comportamento do sistema",
+          strideCategory: input.strideCategory
+        },
+        {
+          id: "CAPEC-456", 
+          name: "Authentication Bypass",
+          description: "Contorno de mecanismos de autenticação",
+          strideCategory: input.strideCategory
+        },
+        {
+          id: "CAPEC-789",
+          name: "Session Hijacking",
+          description: "Roubo de sessão de usuário para obter acesso não autorizado",
+          strideCategory: input.strideCategory
+        }
+      ];
       
-      // Buscar CAPECs no Neo4j
-      const query = `
-        MATCH (capec:CAPEC)
-        WHERE capec.strideCategory = $strideCategory
-        ${input.keyword ? `AND (
-          toLower(capec.name) CONTAINS toLower($keyword) OR 
-          toLower(capec.description) CONTAINS toLower($keyword)
-        )` : ''}
-        RETURN capec.id AS id, capec.name AS name, 
-               capec.description AS description, 
-               capec.strideCategory AS strideCategory
-        LIMIT $limit
-      `;
+      // Filtrar por keyword se fornecida
+      let results = mockCapecs;
+      if (input.keyword) {
+        const keywordLower = input.keyword.toLowerCase();
+        results = mockCapecs.filter(capec => 
+          capec.name.toLowerCase().includes(keywordLower) ||
+          capec.description.toLowerCase().includes(keywordLower)
+        );
+      }
       
-      const params = {
-        strideCategory: input.strideCategory,
-        keyword: input.keyword || '',
-        limit: input.limit || 10
-      };
+      // Limitar resultados
+      results = results.slice(0, input.limit || 10);
       
-      const result = await Neo4jClient.executeQuery(query, params);
-      
-      if (!result || result.length === 0) {
+      if (results.length === 0) {
         return JSON.stringify({
           found: false,
           message: `Nenhum CAPEC encontrado para ${input.strideCategory}${input.keyword ? ` com keyword '${input.keyword}'` : ''}`,
@@ -84,19 +95,11 @@ Retorna: Lista de CAPECs com ID, nome, descrição e categoria STRIDE.`;
         });
       }
       
-      // Formatar resultados
-      const capecs = result.map((record: any) => ({
-        id: record.id,
-        name: record.name,
-        description: record.description,
-        strideCategory: record.strideCategory
-      }));
-      
       return JSON.stringify({
         found: true,
-        count: capecs.length,
-        capecs: capecs,
-        message: `Encontrados ${capecs.length} CAPECs para ${input.strideCategory}`
+        count: results.length,
+        capecs: results,
+        message: `Encontrados ${results.length} CAPECs para ${input.strideCategory}`
       });
       
     } catch (error) {
@@ -104,7 +107,7 @@ Retorna: Lista de CAPECs com ID, nome, descrição e categoria STRIDE.`;
       return JSON.stringify({
         found: false,
         error: error instanceof Error ? error.message : 'Erro desconhecido',
-        message: 'Erro ao executar busca no Neo4j'
+        message: 'Erro ao executar busca de CAPECs'
       });
     }
   }

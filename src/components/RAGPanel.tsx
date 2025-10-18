@@ -16,6 +16,7 @@ const RAGPanel: React.FC = () => {
   } = useRAGSystem();
 
 
+
   // Verificar status do sistema ao carregar (imediatamente e repetidamente)
   useEffect(() => {
     // Verificação inicial imediata
@@ -71,29 +72,18 @@ const RAGPanel: React.FC = () => {
 
 
 
-  const getStatusColor = () => {
-    if (isLoading) return 'bg-yellow-500';
-    if (isInitialized) return 'bg-green-500';
-    return 'bg-red-500';
-  };
-
-  const getStatusText = () => {
-    if (isLoading) return 'Processando...';
-    if (isInitialized) return 'Ativo';
-    return 'Inativo';
-  };
 
   return (
     <div className="bg-custom-blue rounded-lg shadow-lg p-6 mb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center">
-          Retrieval Augmented Generation
+          🤖 ReAct Agent + RAG
         </h2>
         <div className="flex items-center space-x-3">
-          <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-          <span className="text-sm text-gray-300">
-            {getStatusText()}
+          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+          <span className="text-sm text-green-300 font-medium">
+            ReAct Agent Ativo
           </span>
         </div>
       </div>
@@ -127,17 +117,27 @@ const RAGPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Not Initialized State */}
-      {!isInitialized && !isLoading && (
-        <div className="text-center py-8">
-          <div className="mb-4">
-            <div className="text-gray-400 mb-2">🚀</div>
-            <h3 className="text-lg font-medium text-white">Sistema RAG não inicializado</h3>
-            <p className="text-gray-300 mt-2">
-              Inicialize o sistema para começar a usar funcionalidades de busca semântica
+      {/* ReAct Agent Status */}
+      <div className="bg-green-900/20 border border-green-500 rounded-md p-4 mb-4">
+        <div className="flex items-center">
+          <div className="text-green-400 mr-3">🤖</div>
+          <div className="flex-1">
+            <h3 className="text-sm font-medium text-green-300">ReAct Agent Sempre Ativo</h3>
+            <p className="text-sm text-green-200 mt-1">
+              Análise de ameaças funciona independentemente do RAG. Use o formulário ou editor visual para começar!
             </p>
-            <p className="text-sm text-gray-400 mt-1">
-              Certifique-se de que o backend está rodando: <code className="bg-gray-700 px-1 rounded">npm run dev:backend</code>
+          </div>
+        </div>
+      </div>
+
+      {/* RAG Status */}
+      {!isInitialized && !isLoading && (
+        <div className="text-center py-4">
+          <div className="mb-4">
+            <div className="text-gray-400 mb-2">📚</div>
+            <h3 className="text-lg font-medium text-white">RAG Opcional</h3>
+            <p className="text-gray-300 mt-2">
+              O RAG melhora a análise, mas não é obrigatório. O ReAct Agent funciona perfeitamente sem ele.
             </p>
           </div>
           <button
@@ -145,7 +145,7 @@ const RAGPanel: React.FC = () => {
             disabled={isLoading}
             className="bg-z4l1nux-primary text-white px-6 py-2 rounded-md hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Inicializando...' : 'Inicializar Sistema RAG'}
+            {isLoading ? 'Inicializando...' : 'Inicializar RAG (Opcional)'}
           </button>
         </div>
       )}

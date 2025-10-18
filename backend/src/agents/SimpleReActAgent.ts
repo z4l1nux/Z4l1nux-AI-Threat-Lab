@@ -146,7 +146,30 @@ export class SimpleReActAgent {
    * Gera o raciocínio do agente
    */
   private async generateThought(state: ThreatModelingState): Promise<string> {
-    const provider = await ModelFactory.detectBestProvider();
+    console.log(`   🔧 Config provider: ${this.config.provider}`);
+    console.log(`   🔧 Config model: ${this.config.model}`);
+    
+    // Usar provider configurado ou detectar automaticamente
+    let provider = ModelFactory.getProvider(this.config.provider);
+    
+    // Se o provider configurado não está disponível, tentar outros
+    if (provider) {
+      try {
+        const isAvailable = await provider.isAvailable();
+        if (!isAvailable) {
+          console.log(`   ⚠️ Provider '${this.config.provider}' não está disponível, detectando automaticamente...`);
+          provider = await ModelFactory.detectBestProvider();
+        }
+      } catch (error) {
+        console.log(`   ⚠️ Erro ao verificar provider '${this.config.provider}': ${error}, detectando automaticamente...`);
+        provider = await ModelFactory.detectBestProvider();
+      }
+    } else {
+      console.log(`   🔍 Provider '${this.config.provider}' não encontrado, detectando automaticamente...`);
+      provider = await ModelFactory.detectBestProvider();
+    }
+    
+    console.log(`   🔧 Provider final: ${provider?.name || 'null'}`);
     
     // Se não há provider disponível, usar lógica mock para demonstração
     if (!provider) {
