@@ -21,7 +21,7 @@ const possiblePaths = [
   '.env.local',
   '../.env.local', 
   '../../.env.local',
-  '/home/z4l1nux/threat-modeling-co-pilot-with-ai-3/.env.local'
+  '/home/z4l1nux/z4l1nux-ai-threat-lab/.env.local'
 ];
 
 let dotenvResult = null;

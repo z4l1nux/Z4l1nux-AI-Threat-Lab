@@ -294,7 +294,7 @@ Acesse: `http://localhost:5173`
 ## Estrutura do Projeto
 
 ```
-threat-modeling-co-pilot-with-ai-3/
+z4l1nux-ai-threat-lab/
 ├── src/                        # 🎯 Código fonte principal
 │   ├── frontend/               # 🎨 Frontend React
 │   │   ├── src/                # Código fonte React
