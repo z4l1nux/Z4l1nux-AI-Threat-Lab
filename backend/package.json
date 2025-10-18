@@ -9,31 +9,7 @@
     "start": "node dist/server.js",
     "init-neo4j": "ts-node src/scripts/initNeo4j.ts",
     "test-rag": "ts-node src/scripts/testRAG.ts",
+    "test-react-agent": "ts-node src/scripts/testReActAgent.ts",
     "fix-vector-index": "ts-node src/scripts/fixVectorIndex.ts"
-  },
-  "dependencies": {
-    "@langchain/community": "0.3.57",
-    "@langchain/core": "0.3.78",
-    "@langchain/google-genai": "0.1.12",
-    "@langchain/textsplitters": "0.1.0",
-    "cors": "2.8.5",
-    "csv-parser": "3.2.0",
-    "dotenv": "16.6.1",
-    "express": "4.21.2",
-    "langchain": "0.3.35",
-    "multer": "2.0.2",
-    "neo4j-driver": "5.28.2",
-    "pdf-parse": "1.1.1",
-    "xml2js": "0.6.2",
-    "zod": "^3.25.76"
-  },
-  "devDependencies": {
-    "@types/cors": "2.8.19",
-    "@types/express": "5.0.3",
-    "@types/multer": "1.4.13",
-    "@types/node": "22.18.7",
-    "@types/xml2js": "0.4.14",
-    "ts-node": "10.9.2",
-    "typescript": "^5.9.3"
   }
 }

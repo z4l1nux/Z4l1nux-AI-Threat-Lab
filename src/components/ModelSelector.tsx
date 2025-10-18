@@ -35,28 +35,45 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
     loadAvailableModels();
   }, []);
 
-  const loadAvailableModels = async () => {
+  const loadAvailableModels = async (retryCount = 0) => {
     try {
+      console.log(`🔄 Tentativa ${retryCount + 1} de carregar modelos...`);
       // Verificar quais modelos estão disponíveis baseado nas variáveis de ambiente
       const response = await fetch('http://localhost:3001/api/models/available');
+      console.log('📡 Resposta do backend:', response.status, response.statusText);
+      
       if (response.ok) {
         const data = await response.json();
-        console.log('Modelos carregados do backend:', data);
+        console.log('✅ Modelos carregados do backend:', data);
         setModels(data.models || []);
         setEmbeddings(data.embeddings || []);
       } else {
-        console.warn('Falha ao carregar modelos do backend, aguardando configuração');
+        console.warn('⚠️ Falha ao carregar modelos do backend, status:', response.status);
+        // Tentar novamente se for erro de conexão e ainda não tentou 3 vezes
+        if (response.status >= 500 && retryCount < 3) {
+          console.log(`🔄 Tentando novamente em 2 segundos... (tentativa ${retryCount + 1}/3)`);
+          setTimeout(() => loadAvailableModels(retryCount + 1), 2000);
+          return;
+        }
         // Fallback: lista vazia - usuário deve configurar .env.local
         setModels([]);
         setEmbeddings([]);
       }
     } catch (error) {
-      console.error('Erro ao carregar modelos:', error);
+      console.error('❌ Erro ao carregar modelos:', error);
+      // Tentar novamente se for erro de conexão e ainda não tentou 3 vezes
+      if (retryCount < 3) {
+        console.log(`🔄 Tentando novamente em 2 segundos... (tentativa ${retryCount + 1}/3)`);
+        setTimeout(() => loadAvailableModels(retryCount + 1), 2000);
+        return;
+      }
       // Fallback em caso de erro: lista vazia
       setModels([]);
       setEmbeddings([]);
     } finally {
-      setIsLoading(false);
+      if (retryCount === 0 || retryCount >= 3) {
+        setIsLoading(false);
+      }
     }
   };
 

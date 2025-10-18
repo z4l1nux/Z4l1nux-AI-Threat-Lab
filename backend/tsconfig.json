@@ -28,6 +28,9 @@
   ],
   "ts-node": {
     "esm": false,
-    "experimentalSpecifierResolution": "node"
+    "experimentalSpecifierResolution": "node",
+    "compilerOptions": {
+      "module": "commonjs"
+    }
   }
 }

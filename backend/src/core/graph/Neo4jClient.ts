@@ -19,6 +19,20 @@ export class Neo4jClient {
     return this.driver;
   }
 
+  static getInstance(): Neo4jClient {
+    return new Neo4jClient();
+  }
+
+  static async executeQuery(query: string, params?: any): Promise<any[]> {
+    const session = this.getSession();
+    try {
+      const result = await session.run(query, params);
+      return result.records.map(record => record.toObject());
+    } finally {
+      await session.close();
+    }
+  }
+
   static getSession(database?: string): Session {
     const driver = this.getDriver();
     return driver.session({ database });

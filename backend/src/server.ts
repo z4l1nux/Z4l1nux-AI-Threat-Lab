@@ -9,13 +9,34 @@ import { GeminiProvider } from './core/models/providers/GeminiProvider';
 import { SemanticSearchFactory } from './core/search/SemanticSearchFactory';
 import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
-import { SearchResult, RAGContext } from './types/index';
+import { SearchResult, RAGContext, SystemInfo } from './types/index';
 import { ModelFactory } from './core/models/ModelFactory';
+import { SimpleReActAgent } from './agents/SimpleReActAgent';
 
 // Carregar variáveis de ambiente
 console.log('🔧 Diretório atual:', process.cwd());
-const dotenvResult = dotenv.config({ path: '../.env.local' });
-console.log('🔧 Dotenv resultado:', dotenvResult.error ? dotenvResult.error.message : 'Carregado com sucesso');
+
+// Tentar carregar .env.local de múltiplos caminhos possíveis
+const possiblePaths = [
+  '.env.local',
+  '../.env.local', 
+  '../../.env.local',
+  '/home/z4l1nux/threat-modeling-co-pilot-with-ai-3/.env.local'
+];
+
+let dotenvResult = null;
+for (const envPath of possiblePaths) {
+  dotenvResult = dotenv.config({ path: envPath });
+  if (!dotenvResult.error) {
+    console.log(`🔧 .env.local carregado de: ${envPath}`);
+    break;
+  }
+}
+
+if (dotenvResult?.error) {
+  console.log('🔧 Dotenv resultado: Arquivo não encontrado, usando variáveis do sistema');
+}
+
 console.log('🔧 OLLAMA_BASE_URL:', process.env.OLLAMA_BASE_URL);
 console.log('🔧 OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurado' : 'Não configurado');
 console.log('🔧 GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Configurado' : 'Não configurado');
@@ -1336,6 +1357,64 @@ app.get('/api/supported-extensions', (req, res) => {
 });
 
 // Middleware de tratamento de erros
+// ========================================
+// ENDPOINT: Análise de Ameaças com ReAct Agent
+// ========================================
+app.post('/api/analyze-threats-react', requireInitialized, async (req, res) => {
+  try {
+    const { systemInfo, modelConfig, ragContext } = req.body;
+    
+    if (!systemInfo) {
+      return res.status(400).json({
+        error: 'systemInfo é obrigatório'
+      });
+    }
+    
+    console.log('🤖 Iniciando análise ReAct Agent...');
+    console.log(`   Sistema: ${systemInfo.systemName}`);
+    console.log(`   Provider: ${modelConfig?.provider || 'auto-detect'}`);
+    
+    // Criar e configurar o agente
+    const agent = new SimpleReActAgent({
+      provider: modelConfig?.provider || 'ollama',
+      model: modelConfig?.model || process.env.MODEL_OLLAMA || 'llama3.1:latest',
+      embeddingModel: modelConfig?.embedding,
+      embeddingProvider: modelConfig?.embeddingProvider,
+      maxIterations: 15,
+      temperature: 0.1,
+      verbose: true
+    });
+    
+    // Executar análise
+    const result = await agent.analyze(systemInfo as SystemInfo, ragContext);
+    
+    console.log('✅ Análise ReAct concluída!');
+    console.log(`   Ameaças: ${result.threats.length}`);
+    console.log(`   Iterações: ${result.metrics.iterations}`);
+    console.log(`   Tempo: ${result.metrics.totalTime}ms`);
+    
+    res.json({
+      success: result.success,
+      threats: result.threats,
+      metrics: result.metrics,
+      actionHistory: result.actionHistory,
+      message: result.message,
+      errors: result.errors,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro na análise ReAct:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Falha na análise ReAct',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      threats: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('❌ Erro não tratado:', error);
   
@@ -1461,6 +1540,7 @@ app.listen(PORT, async () => {
   console.log('  POST /api/documents/text - Upload de texto');
   console.log('  POST /api/search - Busca RAG');
   console.log('  POST /api/search/context - Contexto RAG');
+  console.log('  POST /api/analyze-threats-react - Análise ReAct Agent 🤖');
   console.log('  GET  /api/statistics - Estatísticas');
   console.log('  DELETE /api/cache - Limpar cache');
   

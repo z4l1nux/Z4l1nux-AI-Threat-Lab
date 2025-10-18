@@ -3,6 +3,7 @@ import { SystemInfo, IdentifiedThreat, ReportData, StrideCapecMapType } from '..
 import { analyzeThreatsAndMitigations, refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/aiService';
 import { useModelSelection } from './useModelSelection';
 import { ragService } from '../services/ragService';
+import { ReActAgentConfig, analyzeWithReActAgent } from '../services/reactAgentService';
 
 
 export const useThreatModeler = () => {
@@ -116,7 +117,7 @@ export const useThreatModeler = () => {
     fetchMapping();
   }, [ragInitialized]); // Executar quando ragInitialized mudar para true
 
-  const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo) => {
+  const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo, reactAgentConfig?: ReActAgentConfig) => {
     if (!strideCapecMap) {
       setError("Mapeamento STRIDE-CAPEC não carregado. Não é possível gerar o modelo.");
       setIsLoading(false); // Ensure loading is stopped
@@ -196,7 +197,29 @@ ${currentSystemInfo.externalIntegrations || 'Não informado'}
 
       // 1. Modelagem de ameaças com a descrição COMPLETA
       setSystemInfo(currentSystemInfo);
-      const identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap, modelConfig);
+      
+      let identifiedThreats: IdentifiedThreat[];
+      
+      // Usar ReAct Agent se habilitado
+      if (reactAgentConfig?.enabled) {
+        console.log('🤖 Usando ReAct Agent para análise...');
+        try {
+          const reactResult = await analyzeWithReActAgent(currentSystemInfo, modelConfig, reactAgentConfig);
+          identifiedThreats = reactResult.threats;
+          console.log(`✅ ReAct Agent concluído: ${identifiedThreats.length} ameaças`);
+        } catch (reactError) {
+          console.warn('⚠️ ReAct Agent falhou, usando sistema tradicional:', reactError);
+          if (reactAgentConfig.autoFallback) {
+            identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap, modelConfig);
+          } else {
+            throw reactError;
+          }
+        }
+      } else {
+        console.log('📊 Usando sistema tradicional para análise...');
+        identifiedThreats = await analyzeThreatsAndMitigations(currentSystemInfo, strideCapecMap, modelConfig);
+      }
+      
       setThreats(identifiedThreats);
       
       // 2. Resumir e estruturar informações do sistema via IA para exibição

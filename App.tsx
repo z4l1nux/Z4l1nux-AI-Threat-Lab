@@ -5,13 +5,21 @@ import LoadingSpinner from './src/components/LoadingSpinner';
 import RAGPanel from './src/components/RAGPanel';
 import ModelSelector from './src/components/ModelSelector';
 import { VisualEditor } from './src/components/VisualEditor/VisualEditor';
+import ReActAgentToggle from './src/components/ReActAgentToggle';
 import { useThreatModeler } from './src/hooks/useThreatModeler';
 import { useModelSelection } from './src/hooks/useModelSelection';
 import { APP_TITLE } from './constants';
 import { SystemInfo } from './types';
+import { ReActAgentConfig } from './src/services/reactAgentService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'form' | 'visual'>('form');
+  const [reactAgentConfig, setReactAgentConfig] = useState<ReActAgentConfig>({
+    enabled: false,
+    timeout: 90000,
+    autoFallback: true,
+    verbose: false
+  });
   
   const {
     reportData,
@@ -28,6 +36,11 @@ const App: React.FC = () => {
     updateModel,
     updateEmbedding
   } = useModelSelection();
+
+  const handleReActAgentConfigChange = (config: ReActAgentConfig) => {
+    setReactAgentConfig(config);
+    console.log('🤖 ReAct Agent configurado:', config);
+  };
 
   const handleFormSubmit = (data: { fullDescription: string }) => {
     // Extrair nome do sistema da descrição completa
@@ -61,7 +74,7 @@ const App: React.FC = () => {
   const handleVisualAnalyze = (systemInfo: SystemInfo) => {
     // Trocar para a aba do formulário para mostrar o relatório
     setActiveTab('form');
-    generateThreatModel(systemInfo);
+    generateThreatModel(systemInfo, reactAgentConfig);
   };
 
   return (
@@ -122,6 +135,14 @@ const App: React.FC = () => {
             selectedModel={selection.model}
             selectedEmbedding={selection.embedding}
           />
+          
+          {/* ReAct Agent Toggle */}
+          <div className="bg-gray-900 rounded-lg p-4">
+            <ReActAgentToggle
+              onConfigChange={handleReActAgentConfigChange}
+              showAdvanced={true}
+            />
+          </div>
           
           {/* Painel RAG */}
           <div className="bg-gray-900 rounded-lg p-4">
