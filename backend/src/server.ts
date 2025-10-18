@@ -521,12 +521,15 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
 
     console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
 
+    // Obter modelConfig dos query params
+    const modelConfig = req.query.modelConfig ? JSON.parse(req.query.modelConfig as string) : undefined;
+    
     // Buscar documentos que contenham mapeamento STRIDE-CAPEC
     // 🔥 IMPORTANTE: Limite aumentado para 150 chunks para garantir diversidade de CAPECs
     // Isso evita repetição quando o relatório tiver 30-50+ ameaças
     let results;
     try {
-      results = await searchFactory.search('STRIDE CAPEC mapping categoria', 150);
+      results = await searchFactory.search('STRIDE CAPEC mapping categoria', 150, modelConfig);
     } catch (error) {
       console.warn('⚠️ Busca semântica falhou, tentando busca textual direta:', error);
       
@@ -628,7 +631,8 @@ app.get('/api/stride-capec-mapping', async (req, res) => {
         // Isso garante que relatórios com 30-50+ ameaças tenham CAPECs únicos
         const categoryResults = await searchFactory.search(
           `STRIDE ${category} CAPEC attack pattern vulnerability threat`,
-          150
+          150,
+          modelConfig
         );
 
         const capecs: any[] = [];
@@ -811,6 +815,9 @@ app.get('/api/stride-capec-counts', async (req, res) => {
 
     console.log('🔍 Buscando CAPECs por categoria STRIDE via busca semântica...');
 
+    // Obter modelConfig dos query params
+    const modelConfig = req.query.modelConfig ? JSON.parse(req.query.modelConfig as string) : undefined;
+
     const strideCategories = [
       'Spoofing',
       'Tampering',
@@ -831,7 +838,8 @@ app.get('/api/stride-capec-counts', async (req, res) => {
         // Isso garante que relatórios com 30-50+ ameaças tenham CAPECs únicos disponíveis
         const results = await searchFactory.search(
           `STRIDE ${category} CAPEC attack pattern security threat vulnerability`,
-          150  // Top 150 chunks mais relevantes (antes: 50)
+          150,  // Top 150 chunks mais relevantes (antes: 50)
+          modelConfig
         );
 
         console.log(`🔍 ${category}: ${results.length} chunks encontrados`);
@@ -1022,8 +1030,11 @@ app.get('/api/stride-capec-mapping', requireInitialized, async (req, res) => {
   try {
     console.log('📋 Buscando mapeamento STRIDE-CAPEC no RAG...');
     
+    // Obter modelConfig dos query params
+    const modelConfig = req.query.modelConfig ? JSON.parse(req.query.modelConfig as string) : undefined;
+    
     // Buscar documentos relacionados a STRIDE-CAPEC
-    const results = await searchFactory!.search('STRIDE CAPEC mapping categoria', 50);
+    const results = await searchFactory!.search('STRIDE CAPEC mapping categoria', 50, modelConfig);
     
     console.log(`📈 Total de chunks encontrados: ${results.length}`);
     

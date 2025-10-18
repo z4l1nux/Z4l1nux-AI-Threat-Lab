@@ -188,8 +188,9 @@ async function analyzeWithTraditionalSystem(
   // Importar dinamicamente para evitar circular dependency
   const { analyzeThreatsAndMitigations } = await import('./aiService');
   
-  // Buscar mapeamento STRIDE-CAPEC
-  const mappingResponse = await fetch(`${BACKEND_URL}/api/stride-capec-mapping`);
+  // Buscar mapeamento STRIDE-CAPEC com modelConfig
+  const modelConfigParam = encodeURIComponent(JSON.stringify(modelConfig));
+  const mappingResponse = await fetch(`${BACKEND_URL}/api/stride-capec-mapping?modelConfig=${modelConfigParam}`);
   const mappingData = await mappingResponse.json();
   
   if (!mappingData.initialized || !mappingData.mapping || mappingData.mapping.length === 0) {
