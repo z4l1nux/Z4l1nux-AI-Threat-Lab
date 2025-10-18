@@ -70,42 +70,71 @@ export class Neo4jCacheManager {
   }
 
   // Método para determinar o melhor provedor de embedding disponível
-  private getBestAvailableEmbeddingProvider(requestedProvider?: string): string {
-    // Se um provedor específico foi solicitado e está disponível, usar ele
+  private async getBestAvailableEmbeddingProvider(requestedProvider?: string): Promise<string> {
+    // Se um provedor específico foi solicitado, verificar se está realmente disponível
     if (requestedProvider) {
       if (requestedProvider === 'ollama' && process.env.OLLAMA_BASE_URL) {
-        return 'ollama';
+        // Verificar se Ollama está realmente disponível
+        try {
+          const response = await fetch(`${process.env.OLLAMA_BASE_URL}/api/tags`, { 
+            method: 'GET',
+            signal: AbortSignal.timeout(5000) // 5s timeout
+          });
+          if (response.ok) {
+            console.log('🔄 Usando Ollama para embeddings (solicitado e disponível)');
+            return 'ollama';
+          }
+        } catch (error) {
+          console.warn('⚠️ Ollama solicitado mas não disponível, tentando fallback...');
+        }
       }
       if (requestedProvider === 'gemini' && process.env.GEMINI_API_KEY) {
+        console.log('🔄 Usando Gemini para embeddings (solicitado e disponível)');
         return 'gemini';
       }
       if (requestedProvider === 'openrouter' && (process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY)) {
+        console.log('🔄 Usando OpenAI para embeddings (solicitado e disponível)');
         return 'openai'; // OpenRouter usa OpenAI para embeddings
       }
     }
 
     // Fallback: verificar provedores disponíveis na ordem de prioridade
-    // 1. Ollama (local, mais rápido)
-    if (process.env.OLLAMA_BASE_URL && process.env.EMBEDDING_MODEL) {
-      console.log('🔄 Usando Ollama para embeddings (fallback automático)');
-      return 'ollama';
-    }
-    
-    // 2. Gemini (bom custo-benefício)
+    // 1. Gemini (mais confiável, bom custo-benefício)
     if (process.env.GEMINI_API_KEY) {
       console.log('🔄 Usando Gemini para embeddings (fallback automático)');
       return 'gemini';
     }
     
-    // 3. OpenAI (via OpenRouter config ou direto)
+    // 2. OpenAI (via OpenRouter config ou direto)
     if (process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY) {
       console.log('🔄 Usando OpenAI para embeddings (fallback automático)');
       return 'openai';
     }
+    
+    // 3. Ollama (local, mais rápido) - só se realmente disponível
+    if (process.env.OLLAMA_BASE_URL && process.env.EMBEDDING_MODEL) {
+      try {
+        const response = await fetch(`${process.env.OLLAMA_BASE_URL}/api/tags`, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) // 5s timeout
+        });
+        if (response.ok) {
+          console.log('🔄 Usando Ollama para embeddings (fallback automático)');
+          return 'ollama';
+        }
+      } catch (error) {
+        console.warn('⚠️ Ollama configurado mas não disponível, pulando...');
+      }
+    }
 
-    // Se nenhum disponível, usar Ollama como padrão (vai falhar mas com mensagem clara)
-    console.warn('⚠️ Nenhum provedor de embedding configurado, tentando Ollama...');
-    return 'ollama';
+    // Se nenhum disponível, usar Gemini como último recurso (mais confiável)
+    if (process.env.GEMINI_API_KEY) {
+      console.log('🔄 Usando Gemini como último recurso para embeddings');
+      return 'gemini';
+    }
+
+    // Se realmente nenhum disponível, erro
+    throw new Error('❌ Nenhum provedor de embedding disponível. Configure pelo menos um: Gemini, OpenAI ou Ollama.');
   }
 
   // Método para obter modelo de embedding baseado na configuração e provider
@@ -209,7 +238,7 @@ export class Neo4jCacheManager {
     try {
       // Detectar provider de embedding disponível automaticamente
       const requestedProvider = modelConfig?.embeddingProvider;
-      const provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
+      const provider = await this.getBestAvailableEmbeddingProvider(requestedProvider);
       
       console.log(`🧠 Processando documento com embedding ${provider}: ${document.name}`);
       
@@ -272,9 +301,8 @@ export class Neo4jCacheManager {
         throw new Error(`Nenhum chunk gerado para: ${document.name}`);
       }
 
-      // Escolher provider efetivo por documento; se falhar uma vez, alterna e mantém
-      let workingProvider: 'ollama' | 'gemini' | 'openai' = provider as any;
-      console.log(`📄 Gerando embeddings ${workingProvider} para ${chunks.length} chunks...`);
+      // Usar o provider já verificado como disponível
+      console.log(`📄 Gerando embeddings ${provider} para ${chunks.length} chunks...`);
       
       // Gerar embeddings para todos os chunks
       const embeddings: number[][] = [];
@@ -282,72 +310,31 @@ export class Neo4jCacheManager {
         try {
           let embedding: number[];
           
-          if (workingProvider === 'ollama') {
-            // Usar Ollama com fallback automático
+          if (provider === 'ollama') {
             console.log(`🔗 Usando Ollama para embedding do chunk ${i + 1}`);
-            try {
-              const baseUrl = process.env.OLLAMA_BASE_URL ?? '';
-              const response = await fetch(`${baseUrl}/api/embeddings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model: this.getEmbeddingModel(modelConfig, 'ollama'),
-                  prompt: chunks[i].pageContent
-                })
-              });
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              const data = await response.json() as { embedding: number[] };
-              embedding = data.embedding;
-            } catch (error) {
-              console.warn(`⚠️ Ollama embedding falhou no chunk ${i + 1}, tentando fallback...`, error);
-              // FALLBACK 1: Gemini
-              try {
-                console.log(`↪️ Fallback: Gemini (chunk ${i + 1})`);
-                const { GoogleGenerativeAI } = await import('@google/generative-ai');
-                const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-                const embeddingModel = genAI.getGenerativeModel({ 
-                  model: this.getEmbeddingModel(modelConfig, 'gemini')
-                });
-                const result = await embeddingModel.embedContent(chunks[i].pageContent);
-                embedding = result.embedding.values;
-                // após sucesso, manter Gemini para os próximos chunks
-                workingProvider = 'gemini';
-              } catch (gerr) {
-                // Não usar terceiros por padrão; propagar erro para tratamento externo
-                throw gerr;
-              }
-            }
-          } else if (workingProvider === 'gemini') {
-            // Usar Gemini para embeddings
+            const baseUrl = process.env.OLLAMA_BASE_URL ?? '';
+            const response = await fetch(`${baseUrl}/api/embeddings`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: this.getEmbeddingModel(modelConfig, 'ollama'),
+                prompt: chunks[i].pageContent
+              })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json() as { embedding: number[] };
+            embedding = data.embedding;
+          } else if (provider === 'gemini') {
             console.log(`🔗 Usando Gemini para embedding do chunk ${i + 1}`);
-            try {
-              const { GoogleGenerativeAI } = await import('@google/generative-ai');
-              const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-              const embeddingModel = genAI.getGenerativeModel({ 
-                model: this.getEmbeddingModel(modelConfig, 'gemini')
-              });
-              
-              const result = await embeddingModel.embedContent(chunks[i].pageContent);
-              embedding = result.embedding.values;
-            } catch (error) {
-              console.warn(`⚠️ Erro com Gemini embedding, tentando fallback para Ollama...`, error);
-              // Fallback para Ollama
-              const response = await fetch(`${process.env.OLLAMA_BASE_URL ?? ''}/api/embeddings`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  model: this.getEmbeddingModel(modelConfig, 'ollama'),
-                  prompt: chunks[i].pageContent
-                })
-              });
-              if (!response.ok) throw new Error(`Ollama embedding failed: ${response.statusText}`);
-              const data = await response.json() as { embedding: number[] };
-              embedding = data.embedding;
-              // após sucesso, manter Ollama para os próximos chunks
-              workingProvider = 'ollama';
-              // sem cache por chunk neste fluxo
-            }
-          } else if (provider === 'openai' || provider === 'openrouter') {
+            const { GoogleGenerativeAI } = await import('@google/generative-ai');
+            const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+            const embeddingModel = genAI.getGenerativeModel({ 
+              model: this.getEmbeddingModel(modelConfig, 'gemini')
+            });
+            
+            const result = await embeddingModel.embedContent(chunks[i].pageContent);
+            embedding = result.embedding.values;
+          } else if (provider === 'openai') {
             // Usar OpenAI para embeddings (OpenRouter não suporta embeddings)
             console.log(`🔗 Usando OpenAI para embedding do chunk ${i + 1}`);
             const apiKey = process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY;
@@ -475,7 +462,7 @@ export class Neo4jCacheManager {
     try {
       // Detectar provider disponível automaticamente
       const requestedProvider = modelConfig?.embeddingProvider;
-      let provider = this.getBestAvailableEmbeddingProvider(requestedProvider);
+      let provider = await this.getBestAvailableEmbeddingProvider(requestedProvider);
       const baseProvider = provider;
       console.log(`🔍 Gerando embedding (com fallback) iniciando por ${provider} para query: "${query.substring(0, 50)}..."`);
       

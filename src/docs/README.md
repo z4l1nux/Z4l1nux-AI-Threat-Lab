@@ -294,57 +294,69 @@ Acesse: `http://localhost:5173`
 ## Estrutura do Projeto
 
 ```
-z4l1nux-ai-threat-lab/
-├── src/                              # Frontend React
-│   ├── components/
-│   │   ├── VisualEditor/            # 🎨 Editor Visual
-│   │   │   ├── VisualEditor.tsx     # Editor principal
-│   │   │   ├── AssetLibrary.tsx     # Biblioteca de assets
-│   │   │   ├── CustomNode.tsx       # Nó customizado
-│   │   │   ├── TrustBoundaryNode.tsx # Nó de trust boundary
-│   │   │   └── TemplateSelector.tsx # Seletor de templates
-│   │   ├── SystemInputForm.tsx      # Formulário de texto
-│   │   ├── ReportDisplay.tsx        # Tabela de ameaças
-│   │   ├── RAGPanel.tsx             # Painel RAG
-│   │   └── ModelSelector.tsx        # Seletor de modelos
-│   ├── data/
-│   │   ├── assetLibrary.ts          # 46 assets pré-definidos
-│   │   └── diagramTemplates.ts      # 3 templates prontos
-│   ├── services/
-│   │   ├── aiService.ts             # 🤖 Serviço de IA (detecção + RAG paralelo)
-│   │   ├── aiThreatsKnowledgeBase.ts # Detecção de IA/ML
-│   │   └── ragService.ts            # Serviço RAG
-│   ├── types/
-│   │   └── visual.ts                # Tipos do editor visual
-│   └── utils/
-│       └── diagramConverter.ts      # Converte diagrama → SystemInfo
-├── backend/src/
-│   ├── server.ts                    # Express server + endpoints
-│   ├── core/
-│   │   ├── models/                  # 🔌 Sistema de Providers (Extensível)
-│   │   │   ├── ModelProvider.ts     # Interface base
-│   │   │   ├── ModelFactory.ts      # Auto-registro e fallback
-│   │   │   └── providers/
-│   │   │       ├── README.md        # 📖 Guia completo
-│   │   │       ├── TemplateProvider.ts # Template documentado
-│   │   │       ├── OllamaProvider.ts   # Ollama (local)
-│   │   │       ├── OpenRouterProvider.ts # OpenRouter (cloud)
-│   │   │       └── GeminiProvider.ts    # Gemini (Google)
-│   │   ├── search/                  # Busca semântica
-│   │   ├── cache/                   # Cache manager
-│   │   └── graph/                   # Neo4j client
-│   └── scripts/
-│       ├── initNeo4j.ts             # Inicialização Neo4j
-│       └── testRAG.ts               # Teste RAG
-├── src/knowledge-base/              # 📚 Base de conhecimento
-│   ├── OWASP-LLM-Top-10.md         # Ameaças LLM (636 linhas)
-│   ├── AI-TRiSM-Framework.md       # Framework IA (501 linhas)
-│   ├── AI-Regulations-Compliance.md # Regulações IA (200+ linhas)
-│   ├── AI-Blind-Spots-Challenges.md # Desafios IA (150+ linhas)
-│   └── capec-stride-mapping-completo.md # 400+ CAPECs (613 linhas)
-├── docker-compose.yml               # Neo4j container
-└── test-rag.sh                      # Testes de integração
+threat-modeling-co-pilot-with-ai-3/
+├── src/                        # 🎯 Código fonte principal
+│   ├── frontend/               # 🎨 Frontend React
+│   │   ├── src/                # Código fonte React
+│   │   │   ├── components/     # Componentes React
+│   │   │   ├── services/       # Serviços e APIs
+│   │   │   ├── hooks/          # Custom hooks
+│   │   │   ├── data/           # Dados e templates
+│   │   │   ├── types/          # Definições TypeScript
+│   │   │   ├── utils/          # Utilitários
+│   │   │   └── __tests__/      # Testes unitários
+│   │   ├── public/             # Assets estáticos
+│   │   ├── dist/               # Build de produção
+│   │   ├── App.tsx             # Componente principal
+│   │   ├── index.html          # HTML principal
+│   │   ├── index.tsx           # Entry point
+│   │   ├── constants.ts        # Constantes
+│   │   ├── types.ts            # Tipos TypeScript
+│   │   ├── tailwind.config.js  # Config Tailwind
+│   │   ├── tsconfig.json       # Config TypeScript
+│   │   ├── vite.config.ts      # Config Vite
+│   │   ├── vite.env.d.ts       # Tipos Vite
+│   │   └── vitest.config.ts    # Config Vitest
+│   ├── backend/                # 🔧 Backend Node.js
+│   │   ├── src/                # Código fonte backend
+│   │   │   ├── core/           # Lógica de negócio
+│   │   │   ├── agents/         # Agentes de IA
+│   │   │   ├── scripts/        # Scripts utilitários
+│   │   │   ├── types/          # Definições TypeScript
+│   │   │   └── utils/          # Utilitários
+│   │   ├── dist/               # Build compilado
+│   │   ├── package.json        # Dependências backend
+│   │   └── tsconfig.json       # Config TypeScript
+│   ├── docs/                   # 📚 Documentação
+│   │   ├── README.md
+│   │   ├── REACT_AGENT_INTEGRATION_COMPLETE.md
+│   │   └── LICENSE
+│   ├── scripts/                # 🔨 Scripts de build/deploy
+│   └── knowledge-base/         # 🔗 Link simbólico para knowledge-base
+├── config/                     # ⚙️ Configurações compartilhadas
+├── docker-compose.yml          # 🐳 Docker Compose
+├── package.json               # 📦 Root package.json
+└── .env.local                 # 🔐 Variáveis ambiente
 ```
+
+### 🏗️ Arquitetura Modular
+
+O projeto segue uma **arquitetura modular** com separação clara de responsabilidades:
+
+- **`src/`** - Pasta principal contendo todo o código fonte
+- **`src/frontend/`** - Interface React com Vite
+- **`src/backend/`** - API Node.js com Express
+- **`src/docs/`** - Documentação do projeto
+- **`src/scripts/`** - Scripts de build e deploy
+- **`config/`** - Configurações compartilhadas
+
+### 🎯 Benefícios da Estrutura
+
+- **📁 Organização Profissional**: Seguindo melhores práticas da indústria
+- **🔍 Navegação Intuitiva**: Código organizado em pastas lógicas
+- **👥 Colaboração**: Estrutura clara para novos desenvolvedores
+- **🔧 Manutenção**: Separação de responsabilidades
+- **📦 Deploy**: Facilita deploy independente de componentes
 
 ## Testes
 

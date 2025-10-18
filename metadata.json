@@ -1,6 +1,0 @@
-{
-  "name": "Z4l1nux AI Threat Lab",
-  "description": "An intelligent system for threat modeling using OWASP, STRIDE, CAPEC, and AI. Users describe their system, and the AI helps generate Data Flow Diagrams, identify threats, map them to CAPEC, and suggest mitigations.",
-  "requestFramePermissions": [],
-  "prompt": ""
-}

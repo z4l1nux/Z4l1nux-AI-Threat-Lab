@@ -1542,7 +1542,7 @@ async function autoInitializeRAG() {
     const path = require('path');
     
     // Caminho para a pasta knowledge-base (relativo ao backend)
-    const knowledgeBasePath = path.join(__dirname, '../../src/knowledge-base');
+    const knowledgeBasePath = path.join(__dirname, '../../knowledge-base');
     
     if (fs.existsSync(knowledgeBasePath)) {
       console.log('📚 Carregando arquivos de conhecimento...');
