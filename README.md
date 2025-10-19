@@ -18,7 +18,7 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 - **Análise automática de fluxos**: Detecta cross-boundary e dados não criptografados
 - **Exportação/Importação** de diagramas em JSON
 
-![Editor Visual de Diagramas](src/pictures/visualEditor.png)
+![Editor Visual de Diagramas](src/frontend/src/pictures/visualEditor.png)
 *Editor visual com drag-and-drop, trust boundaries e análise automática de fluxos*
 
 ### 🤖 Threat Modeling com IA
