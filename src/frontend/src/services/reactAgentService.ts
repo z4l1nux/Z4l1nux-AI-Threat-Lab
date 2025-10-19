@@ -66,8 +66,8 @@ export interface ReActAgentResult {
  * Configuração padrão
  */
 const DEFAULT_CONFIG: ReActAgentConfig = {
-  enabled: true,
-  timeout: 90000,
+  enabled: true, // Habilitado com OptimizedReActAgent
+  timeout: 35000, // 35s para o agente otimizado
   autoFallback: true,
   verbose: false
 };
@@ -107,7 +107,13 @@ export async function analyzeWithReActAgent(
     
     // Chamar endpoint do ReAct Agent
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), finalConfig.timeout);
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Timeout atingido, abortando requisição...');
+      controller.abort();
+    }, finalConfig.timeout);
+    
+    console.log(`   📡 Enviando requisição para ${BACKEND_URL}/api/analyze-threats-react`);
+    console.log(`   ⏱️ Timeout: ${finalConfig.timeout}ms`);
     
     const response = await fetch(`${BACKEND_URL}/api/analyze-threats-react`, {
       method: 'POST',
@@ -152,6 +158,26 @@ export async function analyzeWithReActAgent(
   } catch (error) {
     console.error('❌ Erro no ReAct Agent:', error);
     
+    // Identificar tipo de erro
+    let errorType = 'unknown';
+    let errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        errorType = 'timeout';
+        errorMessage = `Timeout de ${finalConfig.timeout}ms atingido`;
+      } else if (error.message.includes('Failed to fetch')) {
+        errorType = 'connection';
+        errorMessage = 'Falha na conexão com o backend';
+      } else if (error.message.includes('HTTP')) {
+        errorType = 'http';
+        errorMessage = `Erro HTTP: ${error.message}`;
+      }
+    }
+    
+    console.log(`   🔍 Tipo de erro: ${errorType}`);
+    console.log(`   📝 Mensagem: ${errorMessage}`);
+    
     // Fallback automático se configurado
     if (finalConfig.autoFallback) {
       console.log('🔄 Fallback para sistema tradicional...');
@@ -161,8 +187,8 @@ export async function analyzeWithReActAgent(
         return {
           usedReActAgent: false,
           threats: traditionalThreats,
-          message: 'Análise completa (fallback para sistema tradicional)',
-          errors: [`ReAct Agent falhou: ${error instanceof Error ? error.message : 'Erro desconhecido'}`]
+          message: `Análise completa (fallback para sistema tradicional - ${errorType})`,
+          errors: [`ReAct Agent falhou (${errorType}): ${errorMessage}`]
         };
       } catch (fallbackError) {
         console.error('❌ Fallback também falhou:', fallbackError);

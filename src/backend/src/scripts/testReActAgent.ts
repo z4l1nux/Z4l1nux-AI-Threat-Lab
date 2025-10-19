@@ -8,7 +8,7 @@
  */
 
 import * as dotenv from 'dotenv';
-import { SimpleReActAgent } from '../agents/SimpleReActAgent';
+import { RAGReActAgent } from '../agents/RAGReActAgent';
 import { SystemInfo } from '../types/index';
 import { Neo4jClient } from '../core/graph/Neo4jClient';
 import { ModelFactory } from '../core/models/ModelFactory';
@@ -78,7 +78,7 @@ async function testReActAgent() {
     
     // 4. Criar e configurar agente
     console.log('4️⃣ Criando Simple ReAct Agent...');
-    const agent = new SimpleReActAgent({
+    const agent = new RAGReActAgent({
       provider: provider?.name || 'mock',
       model: process.env.MODEL_OLLAMA || 'llama3.1:latest',
       embeddingModel: process.env.EMBEDDING_MODEL || 'nomic-embed-text:latest',
@@ -112,7 +112,7 @@ async function testReActAgent() {
     
     console.log('🎯 AMEAÇAS IDENTIFICADAS:');
     if (result.threats.length > 0) {
-      result.threats.forEach((threat, index) => {
+      result.threats.forEach((threat: any, index: number) => {
         console.log(`\n   ${index + 1}. ${threat.elementName}`);
         console.log(`      STRIDE: ${threat.strideCategory}`);
         console.log(`      CAPEC: ${threat.capecId} - ${threat.capecName}`);
@@ -125,7 +125,7 @@ async function testReActAgent() {
     }
     
     console.log('\n🔍 HISTÓRICO DE AÇÕES:');
-    result.actionHistory.slice(0, 5).forEach(action => {
+    result.actionHistory.slice(0, 5).forEach((action: any) => {
       console.log(`\n   Iteração ${action.iteration}:`);
       console.log(`      Pensamento: ${action.thought.substring(0, 80)}...`);
       console.log(`      Ação: ${action.action}`);
@@ -159,7 +159,7 @@ async function testReActAgent() {
     // 9. Erros (se houver)
     if (result.errors.length > 0) {
       console.log('\n❌ ERROS ENCONTRADOS:');
-      result.errors.forEach(error => {
+      result.errors.forEach((error: any) => {
         console.log(`   - ${error}`);
       });
     }
