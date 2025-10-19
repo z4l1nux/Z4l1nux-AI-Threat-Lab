@@ -131,19 +131,7 @@ const App: React.FC = () => {
             selectedEmbedding={selection.embedding}
           />
           
-          {/* ReAct Agent sempre habilitado */}
-          <div className="bg-gray-900 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">🤖 ReAct Agent</h3>
-                <p className="text-sm text-gray-400">Análise inteligente de ameaças sempre ativa</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-green-400 text-sm font-medium">Ativo</span>
-              </div>
-            </div>
-          </div>
+          {/* Card do ReAct Agent removido a pedido */}
           
           {/* Painel RAG */}
           <div className="bg-gray-900 rounded-lg p-4">
