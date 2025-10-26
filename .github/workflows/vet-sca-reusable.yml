@@ -31,7 +31,7 @@ jobs:
 
       - name: Run vet
         id: vet
-        uses: safedep/vet-action@v1.2.0
+        uses: safedep/vet-action@v1.1.6
         with:
           policy: .github/policies/vet-policy.yml
         env:
