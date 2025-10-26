@@ -1,10 +1,42 @@
-name: Semgrep Code Scanning
+name: Semgrep Security Scan
 
 on:
+  push:
+    branches:
+      - "**"
   pull_request:
-  
+    branches:
+      - "**"
+
 jobs:
-  semgrep_sast:
-    uses: nomad-bank/nomad-actions/.github/workflows/infra.base.semgrep.sast.yml@main
-    with:
-      PARANOIA_LEVEL: 2
+  semgrep_scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      - name: Run Semgrep (Enforce by PARANOIA_LEVEL)
+        run: |
+          PARANOIA_LEVEL=2   # ajuste aqui: 1 = critical/high (ERROR), 2 = high/medium (WARNING)
+
+          if [ "$PARANOIA_LEVEL" -eq 1 ]; then
+            echo "Rodando em modo PARANOIA 1 (trava apenas ERROR)"
+            semgrep --config auto --severity=ERROR --error
+          elif [ "$PARANOIA_LEVEL" -eq 2 ]; then
+            echo "Rodando em modo PARANOIA 2 (trava WARNING e acima)"
+            semgrep --config auto --severity=WARNING --error
+          else
+            echo "Rodando em modo PARANOIA 3 (trava INFO e acima)"
+            semgrep --config auto --severity=INFO --error
+          fi
