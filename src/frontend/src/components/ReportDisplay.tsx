@@ -116,7 +116,7 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, isLoading }) 
     const doc = new jsPDF();
 
     // Cores do tema do frontend
-    const primaryYellow = '#FBC02D'; // custom-yellow
+    const primaryOrange = '#ff6b35'; // z4l1nux-primary (cor laranja do frontend)
     const darkBlack = '#000000';     // custom-black
     const lightGray = '#F5F5F5';     // Para texto em fundo escuro
 
@@ -201,7 +201,7 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, isLoading }) 
         textColor: darkBlack,
       },
       headStyles: { 
-        fillColor: primaryYellow,
+        fillColor: primaryOrange,
         textColor: darkBlack
       },
       alternateRowStyles: { fillColor: [245, 245, 245] },
