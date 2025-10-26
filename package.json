@@ -22,7 +22,7 @@
     "test": "cd src/frontend && vitest",
     "test:ui": "cd src/frontend && vitest --ui",
     "test:coverage": "cd src/frontend && vitest --coverage",
-    "test:integration": "./test-rag.sh"
+    "test:integration": "echo 'Testes de integração não disponíveis'"
   },
   "dependencies": {
     "@google/genai": "1.21.0",

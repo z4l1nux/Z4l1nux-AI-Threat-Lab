@@ -158,15 +158,6 @@ EMBEDDING_MODEL=nomic-embed-text:latest
    ```powershell
    npm install
    ```
-   
-   **Ou use o script automático:**
-   ```bash
-   # Linux/Mac
-   ./scripts/setup.sh
-   
-   # Windows
-   .\scripts\setup.ps1
-   ```
 
 3. **Configure o `.env.local` (na raiz do projeto):**
    ```bash
@@ -368,7 +359,6 @@ npm run test:coverage   # Relatório de cobertura
 ### Testes de Integração
 ```bash
 npm run test:integration  # Testes E2E
-./test-rag.sh            # Testes RAG completos
 ```
 
 ## Documentação

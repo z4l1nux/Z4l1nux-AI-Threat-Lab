@@ -59,8 +59,7 @@ Testes E2E que validam o **sistema completo** (frontend + backend + Neo4j).
 npm run test:integration
 
 # Diretamente
-chmod +x test-rag.sh
-./test-rag.sh
+echo 'Testes de integração RAG não disponíveis'
 ```
 
 #### **Cobertura**
@@ -224,7 +223,6 @@ z4l1nux-ai-threat-lab/
 │       │   └── *.test.ts
 │       └── components/
 │           └── *.test.tsx
-└── test-rag.sh                   # Testes de integração
 ```
 
 ---
