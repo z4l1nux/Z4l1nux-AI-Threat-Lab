@@ -1,7 +1,12 @@
 name: vet OSS Components
 
 on:
+  push:
+    branches:
+      - "**"
   pull_request:
+    branches:
+      - "**"
 
 permissions:
   # Required for actions/checkout@v4
@@ -26,7 +31,7 @@ jobs:
 
       - name: Run vet
         id: vet
-        uses: safedep/vet-action@v1.1.6
+        uses: safedep/vet-action@v1.2.0
         with:
           policy: .github/policies/vet-policy.yml
         env:
