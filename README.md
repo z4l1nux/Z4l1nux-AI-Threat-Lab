@@ -117,7 +117,7 @@ EMBEDDING_MODEL=nomic-embed-text:latest
 
 5. **Pronto!** O sistema detecta e usa automaticamente. 🎉
 
-📖 **Documentação completa**: [`ARQUITETURA_PROVIDERS.md`](ARQUITETURA_PROVIDERS.md) e [`backend/src/core/models/providers/README.md`](backend/src/core/models/providers/README.md)
+📖 **Documentação completa**: [`src/backend/src/core/models/providers/README.md`](src/backend/src/core/models/providers/README.md)
 
 ### Sistema RAG Avançado
 - **Queries Paralelas**: 5 queries simultâneas para análise completa
@@ -364,13 +364,12 @@ npm run test:integration  # Testes E2E
 ## Documentação
 
 ### 📚 Geral
-- **[ARQUITETURA_PROVIDERS.md](src/docs/ARQUITETURA_PROVIDERS.md)** - 🔌 Sistema extensível de providers de IA
+- **[README.md](src/backend/src/core/models/providers/README.md)** - 🔌 Sistema extensível de providers de IA
 
 ### 🧪 Testes e Validação
 - **[TESTES.md](src/frontend/src/__tests__/TESTES.md)** - Guia completo de testes
 - **[QUERIES_NEO4J.md](src/frontend/src/__tests__/QUERIES_NEO4J.md)** - Queries Cypher úteis
 - **[GUIA_RAPIDO_NEO4J.md](src/frontend/src/__tests__/GUIA_RAPIDO_NEO4J.md)** - Top 5 queries + troubleshooting
-- **[VALIDACAO_RAG.md](src/frontend/src/__tests__/VALIDACAO_RAG.md)** - Evidências de funcionamento do RAG
 
 ### 🔌 Desenvolvimento de Providers
 - **[backend/src/core/models/providers/README.md](src/backend/src/core/models/providers/README.md)** - Guia completo para criar providers
