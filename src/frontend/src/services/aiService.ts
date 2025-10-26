@@ -1157,6 +1157,7 @@ export const analyzeThreats = async (
  */
 export const summarizeSystemDescription = async (
   fullDescription: string,
+  systemName: string = 'Sistema Descrito',
   modelConfig?: any
 ): Promise<SystemInfo> => {
   // Validar se a descrição não está vazia
@@ -1230,7 +1231,7 @@ Extraia e retorne um JSON com:
     authentication: parsedResult.authentication || "Não informado",
     userProfiles: parsedResult.userProfiles || "Não informado",
     externalIntegrations: parsedResult.externalIntegrations || "Não informado",
-    systemName: "Sistema Analisado",
+    systemName: systemName,
     systemVersion: "1.0"
   };
 };

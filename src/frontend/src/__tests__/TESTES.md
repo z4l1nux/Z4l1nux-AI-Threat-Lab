@@ -126,7 +126,7 @@ describe('aiService', () => {
     vi.spyOn(mockGenAI.models, 'generateContent')
       .mockResolvedValue(mockResponse);
 
-    const result = await summarizeSystemDescription('Descrição completa...');
+    const result = await summarizeSystemDescription('Descrição completa...', 'Sistema de Teste');
 
     expect(result.generalDescription).toBe('Sistema de gestão farmacêutica');
     expect(result.components).toBe('Frontend React, Backend Node.js');

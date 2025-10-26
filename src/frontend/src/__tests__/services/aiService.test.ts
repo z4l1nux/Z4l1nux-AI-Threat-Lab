@@ -42,7 +42,7 @@ describe('geminiService', () => {
         vendas, prescrições digitais e integração com ANVISA.
       `;
 
-      const result = await summarizeSystemDescription(fullDescription);
+      const result = await summarizeSystemDescription(fullDescription, 'Sistema de Teste');
 
       expect(result).toBeDefined();
       expect(result.generalDescription).toBe('Sistema de gestão farmacêutica');
@@ -62,7 +62,7 @@ describe('geminiService', () => {
         })
       });
 
-      const result = await summarizeSystemDescription('Descrição simples');
+      const result = await summarizeSystemDescription('Descrição simples', 'Sistema Simples');
 
       expect(result.generalDescription).toBe('Não informado');
       expect(result.components).toBe('Não informado');
@@ -70,7 +70,7 @@ describe('geminiService', () => {
 
     it('deve lançar erro quando descrição está vazia', async () => {
       await expect(
-        summarizeSystemDescription('')
+        summarizeSystemDescription('', 'Sistema Vazio')
       ).rejects.toThrow('Descrição do sistema não informada');
     });
 
@@ -83,7 +83,7 @@ describe('geminiService', () => {
       delete process.env.API_KEY;
 
       await expect(
-        summarizeSystemDescription('Teste')
+        summarizeSystemDescription('Teste', 'Sistema Teste')
       ).rejects.toThrow();
 
       // Restaurar

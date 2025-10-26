@@ -73,7 +73,7 @@ export const useThreatModeler = () => {
       
       // 2. Resumir e estruturar informações do sistema via IA para exibição
       console.log('📝 Resumindo informações do sistema para exibição...');
-      const summarizedInfo = await summarizeSystemDescription(currentSystemInfo.generalDescription || "", modelConfig);
+      const summarizedInfo = await summarizeSystemDescription(currentSystemInfo.generalDescription || "", currentSystemInfo.systemName, modelConfig);
       
       // Mesclar informações resumidas com dados originais
       const finalSystemInfo: SystemInfo = {
