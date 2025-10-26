@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { SystemInfo, IdentifiedThreat, ReportData } from '../../types';
-import { refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid } from '../services/aiService';
+import { refineAnalysis, summarizeSystemDescription, generateAttackTreeMermaid, analyzeThreats } from '../services/aiService';
 import { useModelSelection } from './useModelSelection';
-import { ReActAgentConfig, analyzeWithReActAgent } from '../services/reactAgentService';
 
 export const useThreatModeler = () => {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
@@ -14,14 +13,14 @@ export const useThreatModeler = () => {
   
   const { getModelConfig } = useModelSelection();
 
-  // ReAct Agent sempre disponível (independente do RAG)
+  // Sistema tradicional sempre disponível
   useEffect(() => {
-    console.log('🤖 ReAct Agent sempre disponível - independente do RAG');
-    setRagInitialized(true); // Sempre true para ReAct Agent
+    console.log('🔧 Sistema tradicional sempre disponível');
+    setRagInitialized(true);
   }, []);
 
-  const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo, reactAgentConfig?: ReActAgentConfig) => {
-    console.log('🤖 ReAct Agent sempre pronto para análise!');
+  const generateThreatModel = useCallback(async (currentSystemInfo: SystemInfo) => {
+    console.log('🔧 Sistema tradicional pronto para análise!');
     
     setIsLoading(true);
     setError(null);
@@ -55,20 +54,19 @@ export const useThreatModeler = () => {
         console.warn('⚠️ Aviso: Falha ao processar no RAG, continuando com análise:', ragError);
       }
       
-      // 1. Modelagem de ameaças com ReAct Agent
+      // 1. Modelagem de ameaças com sistema tradicional
       setSystemInfo(currentSystemInfo);
       
       let identifiedThreats: IdentifiedThreat[];
       
-      // Usar apenas ReAct Agent
-      console.log('🤖 Usando ReAct Agent para análise...');
+      // Usar sistema tradicional
+      console.log('🔧 Usando sistema tradicional para análise...');
       try {
-        const reactResult = await analyzeWithReActAgent(currentSystemInfo, modelConfig, undefined, reactAgentConfig);
-        identifiedThreats = reactResult.threats;
-        console.log(`✅ ReAct Agent concluído: ${identifiedThreats.length} ameaças`);
-      } catch (reactError) {
-        console.error('❌ ReAct Agent falhou:', reactError);
-        throw new Error(`Análise de ameaças falhou: ${reactError instanceof Error ? reactError.message : 'Erro desconhecido'}`);
+        identifiedThreats = await analyzeThreats(currentSystemInfo, modelConfig);
+        console.log(`✅ Sistema tradicional concluído: ${identifiedThreats.length} ameaças`);
+      } catch (analysisError) {
+        console.error('❌ Sistema tradicional falhou:', analysisError);
+        throw new Error(`Análise de ameaças falhou: ${analysisError instanceof Error ? analysisError.message : 'Erro desconhecido'}`);
       }
       
       setThreats(identifiedThreats);

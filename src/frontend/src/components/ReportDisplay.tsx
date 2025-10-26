@@ -7,8 +7,6 @@ import { ReportData } from '../types';
 
 interface ReportDisplayProps {
   reportData: ReportData | null;
-  onEdit: (markdown: string) => void;
-  onRefine: (markdown: string) => void;
   isLoading: boolean;
 }
 
@@ -82,9 +80,8 @@ _A tabela de ameaças é renderizada como um componente React separado para melh
 `;
 };
 
-const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRefine, isLoading }) => {
+const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, isLoading }) => {
   const [markdownContent, setMarkdownContent] = useState<string>("");
-  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [showAttackTree, setShowAttackTree] = useState<boolean>(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -118,9 +115,10 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
 
     const doc = new jsPDF();
 
-    // Cores
-    const yellow = '#FBC02D';
-    const black = '#000000';
+    // Cores do tema do frontend
+    const primaryYellow = '#FBC02D'; // custom-yellow
+    const darkBlack = '#000000';     // custom-black
+    const lightGray = '#F5F5F5';     // Para texto em fundo escuro
 
     // Extrair campos do resumo igual ao markdown
     let desc = reportData.systemInfo.generalDescription;
@@ -148,12 +146,12 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
 
     // Título
     doc.setFontSize(18);
-    doc.setTextColor(black); // Título em preto
+    doc.setTextColor(darkBlack);
     doc.text(`Relatório de Modelagem de Ameaças: ${reportData.systemInfo.systemName}`, 14, 22, { maxWidth: 180 });
 
     // Informações do sistema
     doc.setFontSize(12);
-    doc.setTextColor(black); // Texto em preto
+    doc.setTextColor(darkBlack);
     doc.text(`Gerado em: ${new Date(reportData.generatedAt).toLocaleString('pt-BR')}`, 14, 32, { maxWidth: 180 });
     // Descrição e campos do resumo
     let y = 40;
@@ -200,13 +198,13 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
         overflow: 'linebreak',
         halign: 'left',
         valign: 'middle',
-        textColor: black,
+        textColor: darkBlack,
       },
       headStyles: { 
-        fillColor: yellow,
-        textColor: black
+        fillColor: primaryYellow,
+        textColor: darkBlack
       },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
         0: { cellWidth: 20 }, // Elemento
         1: { cellWidth: 18 }, // STRIDE
@@ -227,16 +225,6 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
     if (!cleanName) cleanName = "ThreatModelReport";
     doc.save(`${cleanName}_Threat_Model_Report.pdf`);
   };
-  
-  const handleSaveEdit = () => {
-    onEdit(markdownContent);
-    setIsEditing(false);
-  };
-
-  const handleRefineClick = () => {
-    onRefine(markdownContent);
-    setIsEditing(false);
-  };
 
   if (isLoading && !reportData) {
     return <div className="text-center p-10 text-xl text-indigo-400">Gerando relatório...</div>;
@@ -251,13 +239,6 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-custom-yellow/30 pb-4 gap-2">
         <h2 className="text-2xl lg:text-3xl font-semibold text-custom-yellow">Relatório de Modelagem de Ameaças: {reportData.systemInfo.systemName}</h2>
         <div className="space-x-2 flex-shrink-0">
-           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="px-3 py-2 text-xs sm:text-sm font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom-yellow focus:ring-offset-custom-black transition"
-            aria-pressed={isEditing}
-          >
-            {isEditing ? 'Cancelar Edição' : 'Editar/Refinar'}
-          </button>
           <button
             onClick={() => reportData?.attackTreeMermaid ? setShowAttackTree(!showAttackTree) : undefined}
             disabled={!reportData?.attackTreeMermaid}
@@ -301,37 +282,10 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
         </div>
       )}
 
-      {isEditing ? (
-        <div className="space-y-4">
-          <label htmlFor="markdown-editor" className="sr-only">Editor de Markdown</label>
-          <textarea
-            id="markdown-editor"
-            value={markdownContent}
-            onChange={(e) => setMarkdownContent(e.target.value)}
-            className="w-full h-96 p-3 bg-gray-900 border border-gray-700 rounded-md text-gray-100 font-mono text-sm"
-            aria-label="Editor de conteúdo Markdown do relatório"
-          />
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleSaveEdit}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800 transition"
-            >
-              Salvar (Local)
-            </button>
-            <button
-              onClick={handleRefineClick}
-              disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-custom-black bg-custom-yellow hover:bg-custom-yellow/80 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-custom-yellow focus:ring-offset-custom-black transition disabled:bg-gray-500 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Refinando...' : 'Refinar Análise com IA'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <article className="prose prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-4 bg-custom-black rounded shadow overflow-x-auto border border-custom-yellow/30">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdownContent}</ReactMarkdown>
-          </article>
+      <>
+        <article className="prose prose-invert prose-sm sm:prose-base lg:prose-lg xl:prose-xl max-w-none p-4 bg-custom-black rounded shadow overflow-x-auto border border-custom-yellow/30">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdownContent}</ReactMarkdown>
+        </article>
 
           {/* Tabela React pura para ameaças */}
           <section className="mt-8 mb-8">
@@ -379,7 +333,7 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
                           <a href={`https://capec.mitre.org/data/definitions/${threat.capecId.split('-')[1]}.html`} 
                              target="_blank" 
                              rel="noopener noreferrer" 
-                             className="underline text-yellow-300 hover:text-yellow-400">
+                             className="underline text-custom-yellow hover:text-custom-yellow/80">
                             {threat.capecId}
                           </a>
                         </td>
@@ -440,8 +394,7 @@ const ReportDisplay: React.FC<ReportDisplayProps> = ({ reportData, onEdit, onRef
               }
             `}</style>
           </section>
-        </>
-      )}
+      </>
     </div>
   );
 };

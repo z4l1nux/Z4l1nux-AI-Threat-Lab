@@ -78,12 +78,12 @@ const RAGPanel: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold text-white flex items-center">
-          🤖 ReAct Agent + RAG
+          🔧 Sistema de Análise + RAG
         </h2>
         <div className="flex items-center space-x-3">
           <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
           <span className="text-sm text-green-300 font-medium">
-            ReAct Agent Ativo
+            Sistema Ativo
           </span>
         </div>
       </div>
@@ -117,12 +117,12 @@ const RAGPanel: React.FC = () => {
         </div>
       )}
 
-      {/* ReAct Agent Status */}
+      {/* Sistema Status */}
       <div className="bg-green-900/20 border border-green-500 rounded-md p-4 mb-4">
         <div className="flex items-center">
-          <div className="text-green-400 mr-3">🤖</div>
+          <div className="text-green-400 mr-3">🔧</div>
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-green-300">ReAct Agent Sempre Ativo</h3>
+            <h3 className="text-sm font-medium text-green-300">Sistema Sempre Ativo</h3>
             <p className="text-sm text-green-200 mt-1">
               Análise de ameaças funciona independentemente do RAG. Use o formulário ou editor visual para começar!
             </p>
@@ -137,7 +137,7 @@ const RAGPanel: React.FC = () => {
             <div className="text-gray-400 mb-2">📚</div>
             <h3 className="text-lg font-medium text-white">RAG Opcional</h3>
             <p className="text-gray-300 mt-2">
-              O RAG melhora a análise, mas não é obrigatório. O ReAct Agent funciona perfeitamente sem ele.
+              O RAG melhora a análise, mas não é obrigatório. O sistema funciona perfeitamente sem ele.
             </p>
           </div>
           <button

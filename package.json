@@ -19,7 +19,6 @@
     "preview": "cd src/frontend && vite preview",
     "create-neo4j": "ts-node --project src/backend/tsconfig.json src/backend/src/scripts/initNeo4j.ts",
     "test-rag": "ts-node --project src/backend/tsconfig.json src/backend/src/scripts/testRAG.ts",
-    "test-react-agent": "npm run build:backend && node src/backend/dist/scripts/testReActAgent.js",
     "test": "cd src/frontend && vitest",
     "test:ui": "cd src/frontend && vitest --ui",
     "test:coverage": "cd src/frontend && vitest --coverage",

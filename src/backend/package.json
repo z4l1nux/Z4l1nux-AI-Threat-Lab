@@ -9,7 +9,6 @@
     "start": "node dist/server.js",
     "init-neo4j": "ts-node src/scripts/initNeo4j.ts",
     "test-rag": "ts-node src/scripts/testRAG.ts",
-    "test-react-agent": "ts-node src/scripts/testReActAgent.ts",
     "fix-vector-index": "ts-node src/scripts/fixVectorIndex.ts"
   }
 }

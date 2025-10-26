@@ -320,7 +320,6 @@ z4l1nux-ai-threat-lab/
 │   ├── backend/                # 🔧 Backend Node.js
 │   │   ├── src/                # Código fonte backend
 │   │   │   ├── core/           # Lógica de negócio
-│   │   │   ├── agents/         # Agentes de IA
 │   │   │   ├── scripts/        # Scripts utilitários
 │   │   │   ├── types/          # Definições TypeScript
 │   │   │   └── utils/          # Utilitários
@@ -329,7 +328,6 @@ z4l1nux-ai-threat-lab/
 │   │   └── tsconfig.json       # Config TypeScript
 │   ├── docs/                   # 📚 Documentação
 │   │   ├── README.md
-│   │   ├── REACT_AGENT_INTEGRATION_COMPLETE.md
 │   │   └── LICENSE
 │   ├── scripts/                # 🔨 Scripts de build/deploy
 │   └── knowledge-base/         # 🔗 Link simbólico para knowledge-base

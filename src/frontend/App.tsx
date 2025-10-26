@@ -9,24 +9,15 @@ import { useThreatModeler } from './src/hooks/useThreatModeler';
 import { useModelSelection } from './src/hooks/useModelSelection';
 import { APP_TITLE } from './constants';
 import { SystemInfo } from './types';
-import { ReActAgentConfig } from './src/services/reactAgentService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'form' | 'visual'>('form');
-  const [reactAgentConfig] = useState<ReActAgentConfig>({
-    enabled: true,
-    timeout: 90000,
-    autoFallback: true,
-    verbose: false
-  });
   
   const {
     reportData,
     isLoading,
     error,
     generateThreatModel,
-    updateReportMarkdown,
-    refineThreatModel,
     resetThreatModel
   } = useThreatModeler();
 
@@ -62,14 +53,10 @@ const App: React.FC = () => {
     generateThreatModel(fakeSystemInfo);
   };
 
-  const handleRefineSubmit = (markdown: string) => {
-    refineThreatModel(markdown);
-  };
-
   const handleVisualAnalyze = (systemInfo: SystemInfo) => {
     // Trocar para a aba do formulário para mostrar o relatório
     setActiveTab('form');
-    generateThreatModel(systemInfo, reactAgentConfig);
+    generateThreatModel(systemInfo);
   };
 
   return (
@@ -131,7 +118,6 @@ const App: React.FC = () => {
             selectedEmbedding={selection.embedding}
           />
           
-          {/* Card do ReAct Agent removido a pedido */}
           
           {/* Painel RAG */}
           <div className="bg-gray-900 rounded-lg p-4">
@@ -159,8 +145,6 @@ const App: React.FC = () => {
           {reportData ? (
             <ReportDisplay 
               reportData={reportData} 
-              onEdit={updateReportMarkdown} 
-              onRefine={handleRefineSubmit}
               isLoading={isLoading}
             />
           ) : (!isLoading && !error && (
@@ -180,7 +164,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Editor Visual - mantém montado mas oculto quando não ativo */}
-      <div className={`w-full ${activeTab !== 'visual' ? 'hidden' : ''}`} style={{ height: 'calc(100vh - 280px)' }}>
+      <div className={`w-full ${activeTab !== 'visual' ? 'hidden' : ''}`} style={{ height: 'calc(100vh - 280px)', minHeight: '600px' }}>
         <VisualEditor 
           onAnalyze={handleVisualAnalyze}
           isAnalyzing={isLoading}

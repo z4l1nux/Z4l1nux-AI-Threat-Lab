@@ -11,7 +11,6 @@ import { Neo4jClient } from './core/graph/Neo4jClient';
 import { DocumentLoaderFactory } from './utils/documentLoaders';
 import { SearchResult, RAGContext, SystemInfo } from './types/index';
 import { ModelFactory } from './core/models/ModelFactory';
-import { RAGReActAgent } from './agents/RAGReActAgent';
 
 // Carregar variáveis de ambiente
 console.log('🔧 Diretório atual:', process.cwd());
@@ -1411,111 +1410,7 @@ app.get('/api/debug/providers', async (req, res) => {
 
 // Middleware de tratamento de erros
 // ========================================
-// ENDPOINT: Teste ReAct Agent
-// ========================================
-app.post('/api/test-react', async (req, res) => {
-  try {
-    console.log('🧪 Teste ReAct Agent iniciado');
-    res.json({
-      success: true,
-      message: 'Teste ReAct Agent funcionando',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Erro no teste:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro no teste',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
 
-// ENDPOINT: Análise de Ameaças com ReAct Agent
-// ========================================
-app.post('/api/analyze-threats-react', async (req, res) => {
-  const requestStartTime = Date.now();
-  
-  try {
-    const { systemInfo, modelConfig, ragContext } = req.body;
-    
-    if (!systemInfo) {
-      return res.status(400).json({
-        error: 'systemInfo é obrigatório'
-      });
-    }
-    
-    console.log('🤖 Iniciando análise ReAct Agent...');
-    console.log(`   Sistema: ${systemInfo.systemName}`);
-    console.log(`   Provider: ${modelConfig?.provider || 'auto-detect'}`);
-    console.log(`   Timestamp: ${new Date().toISOString()}`);
-    
-    // Usar configuração do frontend (evitar detecção automática que pode travar)
-    let providerName = modelConfig?.provider || 'openrouter';
-    let modelName = modelConfig?.model || 'meta-llama/llama-3.3-70b-instruct:free';
-    
-    console.log(`   📋 Usando configuração do frontend:`);
-    console.log(`   Provider: ${providerName}`);
-    console.log(`   Model: ${modelName}`);
-    console.log(`   ⏱️ Tempo até aqui: ${Date.now() - requestStartTime}ms`);
-    
-    // Criar e configurar o RAG ReAct Agent
-    console.log('   🔧 Criando RAG ReAct Agent...');
-    
-    try {
-      const agent = new RAGReActAgent({
-        provider: providerName,
-        model: modelName,
-        embeddingModel: modelConfig?.embedding,
-        embeddingProvider: modelConfig?.embeddingProvider,
-        maxIterations: 6, // Otimizado para RAG
-        temperature: 0.1,
-        verbose: true
-      });
-      
-      console.log(`   ⏱️ Agente criado em: ${Date.now() - requestStartTime}ms`);
-      console.log('   🚀 Executando análise com RAG...');
-      
-      // Executar análise com timeout
-      const analysisPromise = agent.analyze(systemInfo as SystemInfo, ragContext);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Análise timeout após 50s')), 50000)
-      );
-      
-      const result = await Promise.race([analysisPromise, timeoutPromise]) as any;
-      
-      console.log('✅ Análise RAG ReAct concluída!');
-      console.log(`   Ameaças: ${result.threats.length}`);
-      console.log(`   Iterações: ${result.metrics.iterations}`);
-      console.log(`   Tempo: ${result.metrics.totalTime}ms`);
-      console.log(`   ⏱️ Tempo total da requisição: ${Date.now() - requestStartTime}ms`);
-      
-      res.json({
-        success: result.success,
-        threats: result.threats,
-        metrics: result.metrics,
-        actionHistory: result.actionHistory,
-        message: result.message,
-        errors: result.errors,
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (agentError) {
-      console.error('❌ Erro na análise RAG ReAct:', agentError);
-      throw agentError;
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro na análise ReAct:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Falha na análise ReAct',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      threats: [],
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('❌ Erro não tratado:', error);
@@ -1642,17 +1537,17 @@ app.listen(PORT, async () => {
   console.log('  POST /api/documents/text - Upload de texto');
   console.log('  POST /api/search - Busca RAG');
   console.log('  POST /api/search/context - Contexto RAG');
-  console.log('  POST /api/analyze-threats-react - Análise ReAct Agent 🤖');
+  console.log('  POST /api/analyze-threats - Análise de Ameaças 🔧');
   console.log('  GET  /api/statistics - Estatísticas');
   console.log('  DELETE /api/cache - Limpar cache');
   
-  // Inicializar ModelFactory para ReAct Agent (independente do RAG)
-  console.log('\n🤖 Inicializando providers para ReAct Agent...');
+  // Inicializar ModelFactory para sistema tradicional
+  console.log('\n🔧 Inicializando providers para sistema tradicional...');
   try {
     await ModelFactory.initialize();
-    console.log('✅ Providers inicializados para ReAct Agent');
+    console.log('✅ Providers inicializados para sistema tradicional');
   } catch (error) {
-    console.warn('⚠️ Aviso: Falha ao inicializar providers, ReAct Agent usará modo mock:', error);
+    console.warn('⚠️ Aviso: Falha ao inicializar providers, sistema usará modo mock:', error);
   }
   
   // Inicializar RAG automaticamente (em background)

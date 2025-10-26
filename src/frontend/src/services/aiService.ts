@@ -1087,6 +1087,74 @@ Retorne o relatório refinado em Markdown, mantendo a estrutura original mas com
  * @param modelConfig Configuração do modelo de IA a ser usado.
  * @returns Objeto SystemInfo estruturado.
  */
+/**
+ * Analisa ameaças usando o sistema tradicional (sem ReAct agent)
+ */
+export const analyzeThreats = async (
+  systemInfo: SystemInfo,
+  modelConfig?: any
+): Promise<IdentifiedThreat[]> => {
+  // Usar a função existente analyzeThreatsAndMitigations com um mapeamento STRIDE-CAPEC básico
+  const basicStrideCapecMap: StrideCapecMapType = [
+    {
+      stride: 'Spoofing',
+      capecs: [
+        { id: 'CAPEC-156', name: 'Engage In Deceptive Interactions' },
+        { id: 'CAPEC-151', name: 'Identity Spoofing' },
+        { id: 'CAPEC-152', name: 'Phishing' }
+      ]
+    },
+    {
+      stride: 'Tampering',
+      capecs: [
+        { id: 'CAPEC-153', name: 'Input Data Manipulation' },
+        { id: 'CAPEC-154', name: 'Resource Manipulation' },
+        { id: 'CAPEC-155', name: 'Data Manipulation' }
+      ]
+    },
+    {
+      stride: 'Repudiation',
+      capecs: [
+        { id: 'CAPEC-157', name: 'Log Injection' },
+        { id: 'CAPEC-158', name: 'Log Injection' },
+        { id: 'CAPEC-159', name: 'Log Injection' }
+      ]
+    },
+    {
+      stride: 'Information Disclosure',
+      capecs: [
+        { id: 'CAPEC-116', name: 'Excessive Information Exposure' },
+        { id: 'CAPEC-117', name: 'Interception' },
+        { id: 'CAPEC-118', name: 'Data Mining' }
+      ]
+    },
+    {
+      stride: 'Denial of Service',
+      capecs: [
+        { id: 'CAPEC-125', name: 'Flooding' },
+        { id: 'CAPEC-126', name: 'Resource Depletion' },
+        { id: 'CAPEC-127', name: 'Resource Exhaustion' }
+      ]
+    },
+    {
+      stride: 'Elevation of Privilege',
+      capecs: [
+        { id: 'CAPEC-233', name: 'Privilege Escalation' },
+        { id: 'CAPEC-234', name: 'Privilege Escalation' },
+        { id: 'CAPEC-235', name: 'Privilege Escalation' }
+      ]
+    }
+  ];
+
+  return analyzeThreatsAndMitigations(systemInfo, basicStrideCapecMap, modelConfig);
+};
+
+/**
+ * Usa a IA para resumir e formatar a descrição geral do sistema a partir de um texto livre.
+ * @param fullDescription Texto livre informado pelo usuário sobre o sistema.
+ * @param modelConfig Configuração do modelo de IA a ser usado.
+ * @returns Objeto SystemInfo estruturado.
+ */
 export const summarizeSystemDescription = async (
   fullDescription: string,
   modelConfig?: any
