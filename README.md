@@ -18,7 +18,7 @@ Plataforma avançada de modelagem de ameaças que utiliza múltiplos provedores 
 - **Análise automática de fluxos**: Detecta cross-boundary e dados não criptografados
 - **Exportação/Importação** de diagramas em JSON
 
-![Editor Visual de Diagramas](src/frontend/src/pictures/visualEditor.png)
+![Editor Visual de Diagramas](./visualEditor.png)
 *Editor visual com drag-and-drop, trust boundaries e análise automática de fluxos*
 
 ### 🤖 Threat Modeling com IA
@@ -288,7 +288,7 @@ Acesse: `http://localhost:5173`
 - **Cache Inteligente**: TTL configurável, reduz latência
 - **Busca Vetorial**: Neo4j com índices otimizados
 
-![Arquitetura RAG](src/frontend/src/pictures/rag-arch.jpg)
+![Arquitetura RAG](./rag-arch.jpg)
 *Arquitetura do sistema RAG com Neo4j, busca vetorial e cache inteligente*
 
 ## Estrutura do Projeto
